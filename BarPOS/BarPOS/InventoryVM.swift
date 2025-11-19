@@ -456,7 +456,34 @@ final class InventoryVM: ObservableObject {
         chipsOutstandingByType[type] = max(0, cur - count)
         saveState()
     }
-    
+    // MARK: - Staff Management
+    func addBartender(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        
+        let bartender = Bartender(name: trimmed)
+        bartenders.append(bartender)
+    }
+
+    func updateBartender(_ bartender: Bartender) {
+        guard let index = bartenders.firstIndex(where: { $0.id == bartender.id }) else { return }
+        bartenders[index] = bartender
+    }
+
+    func disableBartender(_ bartender: Bartender) {
+        guard let index = bartenders.firstIndex(where: { $0.id == bartender.id }) else { return }
+        bartenders[index].isActive = false
+    }
+
+    func enableBartender(_ bartender: Bartender) {
+        guard let index = bartenders.firstIndex(where: { $0.id == bartender.id }) else { return }
+        bartenders[index].isActive = true
+    }
+
+    // Update this existing computed property to only show active bartenders
+    var activeBartenders: [Bartender] {
+        bartenders.filter { $0.isActive }
+    }
     // MARK: - Staff seed
     func ensureDefaultBartenders() {
         if bartenders.isEmpty {

@@ -73,67 +73,69 @@ struct RegisterView: View {
             }
         }
         .padding()
-        .onAppear { vm.ensureAtLeastOneTab() }
+        .onAppear {
+            print("🔍 All bartenders: \(vm.bartenders.map { "\($0.name) - active: \($0.isActive)" })")
+            print("🔍 Active only: \(vm.bartenders.filter { $0.isActive }.map { $0.name })")
+        }
 
         // MARK: Sheets
-        .sheet(isPresented: $showingBeginSheet) {
-            BeginShiftSheet(
-                bartenders: vm.bartenders,
-                onStart: { bartender, openingCash in
-                    vm.beginShift(bartender: bartender, openingCash: openingCash)
+                .sheet(isPresented: $showingBeginSheet) {
+                    BeginShiftSheet(
+                        bartenders: vm.bartenders.filter { $0.isActive },
+                        onStart: { bartender, openingCash in
+                            vm.beginShift(bartender: bartender, openingCash: openingCash)
+                        }
+                    )
+                    .environmentObject(vm)
                 }
-            )
-            .environmentObject(vm)
-        }
-        .sheet(isPresented: $showingEndSheet) {
-            EndShiftSheet()
-                .environmentObject(vm)
-        }
-        .sheet(isPresented: $showingSummary) {
-            if let res = vm.lastCloseResult {
-                SummarySheet(result: res) { showingSummary = false }
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
-        .sheet(isPresented: $showingShiftSummary) {
-            if let s = vm.currentShift {
-                ShiftSummarySheet(shift: s) {
-                    showingShiftSummary = false
+                .sheet(isPresented: $showingEndSheet) {
+                    EndShiftSheet()
+                        .environmentObject(vm)
                 }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { vm.lastShiftReport != nil },
-                set: { if !$0 { vm.lastShiftReport = nil } }
-            )
-        ) {
-            if let rep = vm.lastShiftReport {
-                ShiftReportSheet(report: rep) {
-                    vm.lastShiftReport = nil
+                .sheet(isPresented: $showingSummary) {
+                    if let res = vm.lastCloseResult {
+                        SummarySheet(result: res) { showingSummary = false }
+                            .presentationDetents([.large])
+                            .presentationDragIndicator(.visible)
+                    }
                 }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .sheet(isPresented: $showingShiftSummary) {
+                    if let s = vm.currentShift {
+                        ShiftSummarySheet(shift: s) {
+                            showingShiftSummary = false
+                        }
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
+                    }
+                }
+                .sheet(
+                    isPresented: Binding(
+                        get: { vm.lastShiftReport != nil },
+                        set: { if !$0 { vm.lastShiftReport = nil } }
+                    )
+                ) {
+                    if let rep = vm.lastShiftReport {
+                        ShiftReportSheet(report: rep) {
+                            vm.lastShiftReport = nil
+                        }
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
+                    }
+                }
+                .alert("Unsettled Tabs", isPresented: $showUnsettledAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    ScrollView {
+                        Text("Please settle the following tabs before ending the shift:")
+                            .bold()
+                            .padding(.bottom, 6)
+                        Text(unsettledAlertText)
+                            .font(.footnote)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .frame(maxHeight: 200)
+                }
             }
-        }
-        .alert("Unsettled Tabs", isPresented: $showUnsettledAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            ScrollView {
-                Text("Please settle the following tabs before ending the shift:")
-                    .bold()
-                    .padding(.bottom, 6)
-                Text(unsettledAlertText)
-                    .font(.footnote)
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(maxHeight: 200)
-        }
-    }
-
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
             VStack(spacing: 0) {

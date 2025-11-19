@@ -35,6 +35,19 @@ public enum ChipType: String, Codable, Hashable, CaseIterable {
     }
 }
 
+// MARK: - Bartender
+struct Bartender: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var isActive: Bool = true
+    
+    init(id: UUID = UUID(), name: String, isActive: Bool = true) {
+        self.id = id
+        self.name = name
+        self.isActive = isActive
+    }
+}
+
 // ===== SINGLE SOURCE OF TRUTH =====
 // MARK: - Product Categories
 enum ProductCategory: String, Codable, CaseIterable, Identifiable {

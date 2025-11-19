@@ -1,29 +1,19 @@
 import Foundation
 
-public struct Bartender: Identifiable, Codable, Hashable {
-    public let id: UUID
-    public var name: String
-
-    public init(id: UUID = UUID(), name: String) {
-        self.id = id
-        self.name = name
-    }
-}
-
 // MARK: - Payments & Metrics
 
-public enum PaymentKind: String, Codable, Hashable, CaseIterable {
+enum PaymentKind: String, Codable, Hashable, CaseIterable {
     case cash, card, other
 }
 
-public struct ShiftMetrics: Codable, Hashable {
-    public var tabsCount: Int
-    public var grossSales: Decimal
-    public var netSales: Decimal
-    public var taxCollected: Decimal
-    public var byPayment: [PaymentKind: Decimal]
+struct ShiftMetrics: Codable, Hashable {
+    var tabsCount: Int
+    var grossSales: Decimal
+    var netSales: Decimal
+    var taxCollected: Decimal
+    var byPayment: [PaymentKind: Decimal]
 
-    public init(
+    init(
         tabsCount: Int = 0,
         grossSales: Decimal = 0,
         netSales: Decimal = 0,
@@ -40,26 +30,26 @@ public struct ShiftMetrics: Codable, Hashable {
 
 // MARK: - Shift
 
-public struct ShiftRecord: Identifiable, Codable, Hashable {
-    public let id: UUID
-    public var startedAt: Date
-    public var openedBy: Bartender?
-    public var openingCash: Decimal?
+struct ShiftRecord: Identifiable, Codable, Hashable {
+    let id: UUID
+    var startedAt: Date
+    var openedBy: Bartender?
+    var openingCash: Decimal?
 
-    public var endedAt: Date?
-    public var closedBy: Bartender?
-    public var closingCash: Decimal?
+    var endedAt: Date?
+    var closedBy: Bartender?
+    var closingCash: Decimal?
 
-    public var metrics: ShiftMetrics
+    var metrics: ShiftMetrics
 
-    public init(id: UUID = UUID(),
-                startedAt: Date = Date(),
-                openedBy: Bartender? = nil,
-                openingCash: Decimal? = nil,
-                endedAt: Date? = nil,
-                closedBy: Bartender? = nil,
-                closingCash: Decimal? = nil,
-                metrics: ShiftMetrics = ShiftMetrics()) {
+    init(id: UUID = UUID(),
+         startedAt: Date = Date(),
+         openedBy: Bartender? = nil,
+         openingCash: Decimal? = nil,
+         endedAt: Date? = nil,
+         closedBy: Bartender? = nil,
+         closingCash: Decimal? = nil,
+         metrics: ShiftMetrics = ShiftMetrics()) {
         self.id = id
         self.startedAt = startedAt
         self.openedBy = openedBy

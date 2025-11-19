@@ -3,7 +3,7 @@ import SwiftUI
 
 struct AdminView: View {
     @EnvironmentObject var vm: InventoryVM
-
+    
     var body: some View {
         NavigationStack {
             List {
@@ -16,7 +16,7 @@ struct AdminView: View {
                         Label("Backups", systemImage: "externaldrive.fill.badge.icloud")
                     }
                 }
-
+                
                 // MARK: - Catalog
                 Section("Catalog") {
                     NavigationLink {
@@ -26,7 +26,7 @@ struct AdminView: View {
                         Label("Products", systemImage: "shippingbox")
                     }
                 }
-
+                
                 // MARK: - Operations
                 Section("Operations") {
                     NavigationLink {
@@ -35,7 +35,7 @@ struct AdminView: View {
                     } label: {
                         Label("Chips", systemImage: "circle.grid.2x2.fill")
                     }
-
+                    
                     NavigationLink {
                         AdminReportsView()
                             .environmentObject(vm)
@@ -43,11 +43,14 @@ struct AdminView: View {
                         Label("Reports", systemImage: "doc.plaintext")
                     }
                 }
-
+                
                 // MARK: - Staff
                 Section("Staff") {
-                    ForEach(vm.bartenders, id: \.id) { b in
-                        Text(b.name)
+                    NavigationLink {
+                        AdminStaffView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Staff", systemImage: "person.2.fill")
                     }
                 }
             }

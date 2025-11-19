@@ -6,27 +6,18 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct BarPOSApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @StateObject private var vm = InventoryVM()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppShell()
+                .environmentObject(vm)
+                .onAppear {
+                    DemoSeeder.seed(into: vm)
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }

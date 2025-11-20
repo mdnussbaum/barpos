@@ -494,6 +494,10 @@ final class InventoryVM: ObservableObject {
             ]
         }
     }
+    func toggle86d(_ product: Product) {
+        guard let index = products.firstIndex(where: { $0.id == product.id }) else { return }
+        products[index].is86d.toggle()
+    }
     
     // MARK: - Persistence
     struct PersistedState: Codable {

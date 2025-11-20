@@ -34,7 +34,30 @@ public enum ChipType: String, Codable, Hashable, CaseIterable {
         }
     }
 }
-
+// MARK: - Unit of Measure
+enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
+    case each = "each"
+    case bottle = "bottle"
+    case case_ = "case"
+    case oz = "oz"
+    case liter = "liter"
+    case gallon = "gallon"
+    case keg = "keg"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .each: return "Each"
+        case .bottle: return "Bottle"
+        case .case_: return "Case"
+        case .oz: return "oz"
+        case .liter: return "Liter"
+        case .gallon: return "Gallon"
+        case .keg: return "Keg"
+        }
+    }
+}
 // MARK: - Bartender
 struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
@@ -69,14 +92,39 @@ enum ProductCategory: String, Codable, CaseIterable, Identifiable {
 }
 
 // MARK: - Product
-// ===== PATCH 1: Product gains displayOrder for saved ordering =====
 struct Product: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var name: String
     var category: ProductCategory
     var price: Decimal
     var isHidden: Bool = false
-    var displayOrder: Int = 0      // ← new, defaults to 0 for old JSON
+    var displayOrder: Int = 0
+    
+    // Inventory tracking
+    var stockQuantity: Decimal? = nil
+    var parLevel: Decimal? = nil
+    var unit: UnitOfMeasure = .each
+    
+    // Cost & profit
+    var cost: Decimal? = nil
+    
+    // Supplier info
+    var supplier: String? = nil
+    var supplierSKU: String? = nil
+    
+    // Status
+    var is86d: Bool = false
+    
+    // Computed properties
+    var profitMargin: Decimal? {
+        guard let cost = cost, cost > 0 else { return nil }
+        return ((price - cost) / price) * 100
+    }
+    
+    var isLowStock: Bool {
+        guard let stock = stockQuantity, let par = parLevel else { return false }
+        return stock < par
+    }
 }
 
 // MARK: - Core models

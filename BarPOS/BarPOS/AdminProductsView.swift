@@ -60,20 +60,44 @@ struct AdminProductsView: View {
                         .listRowBackground(Color.clear)
                 } else {
                     ForEach(filteredProducts) { p in
-                        Button { beginEdit(existing: p) } label: {
-                            ProductRow(product: p)
+                        HStack(spacing: 8) {
+                            Button { beginEdit(existing: p) } label: {
+                                ProductRow(product: p)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            // Quick action buttons
+                            HStack(spacing: 4) {
+                                Button {
+                                    var updated = p
+                                    updated.is86d.toggle()
+                                    vm.updateProduct(updated)
+                                } label: {
+                                    Image(systemName: p.is86d ? "checkmark.circle.fill" : "xmark.circle")
+                                        .foregroundStyle(p.is86d ? .green : .orange)
+                                        .font(.title3)
+                                }
+                                .buttonStyle(.plain)
+                                
+                                Button { beginEdit(existing: p) } label: {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .foregroundStyle(.blue)
+                                        .font(.title3)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) { vm.deleteProducts([p.id]) } label: {
                                 Label("Delete", systemImage: "trash")
                             }
                             Button { vm.duplicateProduct(p) } label: {
                                 Label("Duplicate", systemImage: "plus.square.on.square")
                             }
+                            .tint(.blue)
                         }
                     }
-                    // Enable drag-to-reorder when Sort == .order
                     .onMove { from, to in
                         guard sort == .order else { return }
                         reorderVisible(fromOffsets: from, toOffset: to)
@@ -85,31 +109,31 @@ struct AdminProductsView: View {
         .navigationTitle("Products")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        if sort == .order {
-                            EditButton()
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Button { beginNew() } label: {
-                                Label("Add Product", systemImage: "plus")
-                            }
-                            
-                            Divider()
-                            
-                            Button { showingDefaultOrderSheet = true } label: {
-                                Label("Edit Default Order", systemImage: "arrow.up.arrow.down")
-                            }
-                            
-                            Button { showingBartenderOrdersSheet = true } label: {
-                                Label("Manage Bartender Orders", systemImage: "person.2")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                    }
+            ToolbarItem(placement: .topBarLeading) {
+                if sort == .order {
+                    EditButton()
                 }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { beginNew() } label: {
+                        Label("Add Product", systemImage: "plus")
+                    }
+                    
+                    Divider()
+                    
+                    Button { showingDefaultOrderSheet = true } label: {
+                        Label("Edit Default Order", systemImage: "arrow.up.arrow.down")
+                    }
+                    
+                    Button { showingBartenderOrdersSheet = true } label: {
+                        Label("Manage Bartender Orders", systemImage: "person.2")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .sheet(isPresented: $showingEditor) {
             NavigationStack {
                 ProductEditSheet(draft: $draft) { result in
@@ -123,19 +147,20 @@ struct AdminProductsView: View {
                     showingEditor = false
                 }
             }
+            .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showingDefaultOrderSheet) {
-                    NavigationStack {
-                        DefaultOrderSheet()
-                            .environmentObject(vm)
-                    }
-                }
-                .sheet(isPresented: $showingBartenderOrdersSheet) {
-                    NavigationStack {
-                        BartenderOrdersSheet()
-                            .environmentObject(vm)
-                    }
-                }
+            NavigationStack {
+                DefaultOrderSheet()
+                    .environmentObject(vm)
+            }
+        }
+        .sheet(isPresented: $showingBartenderOrdersSheet) {
+            NavigationStack {
+                BartenderOrdersSheet()
+                    .environmentObject(vm)
+            }
+        }
     }
 
     private var filteredProducts: [Product] {
@@ -159,6 +184,7 @@ struct AdminProductsView: View {
         isNew = true
         showingEditor = true
     }
+    
     private func beginEdit(existing: Product) {
         draft = existing
         isNew = false
@@ -198,27 +224,95 @@ struct ProductEditSheet: View {
 
     @State private var name: String = ""
     @State private var priceString: String = ""
+    @State private var costString: String = ""
+    @State private var stockString: String = ""
+    @State private var parString: String = ""
+    @State private var supplier: String = ""
+    @State private var supplierSKU: String = ""
 
     var body: some View {
         Form {
+            // MARK: - Basics
             Section("Basics") {
                 TextField("Name", text: $name)
                     .textInputAutocapitalization(.words)
+                
                 Picker("Category", selection: $draft.category) {
                     ForEach(ProductCategory.allCases) { c in
                         Text(c.displayName).tag(c)
                     }
                 }
+                
+                Toggle("Hide from register", isOn: $draft.isHidden)
+                Toggle("86'd (Out of Stock)", isOn: $draft.is86d)
+            }
+            
+            // MARK: - Pricing
+            Section("Pricing") {
                 HStack {
-                    Text("Price")
+                    Text("Sell Price")
+                    Spacer()
                     TextField("0.00", text: $priceString)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
-                Toggle("Hide from register", isOn: $draft.isHidden)
+                
+                HStack {
+                    Text("Cost")
+                    Spacer()
+                    TextField("0.00", text: $costString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                if let margin = draft.profitMargin {
+                    HStack {
+                        Text("Profit Margin")
+                        Spacer()
+                        Text("\(Int((margin as NSDecimalNumber).doubleValue.rounded()))%")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            
+            // MARK: - Inventory
+            Section("Inventory") {
+                Picker("Unit", selection: $draft.unit) {
+                    ForEach(UnitOfMeasure.allCases) { unit in
+                        Text(unit.displayName).tag(unit)
+                    }
+                }
+                
+                HStack {
+                    Text("Current Stock")
+                    Spacer()
+                    TextField("0", text: $stockString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    Text(draft.unit.displayName)
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Text("Par Level")
+                    Spacer()
+                    TextField("0", text: $parString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    Text(draft.unit.displayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            // MARK: - Supplier
+            Section("Supplier") {
+                TextField("Supplier Name", text: $supplier)
+                    .textInputAutocapitalization(.words)
+                
+                TextField("Supplier SKU/Code", text: $supplierSKU)
             }
         }
-        .navigationTitle("Product")
+        .navigationTitle(name.isEmpty ? "New Product" : name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -226,25 +320,47 @@ struct ProductEditSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
-                    if let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) {
-                        draft.price = price
-                        draft.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        onComplete(.save(draft))
-                    }
+                    saveProduct()
                 }
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) == nil)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty ||
+                         Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) == nil)
             }
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
-                Button(role: .destructive) { onComplete(.delete(draft.id)) } label: {
+                Button(role: .destructive) {
+                    onComplete(.delete(draft.id))
+                } label: {
                     Label("Delete", systemImage: "trash")
                 }
             }
         }
         .onAppear {
-            name = draft.name
-            priceString = draft.price.currencyEditingString()
+            loadValues()
         }
+    }
+    
+    private func loadValues() {
+        name = draft.name
+        priceString = draft.price.currencyEditingString()
+        costString = draft.cost?.currencyEditingString() ?? ""
+        stockString = draft.stockQuantity?.plainString() ?? ""
+        parString = draft.parLevel?.plainString() ?? ""
+        supplier = draft.supplier ?? ""
+        supplierSKU = draft.supplierSKU ?? ""
+    }
+    
+    private func saveProduct() {
+        guard let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else { return }
+        
+        draft.name = name.trimmingCharacters(in: .whitespaces)
+        draft.price = price
+        draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
+        draft.stockQuantity = Decimal(string: stockString)
+        draft.parLevel = Decimal(string: parString)
+        draft.supplier = supplier.isEmpty ? nil : supplier
+        draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
+        
+        onComplete(.save(draft))
     }
 
     enum Result { case save(Product), delete(UUID), cancel }
@@ -253,36 +369,93 @@ struct ProductEditSheet: View {
 // MARK: - Row
 struct ProductRow: View {
     let product: Product
+    
     var body: some View {
         HStack(spacing: 12) {
+            // Icon
             Image(systemName: "shippingbox")
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                .frame(width: 24)
+            
+            // Main info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
                     Text(product.name)
-                        .font(.body).fontWeight(.medium)
+                        .font(.body)
+                        .fontWeight(.medium)
                         .lineLimit(1)
+                    
+                    // Status badges
+                    if product.is86d {
+                        Badge(text: "86'd", color: .red)
+                    }
+                    if product.isLowStock {
+                        Badge(text: "Low", color: .orange)
+                    }
                     if product.isHidden {
-                        Label("Hidden", systemImage: "eye.slash")
-                            .labelStyle(.iconOnly)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(Capsule())
+                        Badge(text: "Hidden", color: .gray)
                     }
                 }
-                Text(product.category.displayName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                
+                HStack(spacing: 8) {
+                    Text(product.category.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    if let supplier = product.supplier {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Text(supplier)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    if let stock = product.stockQuantity {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Text("\(stock.plainString()) \(product.unit.displayName)")
+                            .font(.caption)
+                            .foregroundStyle(product.isLowStock ? .orange : .secondary)
+                    }
+                }
             }
-            Spacer()
-            Text(product.price.currencyString())
-                .font(.body)
-                .monospacedDigit()
+            
+            Spacer(minLength: 8)
+            
+            // Price & margin
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(product.price.currencyString())
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+                
+                if let margin = product.profitMargin {
+                    Text("\(Int((margin as NSDecimalNumber).doubleValue.rounded()))%")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+            }
         }
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Status Badge
+struct Badge: View {
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .fontWeight(.medium)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color)
+            .clipShape(Capsule())
     }
 }
 
@@ -347,6 +520,14 @@ private extension Decimal {
         f.minimumFractionDigits = 0
         f.maximumFractionDigits = 2
         f.minimumIntegerDigits = 1
+        f.numberStyle = .decimal
+        return f.string(from: ns) ?? "\(self)"
+    }
+    func plainString() -> String {
+        let ns = self as NSDecimalNumber
+        let f = NumberFormatter()
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 2
         f.numberStyle = .decimal
         return f.string(from: ns) ?? "\(self)"
     }

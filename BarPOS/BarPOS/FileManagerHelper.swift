@@ -2,6 +2,14 @@
 //  FileManagerHelper.swift
 //  BarPOS
 //
+//  Created by Michael Nussbaum on 11/21/25.
+//
+
+
+//
+//  FileManagerHelper.swift
+//  BarPOS
+//
 
 import Foundation
 

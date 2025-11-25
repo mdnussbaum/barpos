@@ -104,6 +104,8 @@ struct Product: Identifiable, Codable, Hashable {
     var stockQuantity: Decimal? = nil
     var parLevel: Decimal? = nil
     var unit: UnitOfMeasure = .each
+    var servingSize: Decimal? = nil
+    var servingUnit: UnitOfMeasure? = nil
     
     // Cost & profit
     var cost: Decimal? = nil
@@ -116,16 +118,70 @@ struct Product: Identifiable, Codable, Hashable {
     var is86d: Bool = false
     
     // Computed properties
-    var profitMargin: Decimal? {
-        guard let cost = cost, cost > 0 else { return nil }
-        return ((price - cost) / price) * 100
+        var profitMargin: Decimal? {
+            guard let cost = cost, cost > 0 else { return nil }
+            return ((price - cost) / price) * 100
+        }
+        
+        var costPerServing: Decimal? {
+            guard let cost = cost,
+                  let servingSize = servingSize,
+                  servingSize > 0 else { return nil }
+            
+            // If serving unit matches stock unit, it's simple
+            if servingUnit == nil || servingUnit == unit {
+                return cost / servingSize
+            }
+            
+            // Otherwise we need conversion (we'll handle common cases)
+            return convertedCostPerServing(baseCost: cost)
+        }
+        
+        private func convertedCostPerServing(baseCost: Decimal) -> Decimal? {
+            guard let servingSize = servingSize,
+                  let servingUnit = servingUnit else { return nil }
+            
+            // Handle common conversions
+            let conversionFactor = getConversionFactor(from: unit, to: servingUnit)
+            guard let factor = conversionFactor else { return nil }
+            
+            // Cost per base unit * conversion factor / serving size
+            return (baseCost * factor) / servingSize
+        }
+        
+        private func getConversionFactor(from: UnitOfMeasure, to: UnitOfMeasure) -> Decimal? {
+            // Same unit = 1
+            if from == to { return 1 }
+            
+            // Common conversions
+            switch (from, to) {
+            case (.gallon, .oz): return 128
+            case (.liter, .oz): return 33.814
+            case (.bottle, .oz): return 12  // Assuming standard 12oz bottle
+            case (.keg, .oz): return 1984   // Half barrel keg
+            default: return nil
+            }
+        }
+        
+        var servingsPerUnit: Decimal? {
+            guard let servingSize = servingSize, servingSize > 0 else { return nil }
+            
+            if servingUnit == nil || servingUnit == unit {
+                return 1 / servingSize
+            }
+            
+            if let factor = getConversionFactor(from: unit, to: servingUnit ?? .each) {
+                return factor / servingSize
+            }
+            
+            return nil
+        }
+        
+        var isLowStock: Bool {
+            guard let stock = stockQuantity, let par = parLevel else { return false }
+            return stock < par
+        }
     }
-    
-    var isLowStock: Bool {
-        guard let stock = stockQuantity, let par = parLevel else { return false }
-        return stock < par
-    }
-}
 
 // MARK: - Core models
 

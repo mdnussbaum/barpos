@@ -7,7 +7,7 @@ struct EndShiftSheet: View {
     @State private var closingCashString: String = ""
     @State private var showUnsettledAlert = false
     @State private var unsettledDetail = ""
-
+    
     var body: some View {
         NavigationStack {
             List {
@@ -53,12 +53,13 @@ struct EndShiftSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Finish") {
-                        // Guard on any open tabs
+                        // Check for unsettled tabs
                         if vm.hasUnsettledTabs {
                             unsettledDetail = vm.unsettledTabs.map { tab in
                                 let items = tab.lines.map { "• \($0.qty)x \($0.product.name)" }.joined(separator: "\n")
                                 return "\(tab.name)\n\(items)"
                             }.joined(separator: "\n\n")
+                            
                             showUnsettledAlert = true
                             return
                         }
@@ -66,24 +67,34 @@ struct EndShiftSheet: View {
                         // Require a valid counted-cash entry
                         guard let counted = Decimal(string: closingCashString) else { return }
 
+                        // Settle shift
                         if vm.settleShift(closingCash: counted) {
                             dismiss()
-                        } else {
-                            // Shouldn’t happen because we check above, but keep a fallback
-                            showUnsettledAlert = true
                         }
                     }
                     .disabled(vm.currentShift == nil)
                 }
             }
             .onAppear {
-                // Start empty so they have to type the counted amount
                 closingCashString = ""
             }
-            .alert("Unsettled Tabs", isPresented: $showUnsettledAlert) {
-                Button("OK", role: .cancel) {}
+            .confirmationDialog("Unsettled Tabs", isPresented: $showUnsettledAlert) {
+                Button("Close All Tabs", role: .destructive) {
+                    vm.closeAllUnsettledTabs()
+                    if let counted = Decimal(string: closingCashString) {
+                        _ = vm.settleShift(closingCash: counted)
+                        dismiss()
+                    }
+                }
+                Button("Carry Over to Next Shift") {
+                    if let counted = Decimal(string: closingCashString) {
+                        vm.settleShiftWithCarryOver(closingCash: counted)
+                        dismiss()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Close or clear the following tabs before ending the shift:\n\n\(unsettledDetail)")
+                Text("You have open tabs with items:\n\n\(unsettledDetail)\n\nWhat would you like to do?")
             }
         }
     }

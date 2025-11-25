@@ -353,78 +353,163 @@ final class InventoryVM: ObservableObject {
         let list = sortedProductsForCurrentBartender(category: category)
         return list.map(\.id)
     }
-    
+
     // MARK: - Shift lifecycle
-    func beginShift(bartender: Bartender, openingCash: Decimal?) {
-        print("🟢 Beginning shift for bartender: \(bartender.name)")
-        currentShift = ShiftRecord(
-            startedAt: Date(),
-            openedBy: bartender,
-            openingCash: openingCash,
-            metrics: ShiftMetrics()
-        )
-        closedTabs.removeAll()
-        nextTabSequence = 1
-        tabs.removeAll()
-        activeTabID = nil
-        ensureAtLeastOneTab()
-        saveState()
-    }
+        func beginShift(bartender: Bartender, openingCash: Decimal?) {
+            print("🟢 Beginning shift for bartender: \(bartender.name)")
+            
+            // Check if there are carryover tabs
+            let hasCarryoverTabs = !tabs.isEmpty
+            print("🟡 Carryover tabs: \(tabs.count)")
+            
+            currentShift = ShiftRecord(
+                startedAt: Date(),
+                openedBy: bartender,
+                openingCash: openingCash,
+                metrics: ShiftMetrics()
+            )
+            closedTabs.removeAll()
+            
+            // Only reset tabs if there are NO carryover tabs
+            if !hasCarryoverTabs {
+                nextTabSequence = 1
+                tabs.removeAll()
+                activeTabID = nil
+                ensureAtLeastOneTab()
+            }
+            // If there ARE carryover tabs, keep them and don't reset nextTabSequence
+            
+            saveState()
+        }
     
     @discardableResult
-    func settleShift(closingCash: Decimal?) -> Bool {
-        guard var s = currentShift else { return false }
-        guard !hasUnsettledTabs else { return false }
+        func settleShift(closingCash: Decimal?) -> Bool {
+            guard var s = currentShift else { return false }
+            guard !hasUnsettledTabs else { return false }
+            
+            s.endedAt = Date()
+            s.closedBy = s.openedBy
+            s.closingCash = closingCash
+            
+            let cashSales = s.metrics.byPayment[.cash] ?? 0
+            let expectedCash = (s.openingCash ?? 0) + cashSales
+            let overShort = (closingCash ?? 0) - expectedCash
+            
+            let threshold: Decimal = 5
+            let shouldFlag = abs(overShort) > threshold
+            let flagNote: String? = shouldFlag
+            ? "Over/Short of \(overShort.currencyString()) exceeds threshold"
+            : nil
+            
+            let report = ShiftReport(
+                bartenderID: s.openedBy?.id,
+                bartenderName: s.openedBy?.name ?? "Unknown",
+                startedAt: s.startedAt,
+                endedAt: s.endedAt!,
+                openingCash: s.openingCash,
+                closingCash: closingCash,
+                tabsCount: s.metrics.tabsCount,
+                grossSales: s.metrics.grossSales,
+                netSales: s.metrics.netSales,
+                taxCollected: s.metrics.taxCollected,
+                cashSales: s.metrics.byPayment[.cash] ?? 0,
+                cardSales: s.metrics.byPayment[.card] ?? 0,
+                otherSales: s.metrics.byPayment[.other] ?? 0,
+                expectedCash: expectedCash,
+                overShort: overShort,
+                tickets: closedTabs,
+                flagged: shouldFlag,
+                flagNote: flagNote
+            )
+            
+            shiftRecords.insert(s, at: 0)
+            shiftReports.insert(report, at: 0)
+            lastShiftReport = report
+            
+            currentShift = nil
+            closedTabs.removeAll()
+            nextTabSequence = 1
+            tabs.removeAll()
+            activeTabID = nil
+            
+            saveState()
+            return true
+        }
         
-        s.endedAt = Date()
-        s.closedBy = s.openedBy
-        s.closingCash = closingCash
+        // MARK: - Carry Over & Close All
+    // Close all tabs with items (don't carry over)
+        func closeAllUnsettledTabs() {
+            for tab in unsettledTabs {
+                // Switch to this tab and close it with $0 "other" payment
+                activeTabID = tab.id
+                _ = closeActiveTab(cashTendered: 0, method: .other)
+            }
+        }
         
-        let cashSales = s.metrics.byPayment[.cash] ?? 0
-        let expectedCash = (s.openingCash ?? 0) + cashSales
-        let overShort = (closingCash ?? 0) - expectedCash
-        
-        let threshold: Decimal = 5
-        let shouldFlag = abs(overShort) > threshold
-        let flagNote: String? = shouldFlag
-        ? "Over/Short of \(overShort.currencyString()) exceeds threshold"
-        : nil
-        
-        let report = ShiftReport(
-            bartenderID: s.openedBy?.id,
-            bartenderName: s.openedBy?.name ?? "Unknown",
-            startedAt: s.startedAt,
-            endedAt: s.endedAt!,
-            openingCash: s.openingCash,
-            closingCash: closingCash,
-            tabsCount: s.metrics.tabsCount,
-            grossSales: s.metrics.grossSales,
-            netSales: s.metrics.netSales,
-            taxCollected: s.metrics.taxCollected,
-            cashSales: s.metrics.byPayment[.cash] ?? 0,
-            cardSales: s.metrics.byPayment[.card] ?? 0,
-            otherSales: s.metrics.byPayment[.other] ?? 0,
-            expectedCash: expectedCash,
-            overShort: overShort,
-            tickets: closedTabs,
-            flagged: shouldFlag,
-            flagNote: flagNote
-        )
-        
-        shiftRecords.insert(s, at: 0)
-        shiftReports.insert(report, at: 0)
-        lastShiftReport = report
-        
-        currentShift = nil
-        closedTabs.removeAll()
-        nextTabSequence = 1
-        tabs.removeAll()
-        activeTabID = nil
-        
-        saveState()
-        return true
-    }
-    
+        // Settle shift but keep tabs for next shift
+        @discardableResult
+        func settleShiftWithCarryOver(closingCash: Decimal?) -> Bool {
+            guard var s = currentShift else { return false }
+            // Don't check for unsettled tabs - we're carrying them over
+            
+            s.endedAt = Date()
+            s.closedBy = s.openedBy
+            s.closingCash = closingCash
+            
+            let cashSales = s.metrics.byPayment[.cash] ?? 0
+            let expectedCash = (s.openingCash ?? 0) + cashSales
+            let overShort = (closingCash ?? 0) - expectedCash
+            
+            let threshold: Decimal = 5
+            let shouldFlag = abs(overShort) > threshold
+            let flagNote: String? = shouldFlag
+                ? "Over/Short of \(overShort.currencyString()) exceeds threshold. \(tabs.count) tab(s) carried over."
+                : "\(tabs.count) tab(s) carried over to next shift."
+            
+            let report = ShiftReport(
+                bartenderID: s.openedBy?.id,
+                bartenderName: s.openedBy?.name ?? "Unknown",
+                startedAt: s.startedAt,
+                endedAt: s.endedAt!,
+                openingCash: s.openingCash,
+                closingCash: closingCash,
+                tabsCount: s.metrics.tabsCount,
+                grossSales: s.metrics.grossSales,
+                netSales: s.metrics.netSales,
+                taxCollected: s.metrics.taxCollected,
+                cashSales: cashSales,
+                cardSales: s.metrics.byPayment[.card] ?? 0,
+                otherSales: s.metrics.byPayment[.other] ?? 0,
+                expectedCash: expectedCash,
+                overShort: overShort,
+                tickets: closedTabs,
+                flagged: shouldFlag,
+                flagNote: flagNote
+            )
+            
+            shiftRecords.insert(s, at: 0)
+            shiftReports.insert(report, at: 0)
+            lastShiftReport = report
+            
+            // Clear shift but KEEP tabs for carryover
+                        currentShift = nil
+                        closedTabs.removeAll()
+                        
+                        // Clean up: Remove any empty tabs before carryover
+                        let emptyTabIDs = tabs.filter { $0.value.lines.isEmpty }.map { $0.key }
+                        for id in emptyTabIDs {
+                            tabs.removeValue(forKey: id)
+                        }
+                        
+                        // If all tabs were empty, reset everything
+                        if tabs.isEmpty {
+                            nextTabSequence = 1
+                            activeTabID = nil
+                        }
+                        
+                        saveState()
+                        return true
+                    }
     // MARK: - Chips by type
     func chipOutstanding(_ type: ChipType) -> Int {
         chipsOutstandingByType[type, default: 0]
@@ -484,6 +569,7 @@ final class InventoryVM: ObservableObject {
     var activeBartenders: [Bartender] {
         bartenders.filter { $0.isActive }
     }
+    
     // MARK: - Staff seed
     func ensureDefaultBartenders() {
         if bartenders.isEmpty {

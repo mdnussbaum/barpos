@@ -2,6 +2,14 @@
 //  PDFGenerator.swift
 //  BarPOS
 //
+//  Created by Michael Nussbaum on 11/21/25.
+//
+
+
+//
+//  PDFGenerator.swift
+//  BarPOS
+//
 
 import Foundation
 import UIKit
@@ -92,11 +100,10 @@ struct PDFGenerator {
                 yPosition = drawKeyValue("Closing Cash:", value: closingCash.currencyString(), 
                                         at: yPosition, in: pageRect)
                 
-                if let overShort = report.overShort {
-                    let color: UIColor = overShort >= 0 ? .systemGreen : .systemRed
-                    yPosition = drawKeyValue("Over/Short:", value: overShort.currencyString(), 
-                                            at: yPosition, in: pageRect, valueColor: color)
-                }
+                let overShort = report.overShort
+                                let color: UIColor = overShort >= 0 ? .systemGreen : .systemRed
+                                yPosition = drawKeyValue("Over/Short:", value: overShort.currencyString(),
+                                                        at: yPosition, in: pageRect, valueColor: color)
                 
                 yPosition += 15
             }

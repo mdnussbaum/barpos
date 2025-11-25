@@ -227,6 +227,7 @@ struct ProductEditSheet: View {
     @State private var costString: String = ""
     @State private var stockString: String = ""
     @State private var parString: String = ""
+    @State private var servingSizeString: String = ""
     @State private var supplier: String = ""
     @State private var supplierSKU: String = ""
 
@@ -276,33 +277,71 @@ struct ProductEditSheet: View {
             }
             
             // MARK: - Inventory
-            Section("Inventory") {
-                Picker("Unit", selection: $draft.unit) {
-                    ForEach(UnitOfMeasure.allCases) { unit in
-                        Text(unit.displayName).tag(unit)
-                    }
-                }
-                
-                HStack {
-                    Text("Current Stock")
-                    Spacer()
-                    TextField("0", text: $stockString)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                    Text(draft.unit.displayName)
-                        .foregroundStyle(.secondary)
-                }
-                
-                HStack {
-                    Text("Par Level")
-                    Spacer()
-                    TextField("0", text: $parString)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                    Text(draft.unit.displayName)
-                        .foregroundStyle(.secondary)
-                }
-            }
+                        Section("Inventory") {
+                            Picker("Stock Unit", selection: $draft.unit) {
+                                ForEach(UnitOfMeasure.allCases) { unit in
+                                    Text(unit.displayName).tag(unit)
+                                }
+                            }
+                            
+                            HStack {
+                                Text("Current Stock")
+                                Spacer()
+                                TextField("0", text: $stockString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                Text(draft.unit.displayName)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Par Level")
+                                Spacer()
+                                TextField("0", text: $parString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                Text(draft.unit.displayName)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        // MARK: - Serving Size
+                        Section("Serving Size") {
+                            Picker("Serving Unit", selection: $draft.servingUnit) {
+                                Text("Same as stock").tag(nil as UnitOfMeasure?)
+                                ForEach(UnitOfMeasure.allCases) { unit in
+                                    Text(unit.displayName).tag(unit as UnitOfMeasure?)
+                                }
+                            }
+                            
+                            HStack {
+                                Text("Serving Size")
+                                Spacer()
+                                TextField("0", text: $servingSizeString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                                Text((draft.servingUnit ?? draft.unit).displayName)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            if let costPerServing = draft.costPerServing {
+                                HStack {
+                                    Text("Cost per Serving")
+                                    Spacer()
+                                    Text(costPerServing.currencyString())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            if let servingsPerUnit = draft.servingsPerUnit {
+                                HStack {
+                                    Text("Servings per \(draft.unit.displayName)")
+                                    Spacer()
+                                    Text("\(servingsPerUnit.plainString())")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
             
             // MARK: - Supplier
             Section("Supplier") {
@@ -340,28 +379,30 @@ struct ProductEditSheet: View {
     }
     
     private func loadValues() {
-        name = draft.name
-        priceString = draft.price.currencyEditingString()
-        costString = draft.cost?.currencyEditingString() ?? ""
-        stockString = draft.stockQuantity?.plainString() ?? ""
-        parString = draft.parLevel?.plainString() ?? ""
-        supplier = draft.supplier ?? ""
-        supplierSKU = draft.supplierSKU ?? ""
-    }
+            name = draft.name
+            priceString = draft.price.currencyEditingString()
+            costString = draft.cost?.currencyEditingString() ?? ""
+            stockString = draft.stockQuantity?.plainString() ?? ""
+            parString = draft.parLevel?.plainString() ?? ""
+            servingSizeString = draft.servingSize?.plainString() ?? ""
+            supplier = draft.supplier ?? ""
+            supplierSKU = draft.supplierSKU ?? ""
+        }
     
     private func saveProduct() {
-        guard let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else { return }
-        
-        draft.name = name.trimmingCharacters(in: .whitespaces)
-        draft.price = price
-        draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
-        draft.stockQuantity = Decimal(string: stockString)
-        draft.parLevel = Decimal(string: parString)
-        draft.supplier = supplier.isEmpty ? nil : supplier
-        draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
-        
-        onComplete(.save(draft))
-    }
+            guard let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else { return }
+            
+            draft.name = name.trimmingCharacters(in: .whitespaces)
+            draft.price = price
+            draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
+            draft.stockQuantity = Decimal(string: stockString)
+            draft.parLevel = Decimal(string: parString)
+            draft.servingSize = Decimal(string: servingSizeString)  
+            draft.supplier = supplier.isEmpty ? nil : supplier
+            draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
+            
+            onComplete(.save(draft))
+        }
 
     enum Result { case save(Product), delete(UUID), cancel }
 }

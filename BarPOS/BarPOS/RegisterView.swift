@@ -2,20 +2,18 @@ import SwiftUI
 
 struct RegisterView: View {
     @EnvironmentObject var vm: InventoryVM
-
+    
     // UI State
     @State private var cashGivenString: String = ""
     @State private var showingSummary = false
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
     @State private var showingShiftSummary = false
-    @State private var showUnsettledAlert = false
-    @State private var unsettledAlertText = ""
     @State private var payMethod: PaymentMethod = .cash
     @State private var showingReorderSheet = false
     @State private var selectedCategory: ProductCategory? = nil
     @State private var categoryToReorder: ProductCategory? = nil
-
+    
     var body: some View {
         ZStack {
             VStack {
@@ -26,7 +24,7 @@ struct RegisterView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-
+                
                 // Main 1/3 : 2/3 layout
                 HStack(alignment: .top, spacing: 16) {
                     leftColumn
@@ -38,7 +36,7 @@ struct RegisterView: View {
             // Disable + blur the register when not on shift
             .disabled(vm.currentShift == nil)
             .blur(radius: vm.currentShift == nil ? 2 : 0)
-
+            
             // Overlay when not on shift
             if vm.currentShift == nil {
                 ZStack {
@@ -46,16 +44,16 @@ struct RegisterView: View {
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .zIndex(1)
-
+                    
                     VStack(spacing: 12) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 48))
                             .foregroundColor(.white)
-
+                        
                         Text("Start a shift to use the register")
                             .font(.title3).bold()
                             .foregroundColor(.white)
-
+                        
                         Button {
                             showingBeginSheet = true
                         } label: {
@@ -77,212 +75,200 @@ struct RegisterView: View {
             print("🔍 All bartenders: \(vm.bartenders.map { "\($0.name) - active: \($0.isActive)" })")
             print("🔍 Active only: \(vm.bartenders.filter { $0.isActive }.map { $0.name })")
         }
-
+        
         // MARK: Sheets
-                .sheet(isPresented: $showingBeginSheet) {
-                    BeginShiftSheet(
-                        bartenders: vm.bartenders.filter { $0.isActive },
-                        onStart: { bartender, openingCash in
-                            vm.beginShift(bartender: bartender, openingCash: openingCash)
-                        }
-                    )
-                    .environmentObject(vm)
+        .sheet(isPresented: $showingBeginSheet) {
+            BeginShiftSheet(
+                bartenders: vm.bartenders.filter { $0.isActive },
+                carryoverTabs: Array(vm.tabs.values).filter { !$0.lines.isEmpty },
+                onStart: { bartender, openingCash in
+                    vm.beginShift(bartender: bartender, openingCash: openingCash)
                 }
-                .sheet(isPresented: $showingEndSheet) {
-                    EndShiftSheet()
-                        .environmentObject(vm)
-                }
-                .sheet(isPresented: $showingSummary) {
-                    if let res = vm.lastCloseResult {
-                        SummarySheet(result: res) { showingSummary = false }
-                            .presentationDetents([.large])
-                            .presentationDragIndicator(.visible)
-                    }
-                }
-                .sheet(isPresented: $showingShiftSummary) {
-                    if let s = vm.currentShift {
-                        ShiftSummarySheet(shift: s) {
-                            showingShiftSummary = false
-                        }
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
-                    }
-                }
-                .sheet(
-                    isPresented: Binding(
-                        get: { vm.lastShiftReport != nil },
-                        set: { if !$0 { vm.lastShiftReport = nil } }
-                    )
-                ) {
-                    if let rep = vm.lastShiftReport {
-                        ShiftReportSheet(report: rep) {
-                            vm.lastShiftReport = nil
-                        }
-                        .presentationDetents([.large])
-                        .presentationDragIndicator(.visible)
-                    }
-                }
-                .alert("Unsettled Tabs", isPresented: $showUnsettledAlert) {
-                    Button("OK", role: .cancel) { }
-                } message: {
-                    ScrollView {
-                        Text("Please settle the following tabs before ending the shift:")
-                            .bold()
-                            .padding(.bottom, 6)
-                        Text(unsettledAlertText)
-                            .font(.footnote)
-                            .multilineTextAlignment(.leading)
-                    }
-                    .frame(maxHeight: 200)
-                }
+            )
+            .environmentObject(vm)
+        }
+        .sheet(isPresented: $showingEndSheet) {
+            EndShiftSheet()
+                .environmentObject(vm)
+        }
+        .sheet(isPresented: $showingSummary) {
+            if let res = vm.lastCloseResult {
+                SummarySheet(result: res) { showingSummary = false }
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
+        }
+        .sheet(isPresented: $showingShiftSummary) {
+            if let s = vm.currentShift {
+                ShiftSummarySheet(shift: s) {
+                    showingShiftSummary = false
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { vm.lastShiftReport != nil },
+                set: { if !$0 { vm.lastShiftReport = nil } }
+            )
+        ) {
+            if let rep = vm.lastShiftReport {
+                ShiftReportSheet(report: rep) {
+                    vm.lastShiftReport = nil
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+        }
+    }
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
-            VStack(spacing: 0) {
-                // Tab strip - fixed at top
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(vm.tabIDsForUI, id: \.self) { id in
-                            Button { vm.selectTab(id: id) } label: {
-                                Text(vm.tabDisplayName(id: id))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
-                                    .clipShape(Capsule())
-                            }
+        VStack(spacing: 0) {
+            // Tab strip - fixed at top
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(vm.tabIDsForUI, id: \.self) { id in
+                        Button { vm.selectTab(id: id) } label: {
+                            Text(vm.tabDisplayName(id: id))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
+                                .clipShape(Capsule())
                         }
                     }
-                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 8)
-                
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        // Rename + trash (trash only deletes when EMPTY)
-                        HStack {
-                    TextField("Tab name", text: Binding(
-                        get: { vm.activeTab?.name ?? "" },
-                        set: { vm.renameActiveTab($0) }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-
-                    Button(role: .destructive) {
-                        vm.deleteActiveTabIfEmpty()
-                    } label: {
-                        Image(systemName: "trash")
+                .padding(.vertical, 4)
+            }
+            .padding(.horizontal, 8)
+            
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Rename + trash (trash only deletes when EMPTY)
+                    HStack {
+                        TextField("Tab name", text: Binding(
+                            get: { vm.activeTab?.name ?? "" },
+                            set: { vm.renameActiveTab($0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        
+                        Button(role: .destructive) {
+                            vm.deleteActiveTabIfEmpty()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .disabled(!vm.activeLines.isEmpty)
                     }
-                    .disabled(!vm.activeLines.isEmpty)
-                }
-
-                // New Tab
-                Button { vm.createNewTab() } label: {
-                    Label("New Tab", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.bottom, 6)
-
-                // Current ticket lines
-                if vm.activeLines.isEmpty {
-                    Text("No items yet")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    List {
-                        ForEach(vm.activeLines) { line in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(line.product.name)
-                                    Text("@ \(line.product.price.currencyString())")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                    
+                    // New Tab
+                    Button { vm.createNewTab() } label: {
+                        Label("New Tab", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.bottom, 6)
+                    
+                    // Current ticket lines
+                    if vm.activeLines.isEmpty {
+                        Text("No items yet")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        List {
+                            ForEach(vm.activeLines) { line in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(line.product.name)
+                                        Text("@ \(line.product.price.currencyString())")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    
+                                    // quantity badge
+                                    Text("×\(line.qty)")
+                                        .font(.headline)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(.tertiarySystemFill))
+                                        .clipShape(Capsule())
+                                    
+                                    // MINUS only
+                                    Button {
+                                        vm.decrementLine(lineID: line.id)
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .imageScale(.large)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.leading, 4)
+                                    .accessibilityLabel("Decrease \(line.product.name)")
                                 }
-                                Spacer()
-
-                                // quantity badge
-                                Text("×\(line.qty)")
-                                    .font(.headline)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(.tertiarySystemFill))
-                                    .clipShape(Capsule())
-
-                                // MINUS only
-                                Button {
-                                    vm.decrementLine(lineID: line.id)
-                                } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .imageScale(.large)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.leading, 4)
-                                .accessibilityLabel("Decrease \(line.product.name)")
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button {
-                                    vm.decrementLine(lineID: line.id)
-                                } label: {
-                                    Label("Decrease", systemImage: "minus.circle")
-                                }
-
-                                Button(role: .destructive) {
-                                    vm.removeLine(lineID: line.id)
-                                } label: {
-                                    Label("Remove", systemImage: "trash")
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button {
+                                        vm.decrementLine(lineID: line.id)
+                                    } label: {
+                                        Label("Decrease", systemImage: "minus.circle")
+                                    }
+                                    
+                                    Button(role: .destructive) {
+                                        vm.removeLine(lineID: line.id)
+                                    } label: {
+                                        Label("Remove", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
+                        .listStyle(.plain)
+                        .frame(minHeight: 400)
                     }
-                    .listStyle(.plain)
-                    .frame(minHeight: 400)
+                    
                 }
-
-                    }
-                                    .padding(.bottom, 240)
-                                }
-                                
-                // Totals + Chips - anchored at bottom as one unit
-                            VStack(spacing: 4) {
-                                totalsCard
-                                chipActionsSection
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, 8)
-                            }
-                        }
-
+                .padding(.bottom, 240)
+            }
+            
+            // Totals + Chips - anchored at bottom as one unit
+            VStack(spacing: 4) {
+                totalsCard
+                chipActionsSection
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
+        }
+    }
+    
     // MARK: - Right column (category + products OR chips)
     private var rightColumn: some View {
         VStack(spacing: 12) {
             HStack {
-                            categoryBar
-                            // Reorder button with category menu
-                            Menu {
-                                Button {
-                                    categoryToReorder = nil
-                                    showingReorderSheet = true
-                                } label: {
-                                    Label("All Products", systemImage: "square.grid.2x2")
-                                }
-                                
-                                Divider()
-                                
-                                ForEach(ProductCategory.allCases.filter { $0 != .chips }) { category in
-                                    Button {
-                                        categoryToReorder = category
-                                        showingReorderSheet = true
-                                    } label: {
-                                        Label(category.displayName, systemImage: "square.grid.2x2")
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "arrow.up.arrow.down")
-                                    .font(.system(size: 16))
-                                    .padding(8)
-                                    .background(Color.accentColor.opacity(0.15))
-                                    .clipShape(Circle())
-                            }
-                            .buttonStyle(.plain)
+                categoryBar
+                // Reorder button with category menu
+                Menu {
+                    Button {
+                        categoryToReorder = nil
+                        showingReorderSheet = true
+                    } label: {
+                        Label("All Products", systemImage: "square.grid.2x2")
+                    }
+                    
+                    Divider()
+                    
+                    ForEach(ProductCategory.allCases.filter { $0 != .chips }) { category in
+                        Button {
+                            categoryToReorder = category
+                            showingReorderSheet = true
+                        } label: {
+                            Label(category.displayName, systemImage: "square.grid.2x2")
                         }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 16))
+                        .padding(8)
+                        .background(Color.accentColor.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
             
             if selectedCategory == .chips {
                 chipsGrid()
@@ -292,27 +278,27 @@ struct RegisterView: View {
             Spacer(minLength: 0)
         }
         .sheet(isPresented: $showingReorderSheet) {
-                    NavigationStack {
-                        ReorderProductsSheet(
+            NavigationStack {
+                ReorderProductsSheet(
+                    category: categoryToReorder,
+                    items: vm.sortedProductsForCurrentBartender(category: categoryToReorder),
+                    onSave: { ids in
+                        vm.setBartenderProductOrder(
+                            bartender: vm.currentShift!.openedBy!,
                             category: categoryToReorder,
-                            items: vm.sortedProductsForCurrentBartender(category: categoryToReorder),
-                            onSave: { ids in
-                                vm.setBartenderProductOrder(
-                                    bartender: vm.currentShift!.openedBy!,
-                                    category: categoryToReorder,
-                                    productIDs: ids
-                                )
-                            }
+                            productIDs: ids
                         )
                     }
-                }
+                )
+            }
+        }
     }
-
+    
     // Products shown based on selectedCategory (uses per-bartender order)
     private var visibleProducts: [Product] {
         vm.sortedProductsForCurrentBartender(category: selectedCategory)
     }
-
+    
     // Compact segmented picker for categories (nil = All)
     private var categoryBar: some View {
         Picker("Category", selection: $selectedCategory) {
@@ -323,7 +309,7 @@ struct RegisterView: View {
         }
         .pickerStyle(.segmented)
     }
-
+    
     // Reusable grid for a given product list
     private func productGrid(_ products: [Product]) -> some View {
         LazyVGrid(
@@ -378,95 +364,95 @@ struct RegisterView: View {
         }
     }
     // MARK: - Totals + Checkout (Quick Actions)
-        private var totalsCard: some View {
-            VStack(spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(vm.totalActive.currencyString())
-                        .font(.system(size: 24, weight: .bold))
-                    
-                    if payMethod == .cash {
-                        TextField("Tendered", text: $cashGivenString)
-                            .keyboardType(.decimalPad)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 120)
-                    }
-                }
+    private var totalsCard: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Text(vm.totalActive.currencyString())
+                    .font(.system(size: 24, weight: .bold))
                 
-                if payMethod == .cash, let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                    let change = tendered - vm.totalActive
-                    Text("Change: \(change.currencyString())")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                if payMethod == .cash {
+                    TextField("Tendered", text: $cashGivenString)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 120)
                 }
-                
-                HStack(spacing: 4) {
-                    paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                    paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                    paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
-                }
-                
-                Button {
-                    switch payMethod {
-                    case .cash:
-                        guard let cash = Decimal(string: cashGivenString) else { return }
-                        if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
-                            cashGivenString = ""
-                            showingSummary = true
-                        }
-                    case .card:
-                        if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
-                            showingSummary = true
-                        }
-                    case .other:
-                        if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
-                            showingSummary = true
-                        }
-                    }
-                } label: {
-                    Label("Close Tab", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled({
-                    if vm.activeLines.isEmpty { return true }
-                    if payMethod == .cash {
-                        let tendered = Decimal(string: cashGivenString) ?? 0
-                        return tendered < vm.totalActive
-                    }
-                    return false
-                }())
             }
-            .padding(8)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        }
-        
-        private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
+            
+            if payMethod == .cash, let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
+                let change = tendered - vm.totalActive
+                Text("Change: \(change.currencyString())")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+            
+            HStack(spacing: 4) {
+                paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
+                paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
+                paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
+            }
+            
             Button {
-                payMethod = method
-            } label: {
-                VStack(spacing: 1) {
-                    Image(systemName: icon)
-                        .font(.caption)
-                    Text(label)
-                        .font(.caption2)
+                switch payMethod {
+                case .cash:
+                    guard let cash = Decimal(string: cashGivenString) else { return }
+                    if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
+                        cashGivenString = ""
+                        showingSummary = true
+                    }
+                case .card:
+                    if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
+                        showingSummary = true
+                    }
+                case .other:
+                    if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
+                        showingSummary = true
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .background(payMethod == method ? Color.accentColor : Color(.tertiarySystemFill))
-                .foregroundStyle(payMethod == method ? .white : .primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } label: {
+                Label("Close Tab", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled({
+                if vm.activeLines.isEmpty { return true }
+                if payMethod == .cash {
+                    let tendered = Decimal(string: cashGivenString) ?? 0
+                    return tendered < vm.totalActive
+                }
+                return false
+            }())
         }
-  
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+    
+    private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
+        Button {
+            payMethod = method
+        } label: {
+            VStack(spacing: 1) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(label)
+                    .font(.caption2)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .background(payMethod == method ? Color.accentColor : Color(.tertiarySystemFill))
+            .foregroundStyle(payMethod == method ? .white : .primary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+    
     // MARK: - Chip Actions Section
-        private var chipActionsSection: some View {
-            VStack(alignment: .leading, spacing: 6) {
-                // Sell row
-                HStack(spacing: 6) {
+    private var chipActionsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Sell row
+            HStack(spacing: 6) {
                 Text("Sell")
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -519,7 +505,7 @@ struct RegisterView: View {
     private enum ChipAction {
         case sell, redeem
     }
-
+    
     // MARK: - Shift chip (smart)
     private var shiftStatusChip: some View {
         Group {
@@ -531,17 +517,9 @@ struct RegisterView: View {
                     } label: {
                         Label("Shift Summary", systemImage: "list.bullet.rectangle")
                     }
-
+                    
                     Button(role: .destructive) {
-                        if vm.hasUnsettledTabs {
-                            unsettledAlertText = vm.unsettledTabs.map { tab in
-                                let items = tab.lines.map { "• \($0.qty)x \($0.product.name)" }.joined(separator: "\n")
-                                return "\(tab.name)\n\(items)"
-                            }.joined(separator: "\n\n")
-                            showUnsettledAlert = true
-                        } else {
-                            showingEndSheet = true
-                        }
+                        showingEndSheet = true
                     } label: {
                         Label("End Shift…", systemImage: "rectangle.portrait.and.arrow.right")
                     }
@@ -555,7 +533,7 @@ struct RegisterView: View {
                         .clipShape(Capsule())
                         .accessibilityLabel("On shift. Elapsed \(elapsedString(since: shift.startedAt)). Gross \(vm.currentShiftGross.currencyString()).")
                 }
-
+                
             } else {
                 // No shift
                 Button { showingBeginSheet = true } label: {
@@ -571,7 +549,7 @@ struct RegisterView: View {
             }
         }
     }
-
+    
     // MARK: - Small helpers
     private func elapsedString(since start: Date) -> String {
         let secs = max(0, Int(Date().timeIntervalSince(start)))
@@ -579,55 +557,55 @@ struct RegisterView: View {
         let m = (secs % 3600) / 60
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
-}
-
-// MARK: - Reorder sheet (drag-and-drop per bartender)
-struct ReorderProductsSheet: View {
-    let category: ProductCategory?
-    @State var items: [Product]
-    var onSave: ([UUID]) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var editMode: EditMode = .active
-
-    var body: some View {
-        List {
-            ForEach(items) { p in
-                HStack {
-                    Image(systemName: "line.3.horizontal")
-                        .foregroundStyle(.secondary)
-                    Text(p.name)
-                    Spacer()
-                    Text(p.price.currencyString())
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    
+    // MARK: - Reorder sheet (drag-and-drop per bartender)
+    struct ReorderProductsSheet: View {
+        let category: ProductCategory?
+        @State var items: [Product]
+        var onSave: ([UUID]) -> Void
+        
+        @Environment(\.dismiss) private var dismiss
+        @State private var editMode: EditMode = .active
+        
+        var body: some View {
+            List {
+                ForEach(items) { p in
+                    HStack {
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundStyle(.secondary)
+                        Text(p.name)
+                        Spacer()
+                        Text(p.price.currencyString())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onMove { from, to in
+                    items.move(fromOffsets: from, toOffset: to)
                 }
             }
-            .onMove { from, to in
-                items.move(fromOffsets: from, toOffset: to)
-            }
-        }
-        .environment(\.editMode, $editMode)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Cancel") { dismiss() }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Save") {
-                    onSave(items.map(\.id))
-                    dismiss()
+            .environment(\.editMode, $editMode)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        onSave(items.map(\.id))
+                        dismiss()
+                    }
                 }
             }
         }
-    }
-
-    private var title: String {
-        if let c = category, c != .chips {
-            return "Reorder \(c.displayName)"
-        } else {
-            return "Reorder All"
+        
+        private var title: String {
+            if let c = category, c != .chips {
+                return "Reorder \(c.displayName)"
+            } else {
+                return "Reorder All"
+            }
         }
     }
 }

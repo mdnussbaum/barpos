@@ -8,6 +8,7 @@ struct AdminReportsView: View {
     @State private var toDate: Date = Date()
     @State private var showOnlyFlagged = false
     @State private var selectedBartender: String? = nil
+    @State private var presentingDayReport: DayReport?
 
     // MARK: - Sheet
     @State private var presentingReport: ShiftReport?
@@ -91,56 +92,70 @@ struct AdminReportsView: View {
                 }
 
                 // Bartender quick filter
-                if !bartenderNames.isEmpty {
-                    Menu {
-                        Button("All bartenders") { selectedBartender = nil }
-                        ForEach(bartenderNames, id: \.self) { name in
-                            Button(name) { selectedBartender = name }
+                                if !bartenderNames.isEmpty {
+                                    Menu {
+                                        Button("All bartenders") { selectedBartender = nil }
+                                        ForEach(bartenderNames, id: \.self) { name in
+                                            Button(name) { selectedBartender = name }
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Label("Bartender", systemImage: "person.2.fill")
+                                            Spacer()
+                                            Text(selectedBartender ?? "All")
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                
+                                // Generate Day Report button
+                                Button {
+                                    generateDayReport()
+                                } label: {
+                                    Label("Generate Day Report", systemImage: "calendar.badge.plus")
+                                }
+                                .buttonStyle(.bordered)
+                            } header: {
+                                Text("Filters")
+                            }
+
+                            // MARK: Summary
+                            if !filteredReports.isEmpty {
+                                Section("Summary") {
+                                    summaryCard(for: filteredReports)
+                                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                }
+                            } else {
+                                Section("Summary") {
+                                    Text("No reports in this range.")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            // MARK: Reports
+                            ForEach(filteredReports) { rep in
+                                Button {
+                                    presentingReport = rep
+                                } label: {
+                                    reportRow(rep)
+                                }
+                            }
                         }
-                    } label: {
-                        HStack {
-                            Label("Bartender", systemImage: "person.2.fill")
-                            Spacer()
-                            Text(selectedBartender ?? "All")
-                                .foregroundStyle(.secondary)
+                        .navigationTitle("Reports")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .sheet(item: $presentingReport) { rep in
+                            ShiftReportSheet(report: rep) {
+                                presentingReport = nil
+                            }
+                            .environmentObject(vm)
+                        }
+                        .sheet(item: $presentingDayReport) { dayReport in
+                            DayReportSheet(report: dayReport) {
+                                presentingDayReport = nil
+                            }
+                            .environmentObject(vm)
                         }
                     }
-                }
-            } header: {
-                Text("Filters")
-            }
-
-            // MARK: Summary
-            if !filteredReports.isEmpty {
-                Section("Summary") {
-                    summaryCard(for: filteredReports)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                }
-            } else {
-                Section("Summary") {
-                    Text("No reports in this range.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            // MARK: Reports
-            ForEach(filteredReports) { rep in
-                Button {
-                    presentingReport = rep
-                } label: {
-                    reportRow(rep)
-                }
-            }
-        }
-        .navigationTitle("Reports")
-        .navigationBarTitleDisplayMode(.inline) // ← enum, no trailing closure
-        .sheet(item: $presentingReport) { rep in
-            ShiftReportSheet(report: rep) {
-                presentingReport = nil
-            }
-            .environmentObject(vm)
-        }
-    }
     // MARK: - Summary Card (with tiny analytics + chips)
     private func summaryCard(for reps: [ShiftReport]) -> some View {
         // Totals
@@ -309,4 +324,24 @@ struct AdminReportsView: View {
         .padding(.vertical, 6)
         .background(Capsule().fill(Color(.tertiarySystemFill)))
     }
+    
+    private func generateDayReport() {
+            // Group shifts by calendar day
+            let calendar = Calendar.current
+            let grouped = Dictionary(grouping: filteredReports) { report in
+                calendar.startOfDay(for: report.endedAt)
+            }
+            
+            // If only one day, show that day's report
+            if grouped.count == 1, let (date, shifts) = grouped.first {
+                let dayReport = DayReport(date: date, shifts: shifts)
+                presentingDayReport = dayReport
+            } else {
+                // Multiple days - could show picker or combine all
+                // For now, combine all into one report using the start date
+                let allShifts = Array(filteredReports)
+                let dayReport = DayReport(date: fromDate, shifts: allShifts)
+                presentingDayReport = dayReport
+            }
+        }
 }

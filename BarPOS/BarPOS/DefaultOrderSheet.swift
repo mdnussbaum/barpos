@@ -104,15 +104,3 @@ struct DefaultOrderSheet: View {
         vm.setDefaultProductOrder(category: selectedCategory, productIDs: productIDs)
     }
 }
-
-// MARK: - Helper extension for currency formatting
-private extension Decimal {
-    func currencyString() -> String {
-        let ns = self as NSDecimalNumber
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return f.string(from: ns) ?? "$\(self)"
-    }
-}

@@ -113,6 +113,7 @@ struct Product: Identifiable, Codable, Hashable {
     // Supplier info
     var supplier: String? = nil
     var supplierSKU: String? = nil
+    var caseSize: Int? = nil  // How many bottles per case
     
     // Status
     var is86d: Bool = false
@@ -122,7 +123,22 @@ struct Product: Identifiable, Codable, Hashable {
             guard let cost = cost, cost > 0 else { return nil }
             return ((price - cost) / price) * 100
         }
-        
+    var stockDisplayString: String? {
+            guard let stock = stockQuantity, let size = caseSize, size > 0 else {
+                return stockQuantity?.plainString()
+            }
+            
+            let stockInt = (stock as NSDecimalNumber).intValue
+            let cases = stockInt / size
+            let bottles = stockInt % size
+            
+            if bottles == 0 {
+                return "\(cases) case\(cases == 1 ? "" : "s")"
+            } else {
+                return "\(cases) case\(cases == 1 ? "" : "s") + \(bottles) btl"
+            }
+        }
+    
         var costPerServing: Decimal? {
             guard let cost = cost,
                   let servingSize = servingSize,
@@ -176,7 +192,6 @@ struct Product: Identifiable, Codable, Hashable {
             
             return nil
         }
-        
         var isLowStock: Bool {
             guard let stock = stockQuantity, let par = parLevel else { return false }
             return stock < par

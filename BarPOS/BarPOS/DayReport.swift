@@ -5,13 +5,18 @@
 //  Created by Michael Nussbaum on 11/29/25.
 //
 
-
 import Foundation
 
 struct DayReport: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID
     let date: Date
     let shifts: [ShiftReport]
+    
+    init(id: UUID = UUID(), date: Date, shifts: [ShiftReport]) {
+        self.id = id
+        self.date = date
+        self.shifts = shifts
+    }
     
     // Computed totals
     var totalGrossSales: Decimal {

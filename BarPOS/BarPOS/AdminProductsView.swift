@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AdminProductsView: View {
     @EnvironmentObject var vm: InventoryVM
@@ -11,7 +12,7 @@ struct AdminProductsView: View {
     // Filters / UI state
     @State private var query: String = ""
     @State private var category: ProductCategory? = nil
-    @State private var sort: Sort = .order      // ← default to saved order
+    @State private var sort: Sort = .order
     @State private var editMode: EditMode = .inactive
 
     // Sheet state
@@ -20,7 +21,14 @@ struct AdminProductsView: View {
     @State private var isNew = true
     @State private var showingDefaultOrderSheet = false
     @State private var showingBartenderOrdersSheet = false
+    
+    // CSV Import state
+    @State private var showingImportSheet = false
+    @State private var showingImportPicker = false
+    @State private var importResult: CSVImporter.ImportResult?
 
+    @State private var caseSizeString: String = ""
+    
     var body: some View {
         List {
             // Filters
@@ -122,6 +130,16 @@ struct AdminProductsView: View {
                     
                     Divider()
                     
+                    Button { downloadTemplateCSV() } label: {
+                        Label("Download CSV Template", systemImage: "arrow.down.doc")
+                    }
+                    
+                    Button { showingImportPicker = true } label: {
+                        Label("Import CSV", systemImage: "square.and.arrow.down")
+                    }
+                    
+                    Divider()
+                    
                     Button { showingDefaultOrderSheet = true } label: {
                         Label("Edit Default Order", systemImage: "arrow.up.arrow.down")
                     }
@@ -161,6 +179,23 @@ struct AdminProductsView: View {
                     .environmentObject(vm)
             }
         }
+        .fileImporter(isPresented: $showingImportPicker, allowedContentTypes: [.commaSeparatedText, .text]) { result in
+            switch result {
+            case .success(let url):
+                importCSV(from: url)
+            case .failure(let error):
+                print("File picker error: \(error)")
+            }
+        }
+        .alert("Import Complete", isPresented: $showingImportSheet) {
+            Button("OK") {
+                importResult = nil
+            }
+        } message: {
+            if let result = importResult {
+                Text("Created: \(result.created)\nUpdated: \(result.updated)\nSkipped: \(result.skipped)\n\(result.errors.isEmpty ? "" : "\nErrors:\n" + result.errors.joined(separator: "\n"))")
+            }
+        }
     }
 
     private var filteredProducts: [Product] {
@@ -191,7 +226,6 @@ struct AdminProductsView: View {
         showingEditor = true
     }
 
-    // Drag-to-reorder persists displayOrder for exactly the current filtered set
     private func reorderVisible(fromOffsets: IndexSet, toOffset: Int) {
         var ids = filteredProducts.map { $0.id }
         ids.move(fromOffsets: fromOffsets, toOffset: toOffset)
@@ -199,6 +233,40 @@ struct AdminProductsView: View {
             if let i = vm.products.firstIndex(where: { $0.id == id }) {
                 vm.products[i].displayOrder = idx
             }
+        }
+    }
+    
+    private func downloadTemplateCSV() {
+        let csv = CSVImporter.generateTemplateCSV()
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("ProductImportTemplate.csv")
+        
+        do {
+            try csv.write(to: tempURL, atomically: true, encoding: .utf8)
+            
+            // Save to Files app / Share
+            let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first,
+               let rootVC = window.rootViewController {
+                activityVC.popoverPresentationController?.sourceView = window
+                rootVC.present(activityVC, animated: true)
+            }
+        } catch {
+            print("Error creating template: \(error)")
+        }
+    }
+    
+    private func importCSV(from url: URL) {
+        do {
+            let csvData = try String(contentsOf: url, encoding: .utf8)
+            let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: vm.products)
+            
+            vm.products = newProducts
+            importResult = result
+            showingImportSheet = true
+        } catch {
+            print("Error reading CSV: \(error)")
         }
     }
 
@@ -230,7 +298,8 @@ struct ProductEditSheet: View {
     @State private var servingSizeString: String = ""
     @State private var supplier: String = ""
     @State private var supplierSKU: String = ""
-
+    @State private var caseSizeString: String = ""
+    
     var body: some View {
         Form {
             // MARK: - Basics
@@ -277,71 +346,80 @@ struct ProductEditSheet: View {
             }
             
             // MARK: - Inventory
-                        Section("Inventory") {
-                            Picker("Stock Unit", selection: $draft.unit) {
-                                ForEach(UnitOfMeasure.allCases) { unit in
-                                    Text(unit.displayName).tag(unit)
-                                }
-                            }
-                            
-                            HStack {
-                                Text("Current Stock")
-                                Spacer()
-                                TextField("0", text: $stockString)
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                Text(draft.unit.displayName)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            HStack {
-                                Text("Par Level")
-                                Spacer()
-                                TextField("0", text: $parString)
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                Text(draft.unit.displayName)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        
-                        // MARK: - Serving Size
-                        Section("Serving Size") {
-                            Picker("Serving Unit", selection: $draft.servingUnit) {
-                                Text("Same as stock").tag(nil as UnitOfMeasure?)
-                                ForEach(UnitOfMeasure.allCases) { unit in
-                                    Text(unit.displayName).tag(unit as UnitOfMeasure?)
-                                }
-                            }
-                            
-                            HStack {
-                                Text("Serving Size")
-                                Spacer()
-                                TextField("0", text: $servingSizeString)
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                Text((draft.servingUnit ?? draft.unit).displayName)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            if let costPerServing = draft.costPerServing {
-                                HStack {
-                                    Text("Cost per Serving")
-                                    Spacer()
-                                    Text(costPerServing.currencyString())
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            
-                            if let servingsPerUnit = draft.servingsPerUnit {
-                                HStack {
-                                    Text("Servings per \(draft.unit.displayName)")
-                                    Spacer()
-                                    Text("\(servingsPerUnit.plainString())")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+            Section("Inventory") {
+                Picker("Stock Unit", selection: $draft.unit) {
+                    ForEach(UnitOfMeasure.allCases) { unit in
+                        Text(unit.displayName).tag(unit)
+                    }
+                }
+                HStack {
+                    Text("Case Size")
+                    Spacer()
+                    TextField("24", text: $caseSizeString)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                    Text("bottles/case")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+                HStack {
+                    Text("Current Stock")
+                    Spacer()
+                    TextField("0", text: $stockString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    Text(draft.unit.displayName)
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Text("Par Level")
+                    Spacer()
+                    TextField("0", text: $parString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    Text(draft.unit.displayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            // MARK: - Serving Size
+            Section("Serving Size") {
+                Picker("Serving Unit", selection: $draft.servingUnit) {
+                    Text("Same as stock").tag(nil as UnitOfMeasure?)
+                    ForEach(UnitOfMeasure.allCases) { unit in
+                        Text(unit.displayName).tag(unit as UnitOfMeasure?)
+                    }
+                }
+                
+                HStack {
+                    Text("Serving Size")
+                    Spacer()
+                    TextField("0", text: $servingSizeString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    Text((draft.servingUnit ?? draft.unit).displayName)
+                        .foregroundStyle(.secondary)
+                }
+                
+                if let costPerServing = draft.costPerServing {
+                    HStack {
+                        Text("Cost per Serving")
+                        Spacer()
+                        Text(costPerServing.currencyString())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                if let servingsPerUnit = draft.servingsPerUnit {
+                    HStack {
+                        Text("Servings per \(draft.unit.displayName)")
+                        Spacer()
+                        Text("\(servingsPerUnit.plainString())")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             
             // MARK: - Supplier
             Section("Supplier") {
@@ -379,30 +457,32 @@ struct ProductEditSheet: View {
     }
     
     private func loadValues() {
-            name = draft.name
-            priceString = draft.price.currencyEditingString()
-            costString = draft.cost?.currencyEditingString() ?? ""
-            stockString = draft.stockQuantity?.plainString() ?? ""
-            parString = draft.parLevel?.plainString() ?? ""
-            servingSizeString = draft.servingSize?.plainString() ?? ""
-            supplier = draft.supplier ?? ""
-            supplierSKU = draft.supplierSKU ?? ""
-        }
+        name = draft.name
+        priceString = draft.price.currencyEditingString()
+        costString = draft.cost?.currencyEditingString() ?? ""
+        stockString = draft.stockQuantity?.plainString() ?? ""
+        parString = draft.parLevel?.plainString() ?? ""
+        servingSizeString = draft.servingSize?.plainString() ?? ""
+        supplier = draft.supplier ?? ""
+        supplierSKU = draft.supplierSKU ?? ""
+        caseSizeString = draft.caseSize.map { "\($0)" } ?? ""
+    }
     
     private func saveProduct() {
-            guard let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else { return }
-            
-            draft.name = name.trimmingCharacters(in: .whitespaces)
-            draft.price = price
-            draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
-            draft.stockQuantity = Decimal(string: stockString)
-            draft.parLevel = Decimal(string: parString)
-            draft.servingSize = Decimal(string: servingSizeString)  
-            draft.supplier = supplier.isEmpty ? nil : supplier
-            draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
-            
-            onComplete(.save(draft))
-        }
+        guard let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else { return }
+        
+        draft.name = name.trimmingCharacters(in: .whitespaces)
+        draft.price = price
+        draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
+        draft.stockQuantity = Decimal(string: stockString)
+        draft.parLevel = Decimal(string: parString)
+        draft.servingSize = Decimal(string: servingSizeString)
+        draft.supplier = supplier.isEmpty ? nil : supplier
+        draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
+        draft.caseSize = Int(caseSizeString)
+        
+        onComplete(.save(draft))
+    }
 
     enum Result { case save(Product), delete(UUID), cancel }
 }
@@ -452,11 +532,11 @@ struct ProductRow: View {
                             .foregroundStyle(.secondary)
                     }
                     
-                    if let stock = product.stockQuantity {
+                    if let stockDisplay = product.stockDisplayString {
                         Text("•")
                             .foregroundStyle(.secondary)
                             .font(.caption)
-                        Text("\(stock.plainString()) \(product.unit.displayName)")
+                        Text(stockDisplay)
                             .font(.caption)
                             .foregroundStyle(product.isLowStock ? .orange : .secondary)
                     }
@@ -521,7 +601,6 @@ struct FilterPill: View {
 // MARK: - InventoryVM helpers for Products
 extension InventoryVM {
     func addProduct(_ p: Product) {
-        // Place new product at the end of its category ordering
         var np = p
         let maxOrder = products.filter { $0.category == p.category }.map(\.displayOrder).max() ?? -1
         np.displayOrder = maxOrder + 1
@@ -535,7 +614,6 @@ extension InventoryVM {
         products.removeAll { ids.contains($0.id) }
     }
     func duplicateProduct(_ p: Product) {
-        // Duplicate goes to end of the same category
         var copy = p
         let maxOrder = products.filter { $0.category == p.category }.map(\.displayOrder).max() ?? -1
         copy.id = UUID()
@@ -546,7 +624,7 @@ extension InventoryVM {
 }
 
 // MARK: - Decimal formatting helpers
-private extension Decimal {
+    extension Decimal {
     func currencyString() -> String {
         let ns = self as NSDecimalNumber
         let f = NumberFormatter()

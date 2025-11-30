@@ -105,16 +105,3 @@ struct AdminChipsView: View {
         }
     }
 }
-
-// MARK: - Helpers
-private extension Decimal {
-    func currencyEditingString() -> String {
-        let ns = self as NSDecimalNumber
-        let f = NumberFormatter()
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        f.minimumIntegerDigits = 1
-        f.numberStyle = .decimal
-        return f.string(from: ns) ?? "\(self)"
-    }
-}

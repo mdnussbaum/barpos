@@ -5,12 +5,6 @@
 //  Created by Michael Nussbaum on 11/21/25.
 //
 
-
-//
-//  PDFGenerator.swift
-//  BarPOS
-//
-
 import Foundation
 import UIKit
 import PDFKit
@@ -38,16 +32,16 @@ struct PDFGenerator {
             var yPosition: CGFloat = 40
             
             // Title
-            yPosition = drawText("SHIFT REPORT", at: CGPoint(x: 40, y: yPosition), 
+            yPosition = drawText("SHIFT REPORT", at: CGPoint(x: 40, y: yPosition),
                                 fontSize: 24, bold: true, in: pageRect)
             yPosition += 10
             
             // Bartender & Date
-            yPosition = drawText(report.bartenderName, at: CGPoint(x: 40, y: yPosition), 
+            yPosition = drawText(report.bartenderName, at: CGPoint(x: 40, y: yPosition),
                                 fontSize: 16, bold: true, in: pageRect)
-            yPosition = drawText(report.formattedDate, at: CGPoint(x: 40, y: yPosition), 
+            yPosition = drawText(report.formattedDate, at: CGPoint(x: 40, y: yPosition),
                                 fontSize: 14, bold: false, in: pageRect)
-            yPosition = drawText("\(report.formattedStartTime) - \(report.formattedEndTime)", 
+            yPosition = drawText("\(report.formattedStartTime) - \(report.formattedEndTime)",
                                 at: CGPoint(x: 40, y: yPosition), fontSize: 14, bold: false, in: pageRect)
             yPosition += 20
             
@@ -56,61 +50,61 @@ struct PDFGenerator {
             yPosition += 15
             
             // Sales Summary
-            yPosition = drawText("SALES SUMMARY", at: CGPoint(x: 40, y: yPosition), 
+            yPosition = drawText("SALES SUMMARY", at: CGPoint(x: 40, y: yPosition),
                                 fontSize: 18, bold: true, in: pageRect)
             yPosition += 10
             
-            yPosition = drawKeyValue("Tabs Closed:", value: "\(report.tabsCount)", 
+            yPosition = drawKeyValue("Tabs Closed:", value: "\(report.tabsCount)",
                                     at: yPosition, in: pageRect)
-            yPosition = drawKeyValue("Gross Sales:", value: report.grossSales.currencyString(), 
+            yPosition = drawKeyValue("Gross Sales:", value: report.grossSales.currencyString(),
                                     at: yPosition, in: pageRect)
-            yPosition = drawKeyValue("Net Sales:", value: report.netSales.currencyString(), 
+            yPosition = drawKeyValue("Net Sales:", value: report.netSales.currencyString(),
                                     at: yPosition, in: pageRect)
-            yPosition = drawKeyValue("Tax Collected:", value: report.taxCollected.currencyString(), 
+            yPosition = drawKeyValue("Tax Collected:", value: report.taxCollected.currencyString(),
                                     at: yPosition, in: pageRect)
             yPosition += 15
             
             // Payment Breakdown
-            yPosition = drawText("PAYMENT BREAKDOWN", at: CGPoint(x: 40, y: yPosition), 
+            yPosition = drawText("PAYMENT BREAKDOWN", at: CGPoint(x: 40, y: yPosition),
                                 fontSize: 18, bold: true, in: pageRect)
             yPosition += 10
             
-            yPosition = drawKeyValue("Cash:", value: report.cashSales.currencyString(), 
+            yPosition = drawKeyValue("Cash:", value: report.cashSales.currencyString(),
                                     at: yPosition, in: pageRect)
-            yPosition = drawKeyValue("Card:", value: report.cardSales.currencyString(), 
+            yPosition = drawKeyValue("Card:", value: report.cardSales.currencyString(),
                                     at: yPosition, in: pageRect)
-            yPosition = drawKeyValue("Other:", value: report.otherSales.currencyString(), 
+            yPosition = drawKeyValue("Other:", value: report.otherSales.currencyString(),
                                     at: yPosition, in: pageRect)
             yPosition += 15
             
             // Cash Reconciliation
             if let openingCash = report.openingCash, let closingCash = report.closingCash {
-                yPosition = drawText("CASH RECONCILIATION", at: CGPoint(x: 40, y: yPosition), 
+                yPosition = drawText("CASH RECONCILIATION", at: CGPoint(x: 40, y: yPosition),
                                     fontSize: 18, bold: true, in: pageRect)
                 yPosition += 10
                 
-                yPosition = drawKeyValue("Opening Cash:", value: openingCash.currencyString(), 
+                yPosition = drawKeyValue("Opening Cash:", value: openingCash.currencyString(),
                                         at: yPosition, in: pageRect)
-                yPosition = drawKeyValue("+ Cash Sales:", value: report.cashSales.currencyString(), 
+                yPosition = drawKeyValue("+ Cash Sales:", value: report.cashSales.currencyString(),
                                         at: yPosition, in: pageRect)
                 
                 let expectedCash = openingCash + report.cashSales
-                yPosition = drawKeyValue("Expected Cash:", value: expectedCash.currencyString(), 
+                yPosition = drawKeyValue("Expected Cash:", value: expectedCash.currencyString(),
                                         at: yPosition, in: pageRect)
-                yPosition = drawKeyValue("Closing Cash:", value: closingCash.currencyString(), 
+                yPosition = drawKeyValue("Closing Cash:", value: closingCash.currencyString(),
                                         at: yPosition, in: pageRect)
                 
                 let overShort = report.overShort
-                                let color: UIColor = overShort >= 0 ? .systemGreen : .systemRed
-                                yPosition = drawKeyValue("Over/Short:", value: overShort.currencyString(),
-                                                        at: yPosition, in: pageRect, valueColor: color)
+                let color: UIColor = overShort >= 0 ? .systemGreen : .systemRed
+                yPosition = drawKeyValue("Over/Short:", value: overShort.currencyString(),
+                                        at: yPosition, in: pageRect, valueColor: color)
                 
                 yPosition += 15
             }
             
             // Flags
             if let note = report.flagNote {
-                yPosition = drawText("⚠️ " + note, at: CGPoint(x: 40, y: yPosition), 
+                yPosition = drawText("⚠️ " + note, at: CGPoint(x: 40, y: yPosition),
                                     fontSize: 12, bold: false, in: pageRect, color: .systemRed)
                 yPosition += 15
             }
@@ -120,13 +114,13 @@ struct PDFGenerator {
                 yPosition = drawLine(at: yPosition, in: pageRect)
                 yPosition += 15
                 
-                yPosition = drawText("TOP ITEMS SOLD", at: CGPoint(x: 40, y: yPosition), 
+                yPosition = drawText("TOP ITEMS SOLD", at: CGPoint(x: 40, y: yPosition),
                                     fontSize: 18, bold: true, in: pageRect)
                 yPosition += 10
                 
                 let topItems = getTopItems(from: closedTabs, limit: 10)
                 for item in topItems {
-                    yPosition = drawKeyValue(item.name, value: "\(item.quantity) sold", 
+                    yPosition = drawKeyValue(item.name, value: "\(item.quantity) sold",
                                             at: yPosition, in: pageRect, fontSize: 12)
                     if yPosition > 720 { break } // Page limit
                 }
@@ -147,9 +141,94 @@ struct PDFGenerator {
         }
     }
     
+    // MARK: - Day Report PDF
+    static func generateDayReportPDF(report: DayReport) -> URL? {
+        let pdfMetaData = [
+            kCGPDFContextCreator: "BarPOS",
+            kCGPDFContextTitle: "Day Report - \(report.formattedDate)"
+        ]
+        
+        let format = UIGraphicsPDFRendererFormat()
+        format.documentInfo = pdfMetaData as [String: Any]
+        
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+        
+        let data = renderer.pdfData { context in
+            context.beginPage()
+            
+            var yPosition: CGFloat = 40
+            
+            // Title
+            yPosition = drawText("DAY REPORT", at: CGPoint(x: 40, y: yPosition),
+                                fontSize: 24, bold: true, in: pageRect)
+            yPosition += 10
+            
+            // Date & Bartenders
+            yPosition = drawText(report.formattedDate, at: CGPoint(x: 40, y: yPosition),
+                                fontSize: 16, bold: true, in: pageRect)
+            yPosition = drawText("\(report.shiftCount) shifts • \(report.bartenderNames.joined(separator: ", "))",
+                                at: CGPoint(x: 40, y: yPosition), fontSize: 14, bold: false, in: pageRect)
+            yPosition += 20
+            
+            // Sales Summary
+            yPosition = drawText("Day Summary", at: CGPoint(x: 40, y: yPosition),
+                                fontSize: 16, bold: true, in: pageRect)
+            yPosition += 5
+            yPosition = drawKeyValue("Tabs Closed:", value: "\(report.totalTabsCount)", at: yPosition, in: pageRect)
+            yPosition = drawKeyValue("Gross Sales:", value: report.totalGrossSales.currencyString(), at: yPosition, in: pageRect)
+            yPosition = drawKeyValue("Net Sales:", value: report.totalNetSales.currencyString(), at: yPosition, in: pageRect)
+            yPosition = drawKeyValue("Tax Collected:", value: report.totalTaxCollected.currencyString(), at: yPosition, in: pageRect)
+            yPosition += 10
+            
+            yPosition = drawLine(at: yPosition, in: pageRect)
+            yPosition += 10
+            
+            // Payment Breakdown
+            yPosition = drawText("Payment Methods", at: CGPoint(x: 40, y: yPosition),
+                                fontSize: 16, bold: true, in: pageRect)
+            yPosition += 5
+            yPosition = drawKeyValue("Cash:", value: report.totalCashSales.currencyString(), at: yPosition, in: pageRect)
+            yPosition = drawKeyValue("Card:", value: report.totalCardSales.currencyString(), at: yPosition, in: pageRect)
+            yPosition = drawKeyValue("Other:", value: report.totalOtherSales.currencyString(), at: yPosition, in: pageRect)
+            yPosition += 10
+            
+            yPosition = drawLine(at: yPosition, in: pageRect)
+            yPosition += 10
+            
+            // By Bartender
+            yPosition = drawText("By Bartender", at: CGPoint(x: 40, y: yPosition),
+                                fontSize: 16, bold: true, in: pageRect)
+            yPosition += 10
+            
+            for shift in report.shifts.sorted(by: { $0.startedAt < $1.startedAt }) {
+                yPosition = drawText("\(shift.bartenderName) • \(shift.formattedStartTime) - \(shift.formattedEndTime)",
+                                    at: CGPoint(x: 40, y: yPosition), fontSize: 12, bold: true, in: pageRect)
+                yPosition = drawKeyValue("  Sales:", value: shift.grossSales.currencyString(), at: yPosition, in: pageRect, fontSize: 11)
+                yPosition = drawKeyValue("  Tabs:", value: "\(shift.tabsCount)", at: yPosition, in: pageRect, fontSize: 11)
+                
+                if shift.flagged {
+                                    yPosition = drawText("  ⚠️ Flagged", at: CGPoint(x: 40, y: yPosition),
+                                                        fontSize: 10, bold: false, in: pageRect, color: .orange)
+                                }
+                yPosition += 10
+            }
+        }
+        
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("DayReport_\(report.formattedFileDate).pdf")
+        
+        do {
+            try data.write(to: tempURL)
+            return tempURL
+        } catch {
+            print("❌ Error writing PDF: \(error)")
+            return nil
+        }
+    }
+    
     // MARK: - Helper Drawing Functions
     
-    private static func drawText(_ text: String, at point: CGPoint, fontSize: CGFloat, 
+    private static func drawText(_ text: String, at point: CGPoint, fontSize: CGFloat,
                                  bold: Bool, in rect: CGRect, color: UIColor = .black) -> CGFloat {
         let font = bold ? UIFont.boldSystemFont(ofSize: fontSize) : UIFont.systemFont(ofSize: fontSize)
         let attributes: [NSAttributedString.Key: Any] = [
@@ -163,8 +242,8 @@ struct PDFGenerator {
         return point.y + fontSize + 8
     }
     
-    private static func drawKeyValue(_ key: String, value: String, at yPosition: CGFloat, 
-                                     in rect: CGRect, fontSize: CGFloat = 14, 
+    private static func drawKeyValue(_ key: String, value: String, at yPosition: CGFloat,
+                                     in rect: CGRect, fontSize: CGFloat = 14,
                                      valueColor: UIColor = .black) -> CGFloat {
         let keyFont = UIFont.systemFont(ofSize: fontSize)
         let valueFont = UIFont.boldSystemFont(ofSize: fontSize)

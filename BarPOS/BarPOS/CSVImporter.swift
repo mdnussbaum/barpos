@@ -1,3 +1,11 @@
+//
+//  CSVImporter.swift
+//  BarPOS
+//
+//  Created by Michael Nussbaum on 11/29/25.
+//
+
+
 import Foundation
 
 struct CSVImporter {
@@ -132,123 +140,131 @@ struct CSVImporter {
                 product.servingUnit = unit
             }
         }
-        
-        // Supplier
-        if let supplier = rowData["supplier"], !supplier.isEmpty {
-            product.supplier = supplier
-        }
-        
-        // Supplier SKU
-        if let sku = rowData["sku"], !sku.isEmpty {
-            product.supplierSKU = sku
-        }
-        
-        // Hidden
-        if let hiddenStr = rowData["hidden"], !hiddenStr.isEmpty {
-            product.isHidden = (hiddenStr.lowercased() == "true" || hiddenStr == "1" || hiddenStr.lowercased() == "yes")
-        }
-        
-        // 86'd
-        if let is86dStr = rowData["86d"], !is86dStr.isEmpty {
-            product.is86d = (is86dStr.lowercased() == "true" || is86dStr == "1" || is86dStr.lowercased() == "yes")
-        }
-    }
-    
-    // MARK: - Parse CSV Row
-    private static func parseCSVRow(_ row: String) -> [String] {
-        var values: [String] = []
-        var currentValue = ""
-        var insideQuotes = false
-        
-        for char in row {
-            if char == "\"" {
-                insideQuotes.toggle()
-            } else if char == "," && !insideQuotes {
-                values.append(currentValue.trimmingCharacters(in: .whitespaces))
-                currentValue = ""
-            } else {
-                currentValue.append(char)
+        // Case Size
+                if let caseSizeStr = rowData["case_size"], !caseSizeStr.isEmpty {
+                    product.caseSize = Int(caseSizeStr)
+                }
+                
+                // Supplier
+                if let supplier = rowData["supplier"], !supplier.isEmpty {
+                    product.supplier = supplier
+                }
+                
+                // Supplier SKU
+                if let sku = rowData["sku"], !sku.isEmpty {
+                    product.supplierSKU = sku
+                }
+                
+                // Hidden
+                if let hiddenStr = rowData["hidden"], !hiddenStr.isEmpty {
+                    product.isHidden = (hiddenStr.lowercased() == "true" || hiddenStr == "1" || hiddenStr.lowercased() == "yes")
+                }
+                
+                // 86'd
+                if let is86dStr = rowData["86d"], !is86dStr.isEmpty {
+                    product.is86d = (is86dStr.lowercased() == "true" || is86dStr == "1" || is86dStr.lowercased() == "yes")
+                }
             }
+        
+        // MARK: - Parse CSV Row
+        private static func parseCSVRow(_ row: String) -> [String] {
+            var values: [String] = []
+            var currentValue = ""
+            var insideQuotes = false
+            
+            for char in row {
+                if char == "\"" {
+                    insideQuotes.toggle()
+                } else if char == "," && !insideQuotes {
+                    values.append(currentValue.trimmingCharacters(in: .whitespaces))
+                    currentValue = ""
+                } else {
+                    currentValue.append(char)
+                }
+            }
+            
+            // Add last value
+            values.append(currentValue.trimmingCharacters(in: .whitespaces))
+            
+            return values
         }
         
-        // Add last value
-        values.append(currentValue.trimmingCharacters(in: .whitespaces))
-        
-        return values
-    }
-    
-    // MARK: - Generate Template CSV
-    static func generateTemplateCSV() -> String {
-        let headers = [
-            "name",
-            "category",
-            "price",
-            "cost",
-            "stock",
-            "par",
-            "unit",
-            "serving_size",
-            "serving_unit",
-            "supplier",
-            "sku",
-            "hidden",
-            "86d"
-        ]
-        
-        let examples = [
-            [
-                "Budweiser",
-                "beer",
-                "4.50",
-                "2.00",
-                "48",
-                "72",
-                "bottle",
-                "1",
-                "bottle",
-                "ABC Distributing",
-                "BUD-12OZ",
-                "false",
-                "false"
-            ],
-            [
-                "Well Vodka",
-                "liquor",
-                "7.00",
-                "15.00",
-                "2",
-                "3",
-                "liter",
-                "1.5",
-                "oz",
-                "ABC Distributing",
-                "VODKA-WELL",
-                "false",
-                "false"
-            ],
-            [
-                "Orange Juice",
-                "na",
-                "3.00",
-                "8.00",
-                "3",
-                "5",
-                "gallon",
-                "6",
-                "oz",
-                "Restaurant Depot",
-                "OJ-GAL",
-                "false",
-                "false"
+        // MARK: - Generate Template CSV
+        static func generateTemplateCSV() -> String {
+            let headers = [
+                "name",
+                "category",
+                "price",
+                "cost",
+                "stock",
+                "par",
+                "unit",
+                "case_size",
+                "serving_size",
+                "serving_unit",
+                "supplier",
+                "sku",
+                "hidden",
+                "86d"
             ]
-        ]
-        
-        var csv = headers.joined(separator: ",") + "\n"
-        
-        for example in examples {
-            csv += example.joined(separator: ",") + "\n"
+            
+            let examples = [
+                [
+                    "Budweiser",
+                    "beer",
+                    "4.50",
+                    "2.00",
+                    "240",
+                    "72",
+                    "bottle",
+                    "24",
+                    "1",
+                    "bottle",
+                    "ABC Distributing",
+                    "BUD-12OZ",
+                    "false",
+                    "false"
+                ],
+                [
+                    "Well Vodka",
+                    "liquor",
+                    "7.00",
+                    "15.00",
+                    "3",
+                    "2",
+                    "liter",
+                    "",
+                    "1.5",
+                    "oz",
+                    "ABC Distributing",
+                    "VODKA-WELL",
+                    "false",
+                    "false"
+                ],
+                [
+                    "Orange Juice",
+                    "na",
+                    "3.00",
+                    "8.00",
+                    "3",
+                    "5",
+                    "gallon",
+                    "",
+                    "6",
+                    "oz",
+                    "Restaurant Depot",
+                    "OJ-GAL",
+                    "false",
+                    "false"
+                ]
+            ]
+            
+            var csv = headers.joined(separator: ",") + "\n"
+            
+            for example in examples {
+                csv += example.joined(separator: ",") + "\n"
+            }
+            
+            return csv
         }
-        
-        return csv
     }
-}

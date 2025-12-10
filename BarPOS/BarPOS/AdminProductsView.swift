@@ -299,7 +299,9 @@ struct ProductEditSheet: View {
     @State private var supplier: String = ""
     @State private var supplierSKU: String = ""
     @State private var caseSizeString: String = ""
-    
+    @State private var casesString: String = ""
+    @State private var extraBottlesString: String = ""
+
     var body: some View {
         Form {
             // MARK: - Basics
@@ -352,24 +354,67 @@ struct ProductEditSheet: View {
                         Text(unit.displayName).tag(unit)
                     }
                 }
+                
                 HStack {
                     Text("Case Size")
                     Spacer()
                     TextField("24", text: $caseSizeString)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
+                        .onChange(of: caseSizeString) { _, _ in
+                            updateStockFromCases()
+                        }
                     Text("bottles/case")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
-                HStack {
-                    Text("Current Stock")
-                    Spacer()
-                    TextField("0", text: $stockString)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                    Text(draft.unit.displayName)
-                        .foregroundStyle(.secondary)
+                
+                // If case size is set, show cases + bottles entry
+                if let caseSize = Int(caseSizeString), caseSize > 0 {
+                    HStack {
+                        Text("Cases")
+                        Spacer()
+                        TextField("0", text: $casesString)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: casesString) { _, _ in
+                                updateStockFromCases()
+                            }
+                        Text("cases")
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Extra Bottles")
+                        Spacer()
+                        TextField("0", text: $extraBottlesString)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: extraBottlesString) { _, _ in
+                                updateStockFromCases()
+                            }
+                        Text("bottles")
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Show calculated total
+                    HStack {
+                        Text("Total Stock")
+                        Spacer()
+                        Text(stockString + " bottles")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    // No case size - show normal stock entry
+                    HStack {
+                        Text("Current Stock")
+                        Spacer()
+                        TextField("0", text: $stockString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                        Text(draft.unit.displayName)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 
                 HStack {
@@ -460,12 +505,38 @@ struct ProductEditSheet: View {
         name = draft.name
         priceString = draft.price.currencyEditingString()
         costString = draft.cost?.currencyEditingString() ?? ""
-        stockString = draft.stockQuantity?.plainString() ?? ""
         parString = draft.parLevel?.plainString() ?? ""
         servingSizeString = draft.servingSize?.plainString() ?? ""
         supplier = draft.supplier ?? ""
         supplierSKU = draft.supplierSKU ?? ""
         caseSizeString = draft.caseSize.map { "\($0)" } ?? ""
+        
+        // Load stock - split into cases + bottles if case size exists
+        if let stock = draft.stockQuantity, let caseSize = draft.caseSize, caseSize > 0 {
+            let stockInt = (stock as NSDecimalNumber).intValue
+            let cases = stockInt / caseSize
+            let bottles = stockInt % caseSize
+            
+            casesString = "\(cases)"
+            extraBottlesString = "\(bottles)"
+            stockString = "\(stockInt)"
+        } else {
+            stockString = draft.stockQuantity?.plainString() ?? ""
+            casesString = ""
+            extraBottlesString = ""
+        }
+    }
+    
+    private func updateStockFromCases() {
+        guard let caseSize = Int(caseSizeString), caseSize > 0 else {
+            return
+        }
+        
+        let cases = Int(casesString) ?? 0
+        let extraBottles = Int(extraBottlesString) ?? 0
+        let total = (cases * caseSize) + extraBottles
+        
+        stockString = "\(total)"
     }
     
     private func saveProduct() {
@@ -486,7 +557,6 @@ struct ProductEditSheet: View {
 
     enum Result { case save(Product), delete(UUID), cancel }
 }
-
 // MARK: - Row
 struct ProductRow: View {
     let product: Product

@@ -131,12 +131,16 @@ struct AdminProductsView: View {
                     Divider()
                     
                     Button { downloadTemplateCSV() } label: {
-                        Label("Download CSV Template", systemImage: "arrow.down.doc")
-                    }
-                    
-                    Button { showingImportPicker = true } label: {
-                        Label("Import CSV", systemImage: "square.and.arrow.down")
-                    }
+                                            Label("Download CSV Template", systemImage: "arrow.down.doc")
+                                        }
+                                        
+                                        Button { exportCurrentProducts() } label: {
+                                            Label("Export Current Products", systemImage: "square.and.arrow.up")
+                                        }
+                                        
+                                        Button { showingImportPicker = true } label: {
+                                            Label("Import CSV", systemImage: "square.and.arrow.down")
+                                        }
                     
                     Divider()
                     
@@ -269,7 +273,31 @@ struct AdminProductsView: View {
             print("Error reading CSV: \(error)")
         }
     }
-
+    private func exportCurrentProducts() {
+            let csv = CSVImporter.exportProductsToCSV(products: vm.products)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateString = dateFormatter.string(from: Date())
+            let filename = "Products_Export_\(dateString).csv"
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            
+            do {
+                try csv.write(to: tempURL, atomically: true, encoding: .utf8)
+                
+                // Save to Files app / Share
+                let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+                
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let rootVC = window.rootViewController {
+                    activityVC.popoverPresentationController?.sourceView = window
+                    rootVC.present(activityVC, animated: true)
+                }
+            } catch {
+                print("Error exporting products: \(error)")
+            }
+        }
+    
     // MARK: - Sort mode
     enum Sort: CaseIterable {
         case order, nameAZ, nameZA, priceLow, priceHigh

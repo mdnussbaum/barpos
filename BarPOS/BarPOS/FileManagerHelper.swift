@@ -15,13 +15,14 @@ import Foundation
 
 struct FileManagerHelper {
     
-    // Get iCloud Documents directory
-    static var iCloudDocumentsURL: URL? {
-        FileManager.default.url(forUbiquityContainerIdentifier: nil)?
-            .appendingPathComponent("Documents")
-            .appendingPathComponent("BarPOS Reports")
-    }
-    
+    // Get local Documents directory for backups
+        static var iCloudDocumentsURL: URL? {
+            guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                return nil
+            }
+            
+            return documentsURL.appendingPathComponent("BarPOS Reports")
+        }
     // Save file to iCloud Drive
     static func saveToiCloud(fileURL: URL, filename: String) -> URL? {
         guard let iCloudURL = iCloudDocumentsURL else {

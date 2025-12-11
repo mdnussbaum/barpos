@@ -332,16 +332,94 @@ struct AdminReportsView: View {
                 calendar.startOfDay(for: report.endedAt)
             }
             
+            let dayReport: DayReport
+            
             // If only one day, show that day's report
             if grouped.count == 1, let (date, shifts) = grouped.first {
-                let dayReport = DayReport(date: date, shifts: shifts)
-                presentingDayReport = dayReport
+                dayReport = DayReport(date: date, shifts: shifts)
             } else {
-                // Multiple days - could show picker or combine all
-                // For now, combine all into one report using the start date
+                // Multiple days - combine all into one report using the start date
                 let allShifts = Array(filteredReports)
-                let dayReport = DayReport(date: fromDate, shifts: allShifts)
-                presentingDayReport = dayReport
+                dayReport = DayReport(date: fromDate, shifts: allShifts)
+            }
+            
+            // Auto-backup to iCloud
+            performDailyBackup(for: dayReport.date, dayReport: dayReport)
+            
+            presentingDayReport = dayReport
+        }
+    
+    private func performDailyBackup(for date: Date, dayReport: DayReport) {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateString = dateFormatter.string(from: date)
+            
+            // Create backup folder in iCloud
+            guard let iCloudURL = FileManagerHelper.iCloudDocumentsURL else {
+                print("⚠️ iCloud not available")
+                return
+            }
+            
+            let backupFolder = iCloudURL.appendingPathComponent("Daily Backups").appendingPathComponent(dateString)
+            
+            do {
+                // Create folder
+                try FileManager.default.createDirectory(at: backupFolder, withIntermediateDirectories: true)
+                
+                // 1. Save Day Report PDF
+                if let pdfURL = PDFGenerator.generateDayReportPDF(report: dayReport) {
+                    let pdfDest = backupFolder.appendingPathComponent("DayReport_\(dateString).pdf")
+                    try? FileManager.default.copyItem(at: pdfURL, to: pdfDest)
+                    print("✅ Saved Day Report PDF")
+                }
+                
+                // 2. Save Full JSON Backup
+                if let backupURL = vm.exportBackup() {
+                    let jsonDest = backupFolder.appendingPathComponent("backup_\(dateString).json")
+                    try? FileManager.default.copyItem(at: backupURL, to: jsonDest)
+                    print("✅ Saved JSON backup")
+                }
+                
+                // 3. Save Products CSV
+                let csv = CSVImporter.exportProductsToCSV(products: vm.products)
+                let csvDest = backupFolder.appendingPathComponent("products_\(dateString).csv")
+                try csv.write(to: csvDest, atomically: true, encoding: .utf8)
+                print("✅ Saved Products CSV")
+                
+                print("✅ Daily backup complete: \(backupFolder.path)")
+                
+                // Cleanup old backups (keep last 30 days)
+                cleanupOldBackups()
+                
+            } catch {
+                print("⚠️ Backup error: \(error)")
+            }
+        }
+        
+        private func cleanupOldBackups() {
+            guard let iCloudURL = FileManagerHelper.iCloudDocumentsURL else { return }
+            
+            let backupsFolder = iCloudURL.appendingPathComponent("Daily Backups")
+            
+            do {
+                let contents = try FileManager.default.contentsOfDirectory(
+                    at: backupsFolder,
+                    includingPropertiesForKeys: [.creationDateKey],
+                    options: [.skipsHiddenFiles]
+                )
+                
+                let calendar = Calendar.current
+                let cutoffDate = calendar.date(byAdding: .day, value: -30, to: Date())!
+                
+                for url in contents {
+                    if let creationDate = try? url.resourceValues(forKeys: [.creationDateKey]).creationDate,
+                       creationDate < cutoffDate {
+                        try? FileManager.default.removeItem(at: url)
+                        print("🗑️ Deleted old backup: \(url.lastPathComponent)")
+                    }
+                }
+            } catch {
+                print("⚠️ Cleanup error: \(error)")
             }
         }
 }

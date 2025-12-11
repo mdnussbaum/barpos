@@ -63,11 +63,13 @@ struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var isActive: Bool = true
+    var pin: String? = nil
     
-    init(id: UUID = UUID(), name: String, isActive: Bool = true) {
+    init(id: UUID = UUID(), name: String, isActive: Bool = true, pin: String? = nil) {
         self.id = id
         self.name = name
         self.isActive = isActive
+        self.pin = pin
     }
 }
 

@@ -89,13 +89,14 @@ struct AdminStaffView: View {
             }
         }
         .sheet(isPresented: $showingAddSheet) {
-            NavigationStack {
-                AddBartenderSheet { name in
-                    vm.addBartender(name: name)
-                    showingAddSheet = false
+                    NavigationStack {
+                        AddBartenderSheet { name, pin in
+                            vm.addBartender(name: name, pin: pin)
+                            showingAddSheet = false
+                        }
+                    }
                 }
-            }
-        }
+        
         .sheet(item: $editingBartender) { bartender in
             NavigationStack {
                 EditBartenderSheet(bartender: bartender) { updated in
@@ -110,10 +111,9 @@ struct AdminStaffView: View {
 // MARK: - Add Bartender Sheet
 struct AddBartenderSheet: View {
     @Environment(\.dismiss) private var dismiss
-    let onSave: (String) -> Void
+    let onSave: (String, String) -> Void
     
     @State private var name: String = ""
-    
     var body: some View {
         Form {
             Section("Bartender Name") {
@@ -129,7 +129,7 @@ struct AddBartenderSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
-                    onSave(name)
+                    onSave(name, "1234")
                 }
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }

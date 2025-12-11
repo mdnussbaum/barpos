@@ -542,18 +542,29 @@ final class InventoryVM: ObservableObject {
         saveState()
     }
     // MARK: - Staff Management
-    func addBartender(name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        
-        let bartender = Bartender(name: trimmed)
-        bartenders.append(bartender)
-    }
+    func addBartender(name: String, pin: String) {
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return }
+            
+            let bartender = Bartender(name: trimmed, pin: pin)
+            bartenders.append(bartender)
+        }
 
     func updateBartender(_ bartender: Bartender) {
         guard let index = bartenders.firstIndex(where: { $0.id == bartender.id }) else { return }
         bartenders[index] = bartender
     }
+    // Validate bartender PIN
+        func validateBartenderPIN(_ bartender: Bartender, pin: String) -> Bool {
+            guard let storedPIN = bartender.pin else { return false }
+            return storedPIN == pin
+        }
+
+        // Change bartender's PIN
+        func changeBartenderPIN(bartenderID: UUID, newPIN: String) {
+            guard let index = bartenders.firstIndex(where: { $0.id == bartenderID }) else { return }
+            bartenders[index].pin = newPIN
+        }
 
     func disableBartender(_ bartender: Bartender) {
         guard let index = bartenders.firstIndex(where: { $0.id == bartender.id }) else { return }
@@ -574,6 +585,7 @@ final class InventoryVM: ObservableObject {
     func ensureDefaultBartenders() {
         if bartenders.isEmpty {
             bartenders = [
+                Bartender(id: UUID(), name: "TEST", pin: "0000"),  // Test bartender with easy PIN
                 Bartender(id: UUID(), name: "Alex"),
                 Bartender(id: UUID(), name: "Sam"),
                 Bartender(id: UUID(), name: "Jordan")

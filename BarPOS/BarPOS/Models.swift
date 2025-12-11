@@ -62,11 +62,13 @@ enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
 struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
+    var pin: String?
     var isActive: Bool = true
-    
-    init(id: UUID = UUID(), name: String, isActive: Bool = true) {
+
+    init(id: UUID = UUID(), name: String, pin: String? = nil, isActive: Bool = true) {
         self.id = id
         self.name = name
+        self.pin = pin
         self.isActive = isActive
     }
 }

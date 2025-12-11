@@ -542,12 +542,21 @@ final class InventoryVM: ObservableObject {
         saveState()
     }
     // MARK: - Staff Management
-    func addBartender(name: String) {
+    func addBartender(name: String, pin: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        
-        let bartender = Bartender(name: trimmed)
+
+        let bartender = Bartender(name: trimmed, pin: pin)
         bartenders.append(bartender)
+    }
+
+    func validateBartenderPIN(_ bartender: Bartender, pin: String) -> Bool {
+        return bartender.pin == pin
+    }
+
+    func changeBartenderPIN(bartenderID: UUID, newPIN: String) {
+        guard let index = bartenders.firstIndex(where: { $0.id == bartenderID }) else { return }
+        bartenders[index].pin = newPIN
     }
 
     func updateBartender(_ bartender: Bartender) {
@@ -574,9 +583,7 @@ final class InventoryVM: ObservableObject {
     func ensureDefaultBartenders() {
         if bartenders.isEmpty {
             bartenders = [
-                Bartender(id: UUID(), name: "Alex"),
-                Bartender(id: UUID(), name: "Sam"),
-                Bartender(id: UUID(), name: "Jordan")
+                Bartender(id: UUID(), name: "TEST", pin: "0000")
             ]
         }
     }

@@ -90,15 +90,15 @@ struct AdminStaffView: View {
         }
         .sheet(isPresented: $showingAddSheet) {
             NavigationStack {
-                AddBartenderSheet { name in
-                    vm.addBartender(name: name)
+                AddBartenderSheet { name, pin in
+                    vm.addBartender(name: name, pin: pin)
                     showingAddSheet = false
                 }
             }
         }
         .sheet(item: $editingBartender) { bartender in
             NavigationStack {
-                EditBartenderSheet(bartender: bartender) { updated in
+                EditBartenderSheet(bartender: bartender, vm: vm) { updated in
                     vm.updateBartender(updated)
                     editingBartender = nil
                 }
@@ -110,15 +110,49 @@ struct AdminStaffView: View {
 // MARK: - Add Bartender Sheet
 struct AddBartenderSheet: View {
     @Environment(\.dismiss) private var dismiss
-    let onSave: (String) -> Void
-    
+    let onSave: (String, String) -> Void
+
     @State private var name: String = ""
-    
+    @State private var pin: String = ""
+    @State private var confirmPin: String = ""
+
+    private var isPinValid: Bool {
+        !pin.isEmpty && pin.count == 4 && pin.allSatisfy { $0.isNumber }
+    }
+
+    private var pinsMatch: Bool {
+        pin == confirmPin
+    }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && isPinValid && pinsMatch
+    }
+
     var body: some View {
         Form {
             Section("Bartender Name") {
                 TextField("Name", text: $name)
                     .textInputAutocapitalization(.words)
+            }
+
+            Section {
+                SecureField("PIN (4 digits)", text: $pin)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+
+                SecureField("Confirm PIN", text: $confirmPin)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+            } header: {
+                Text("PIN")
+            } footer: {
+                if !pin.isEmpty && !isPinValid {
+                    Text("PIN must be exactly 4 digits")
+                        .foregroundColor(.red)
+                } else if !confirmPin.isEmpty && !pinsMatch {
+                    Text("PINs do not match")
+                        .foregroundColor(.red)
+                }
             }
         }
         .navigationTitle("Add Bartender")
@@ -129,9 +163,9 @@ struct AddBartenderSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
-                    onSave(name)
+                    onSave(name, pin)
                 }
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(!canSave)
             }
         }
     }
@@ -141,17 +175,35 @@ struct AddBartenderSheet: View {
 struct EditBartenderSheet: View {
     @Environment(\.dismiss) private var dismiss
     let bartender: Bartender
+    let vm: InventoryVM
     let onSave: (Bartender) -> Void
-    
+
     @State private var name: String = ""
-    
+    @State private var showingChangePIN = false
+    @State private var newPin: String = ""
+    @State private var confirmPin: String = ""
+
+    private var isPinValid: Bool {
+        newPin.count == 4 && newPin.allSatisfy { $0.isNumber }
+    }
+
+    private var pinsMatch: Bool {
+        newPin == confirmPin
+    }
+
     var body: some View {
         Form {
             Section("Bartender Name") {
                 TextField("Name", text: $name)
                     .textInputAutocapitalization(.words)
             }
-            
+
+            Section("Security") {
+                Button("Change PIN") {
+                    showingChangePIN = true
+                }
+            }
+
             Section {
                 HStack {
                     Text("Status")
@@ -175,6 +227,52 @@ struct EditBartenderSheet: View {
                 }
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+        }
+        .sheet(isPresented: $showingChangePIN) {
+            NavigationStack {
+                Form {
+                    Section {
+                        SecureField("New PIN (4 digits)", text: $newPin)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+
+                        SecureField("Confirm PIN", text: $confirmPin)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                    } header: {
+                        Text("Change PIN")
+                    } footer: {
+                        if !newPin.isEmpty && !isPinValid {
+                            Text("PIN must be exactly 4 digits")
+                                .foregroundColor(.red)
+                        } else if !confirmPin.isEmpty && !pinsMatch {
+                            Text("PINs do not match")
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+                .navigationTitle("Change PIN")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            showingChangePIN = false
+                            newPin = ""
+                            confirmPin = ""
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Save") {
+                            vm.changeBartenderPIN(bartenderID: bartender.id, newPIN: newPin)
+                            showingChangePIN = false
+                            newPin = ""
+                            confirmPin = ""
+                        }
+                        .disabled(!isPinValid || !pinsMatch)
+                    }
+                }
+            }
+            .presentationDetents([.medium])
         }
         .onAppear {
             name = bartender.name

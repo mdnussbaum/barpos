@@ -9,6 +9,7 @@ struct RegisterView: View {
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
     @State private var showingShiftSummary = false
+    @State private var showingChangePINSheet = false
     @State private var payMethod: PaymentMethod = .cash
     @State private var showingReorderSheet = false
     @State private var selectedCategory: ProductCategory? = nil
@@ -119,6 +120,13 @@ struct RegisterView: View {
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showingChangePINSheet) {
+            if let bartender = vm.currentShift?.openedBy {
+                ChangePINSheet(bartender: bartender, vm: vm) {
+                    showingChangePINSheet = false
+                }
             }
         }
     }
@@ -517,7 +525,13 @@ struct RegisterView: View {
                     } label: {
                         Label("Shift Summary", systemImage: "list.bullet.rectangle")
                     }
-                    
+
+                    Button {
+                        showingChangePINSheet = true
+                    } label: {
+                        Label("Change PIN", systemImage: "lock.rotation")
+                    }
+
                     Button(role: .destructive) {
                         showingEndSheet = true
                     } label: {

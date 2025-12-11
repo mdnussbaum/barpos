@@ -551,7 +551,8 @@ final class InventoryVM: ObservableObject {
     }
 
     func validateBartenderPIN(_ bartender: Bartender, pin: String) -> Bool {
-        return bartender.pin == pin
+        guard let storedPIN = bartender.pin else { return false }
+        return storedPIN == pin
     }
 
     func changeBartenderPIN(bartenderID: UUID, newPIN: String) {

@@ -79,7 +79,6 @@ struct RegisterView: View {
         // MARK: Sheets
         .sheet(isPresented: $showingBeginSheet) {
             BeginShiftSheet(
-                bartenders: vm.bartenders.filter { $0.isActive },
                 carryoverTabs: Array(vm.tabs.values).filter { !$0.lines.isEmpty },
                 onStart: { bartender, openingCash in
                     vm.beginShift(bartender: bartender, openingCash: openingCash)

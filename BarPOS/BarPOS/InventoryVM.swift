@@ -194,7 +194,12 @@ final class InventoryVM: ObservableObject {
             bartenderID: currentShift?.openedBy?.id,
             bartenderName: currentShift?.openedBy?.name
         )
-        
+
+        // Deduct inventory for sold items
+        for line in ticket.lines {
+            deductInventory(for: line.product, quantity: line.qty)
+        }
+
         closedTabs.insert(result, at: 0)
         allClosedTabs.insert(result, at: 0)
         recordCloseIntoShift(result)
@@ -206,7 +211,37 @@ final class InventoryVM: ObservableObject {
         saveState()
         return result
     }
-    
+
+    /// Deduct inventory when product is sold
+    private func deductInventory(for product: Product, quantity: Int) {
+        guard let index = products.firstIndex(where: { $0.id == product.id }) else {
+            print("⚠️ Product not found for inventory deduction: \(product.name)")
+            return
+        }
+
+        // Get current stock
+        guard let currentStock = products[index].stockQuantity else {
+            print("⚠️ No stock quantity set for: \(product.name)")
+            return
+        }
+
+        // Calculate amount to deduct based on serving size
+        let servingSize = products[index].servingSize ?? 1.0
+        let amountToDeduct = servingSize * Decimal(quantity)
+
+        // Deduct from stock
+        let newStock = max(0, currentStock - amountToDeduct)
+        products[index].stockQuantity = newStock
+
+        print("📦 Inventory deducted: \(product.name) - \(amountToDeduct) \(products[index].unit.displayName) (New stock: \(newStock))")
+
+        // Mark as 86'd if stock hits zero
+        if newStock == 0 && !products[index].is86d {
+            products[index].is86d = true
+            print("🚫 Product auto-86'd (out of stock): \(product.name)")
+        }
+    }
+
     var currentShiftGross: Decimal {
         closedTabs.reduce(0) { $0 + $1.total }
     }

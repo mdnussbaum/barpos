@@ -112,13 +112,30 @@ struct AdminStaffView: View {
 struct AddBartenderSheet: View {
     @Environment(\.dismiss) private var dismiss
     let onSave: (String, String) -> Void
-    
+
     @State private var name: String = ""
+    @State private var pin: String = ""
+    @State private var confirmPin: String = ""
+    @State private var pinError: String = ""
+
     var body: some View {
         Form {
             Section("Bartender Name") {
                 TextField("Name", text: $name)
                     .textInputAutocapitalization(.words)
+            }
+
+            Section("PIN (4-8 digits)") {
+                SecureField("PIN", text: $pin)
+                    .keyboardType(.numberPad)
+                SecureField("Confirm PIN", text: $confirmPin)
+                    .keyboardType(.numberPad)
+
+                if !pinError.isEmpty {
+                    Text(pinError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
         }
         .navigationTitle("Add Bartender")
@@ -129,7 +146,17 @@ struct AddBartenderSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
-                    onSave(name, "1234")
+                    pinError = ""
+                    let trimmed = pin.trimmingCharacters(in: .whitespaces)
+                    guard trimmed.count >= 4, trimmed.count <= 8, trimmed.allSatisfy({ $0.isNumber }) else {
+                        pinError = "PIN must be 4-8 digits"
+                        return
+                    }
+                    guard trimmed == confirmPin else {
+                        pinError = "PINs do not match"
+                        return
+                    }
+                    onSave(name, trimmed)
                 }
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -142,16 +169,36 @@ struct EditBartenderSheet: View {
     @Environment(\.dismiss) private var dismiss
     let bartender: Bartender
     let onSave: (Bartender) -> Void
-    
+
     @State private var name: String = ""
-    
+    @State private var pin: String = ""
+    @State private var confirmPin: String = ""
+    @State private var pinError: String = ""
+
     var body: some View {
         Form {
             Section("Bartender Name") {
                 TextField("Name", text: $name)
                     .textInputAutocapitalization(.words)
             }
-            
+
+            Section("Change PIN (Optional)") {
+                SecureField("New PIN (4-8 digits)", text: $pin)
+                    .keyboardType(.numberPad)
+                SecureField("Confirm New PIN", text: $confirmPin)
+                    .keyboardType(.numberPad)
+
+                Text("Leave blank to keep current PIN")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !pinError.isEmpty {
+                    Text(pinError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
             Section {
                 HStack {
                     Text("Status")
@@ -169,8 +216,24 @@ struct EditBartenderSheet: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
+                    pinError = ""
                     var updated = bartender
                     updated.name = name.trimmingCharacters(in: .whitespaces)
+
+                    // Only update PIN if user entered something
+                    if !pin.isEmpty {
+                        let trimmed = pin.trimmingCharacters(in: .whitespaces)
+                        guard trimmed.count >= 4, trimmed.count <= 8, trimmed.allSatisfy({ $0.isNumber }) else {
+                            pinError = "PIN must be 4-8 digits"
+                            return
+                        }
+                        guard trimmed == confirmPin else {
+                            pinError = "PINs do not match"
+                            return
+                        }
+                        updated.pin = trimmed
+                    }
+
                     onSave(updated)
                 }
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)

@@ -206,14 +206,58 @@ struct InventoryOverviewView: View {
 
     /// Format stock info text
     private func stockInfoText(_ product: Product) -> String {
-        let stockStr = product.stockQuantity?.plainString() ?? "0"
-        let unitStr = product.unit.displayName.lowercased()
-        let pluralUnit = (product.stockQuantity ?? 0) == 1 ? unitStr : unitStr + "s"
+        let stock = product.stockQuantity ?? 0
 
-        if let par = product.parLevel {
-            return "\(stockStr) \(pluralUnit) (Par: \(par.plainString()))"
+        // If we have a case size, show cases + remainder
+        if let caseSize = product.caseSize, caseSize > 0 {
+            let stockInt = (stock as NSDecimalNumber).intValue
+            let cases = stockInt / caseSize
+            let remainder = stockInt % caseSize
+
+            // Use servingUnit for remainder, fallback to unit
+            let individualUnit = (product.servingUnit ?? product.unit).displayName.lowercased()
+            let remainderLabel = remainder == 1 ? individualUnit : individualUnit + "s"
+
+            let unitStr = product.unit.displayName.lowercased()
+            let casesLabel = cases == 1 ? unitStr : unitStr + "s"
+
+            var result: String
+            if remainder == 0 {
+                result = "\(cases) \(casesLabel)"
+            } else {
+                result = "\(cases) \(casesLabel), \(remainder) \(remainderLabel)"
+            }
+
+            // Add par level if available
+            if let par = product.parLevel {
+                let parInt = (par as NSDecimalNumber).intValue
+                let parCases = parInt / caseSize
+                let parRemainder = parInt % caseSize
+
+                let parIndividualUnit = (product.servingUnit ?? product.unit).displayName.lowercased()
+                let parRemainderLabel = parRemainder == 1 ? parIndividualUnit : parIndividualUnit + "s"
+
+                let parCasesLabel = parCases == 1 ? unitStr : unitStr + "s"
+
+                if parRemainder == 0 {
+                    result += " (Par: \(parCases) \(parCasesLabel))"
+                } else {
+                    result += " (Par: \(parCases) \(parCasesLabel), \(parRemainder) \(parRemainderLabel))"
+                }
+            }
+
+            return result
         } else {
-            return "\(stockStr) \(pluralUnit)"
+            // No case size - show normal stock
+            let stockStr = stock.plainString()
+            let unitStr = product.unit.displayName.lowercased()
+            let pluralUnit = stock == 1 ? unitStr : unitStr + "s"
+
+            if let par = product.parLevel {
+                return "\(stockStr) \(pluralUnit) (Par: \(par.plainString()))"
+            } else {
+                return "\(stockStr) \(pluralUnit)"
+            }
         }
     }
 

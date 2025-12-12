@@ -464,7 +464,11 @@ struct ProductEditSheet: View {
                         Text(unit.displayName).tag(unit as UnitOfMeasure?)
                     }
                 }
-                
+
+                Text("What individual items are called (e.g., 'bottle' when stocking in cases)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 HStack {
                     Text("Serving Size")
                     Spacer()

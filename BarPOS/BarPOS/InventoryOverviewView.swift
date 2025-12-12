@@ -73,22 +73,58 @@ struct InventoryOverviewView: View {
                 // Product List
                 List {
                     ForEach(filteredAndSortedProducts) { product in
-                        ProductRow(
-                            product: product,
-                            stockLevel: stockLevel(product),
-                            stockColor: stockColor(product),
-                            stockStatusText: stockStatusText(product),
-                            onAddStock: {
+                        HStack(spacing: 12) {
+                            // Status indicator circle
+                            Circle()
+                                .fill(stockColor(product))
+                                .frame(width: 12, height: 12)
+                            
+                            // Product info
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(product.name)
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                
+                                Text(stockInfoText(product))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            // Status badge
+                            Text(stockStatusText(product))
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(stockColor(product).opacity(0.2))
+                                .foregroundStyle(stockColor(product))
+                                .clipShape(Capsule())
+                            
+                            // Quick action buttons
+                            Button {
                                 selectedProduct = product
                                 stockAdjustmentAmount = ""
                                 showingAddStock = true
-                            },
-                            onRemoveStock: {
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(.blue)
+                                    .font(.title3)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Button {
                                 selectedProduct = product
                                 stockAdjustmentAmount = ""
                                 showingRemoveStock = true
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                                    .font(.title3)
                             }
-                        )
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 .listStyle(.plain)
@@ -196,77 +232,6 @@ struct InventoryOverviewView: View {
     }
 }
 
-// MARK: - Product Row
-
-struct ProductRow: View {
-    let product: Product
-    let stockLevel: Int
-    let stockColor: Color
-    let stockStatusText: String
-    let onAddStock: () -> Void
-    let onRemoveStock: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Status Indicator Circle
-            Circle()
-                .fill(stockColor)
-                .frame(width: 12, height: 12)
-
-            // Product Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(product.name)
-                    .font(.headline)
-
-                Text(stockInfoText())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                // Status Badge
-                Text(stockStatusText)
-                    .font(.caption2)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(stockColor.opacity(0.2))
-                    .foregroundColor(stockColor)
-                    .cornerRadius(4)
-            }
-
-            Spacer()
-
-            // Action Buttons
-            HStack(spacing: 16) {
-                Button(action: onRemoveStock) {
-                    Image(systemName: "minus.circle")
-                        .font(.title2)
-                        .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-
-                Button(action: onAddStock) {
-                    Image(systemName: "plus.circle")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func stockInfoText() -> String {
-        let stockStr = product.stockQuantity?.plainString() ?? "0"
-        let unitStr = product.unit.displayName.lowercased()
-        let pluralUnit = (product.stockQuantity ?? 0) == 1 ? unitStr : unitStr + "s"
-
-        if let par = product.parLevel {
-            return "\(stockStr) \(pluralUnit) (Par: \(par.plainString()))"
-        } else {
-            return "\(stockStr) \(pluralUnit)"
-        }
-    }
-}
-
 // MARK: - Stock Adjustment Sheet
 
 struct StockAdjustmentSheet: View {
@@ -316,17 +281,5 @@ struct StockAdjustmentSheet: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - Decimal Extension
-
-extension Decimal {
-    func plainString() -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: self as NSDecimalNumber) ?? "0"
     }
 }

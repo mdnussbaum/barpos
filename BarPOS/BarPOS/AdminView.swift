@@ -35,12 +35,19 @@ struct AdminView: View {
                     } label: {
                         Label("Chips", systemImage: "circle.grid.2x2.fill")
                     }
-                    
+
                     NavigationLink {
                         AdminReportsView()
                             .environmentObject(vm)
                     } label: {
                         Label("Reports", systemImage: "doc.plaintext")
+                    }
+
+                    NavigationLink {
+                        InventoryOverviewView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Inventory", systemImage: "box.truck")
                     }
                 }
                 

@@ -13,6 +13,7 @@ struct RegisterView: View {
     @State private var showingReorderSheet = false
     @State private var selectedCategory: ProductCategory? = nil
     @State private var categoryToReorder: ProductCategory? = nil
+    @State private var showingChangePINSheet = false
     
     var body: some View {
         ZStack {
@@ -118,6 +119,12 @@ struct RegisterView: View {
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showingChangePINSheet) {
+            if let bartender = vm.currentShift?.openedBy {
+                ChangePINSheet(bartender: bartender)
+                    .environmentObject(vm)
             }
         }
     }
@@ -516,6 +523,14 @@ struct RegisterView: View {
                     } label: {
                         Label("Shift Summary", systemImage: "list.bullet.rectangle")
                     }
+                    
+                    Button {
+                        showingChangePINSheet = true
+                    } label: {
+                        Label("Change PIN", systemImage: "lock.rotation")
+                    }
+                    
+                    Divider()
                     
                     Button(role: .destructive) {
                         showingEndSheet = true

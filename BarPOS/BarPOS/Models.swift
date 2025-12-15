@@ -200,6 +200,38 @@ struct Product: Identifiable, Codable, Hashable {
         }
     }
 
+// MARK: - Custom Cocktail
+struct CustomCocktail: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var createdBy: UUID  // Bartender ID
+    var ingredients: [CocktailIngredient]
+    var price: Decimal  // Auto-calculated from ingredients
+    var category: ProductCategory = .cocktails
+
+    init(id: UUID = UUID(), name: String, createdBy: UUID, ingredients: [CocktailIngredient]) {
+        self.id = id
+        self.name = name
+        self.createdBy = createdBy
+        self.ingredients = ingredients
+
+        // Auto-calculate price from ingredients
+        self.price = ingredients.reduce(0) { total, ingredient in
+            total + (ingredient.product.price * ingredient.servings)
+        }
+    }
+}
+
+struct CocktailIngredient: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var product: Product
+    var servings: Decimal  // 0.25, 0.5, 0.75, 1, 1.25, etc.
+
+    var displayText: String {
+        "\(servings.plainString()) serving\(servings == 1 ? "" : "s") of \(product.name)"
+    }
+}
+
 // MARK: - Core models
 
 struct OrderLine: Identifiable, Codable, Hashable {

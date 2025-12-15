@@ -34,9 +34,12 @@ final class InventoryVM: ObservableObject {
             saveState()
         }
     }
-    
+
     // Default product ordering (what new bartenders see)
     @Published var defaultProductOrdering: [String: [UUID]] = [:] { didSet { saveState() } }
+
+    // Custom cocktails per bartender
+    @Published var customCocktails: [UUID: [CustomCocktail]] = [:] { didSet { saveState() } }
     
     // Categories to show in the picker
     var availableCategories: [ProductCategory] {
@@ -198,7 +201,12 @@ final class InventoryVM: ObservableObject {
 
         // Deduct inventory for sold items
         for line in ticket.lines {
-            deductInventory(for: line.product, quantity: line.qty)
+            // Check if this is a custom cocktail
+            if let cocktail = currentBartenderCocktails().first(where: { $0.name == line.product.name }) {
+                deductCocktailInventory(for: cocktail, quantity: line.qty)
+            } else {
+                deductInventory(for: line.product, quantity: line.qty)
+            }
         }
 
         closedTabs.insert(result, at: 0)
@@ -628,6 +636,35 @@ final class InventoryVM: ObservableObject {
             ]
         }
     }
+
+    // MARK: - Custom Cocktails
+    func addCustomCocktail(_ cocktail: CustomCocktail) {
+        guard let bartenderID = currentShift?.openedBy?.id else { return }
+
+        if customCocktails[bartenderID] == nil {
+            customCocktails[bartenderID] = []
+        }
+        customCocktails[bartenderID]?.append(cocktail)
+        print("✅ Custom cocktail added: \(cocktail.name) for bartender \(bartenderID)")
+    }
+
+    func deleteCustomCocktail(_ cocktail: CustomCocktail) {
+        guard let bartenderID = currentShift?.openedBy?.id else { return }
+        customCocktails[bartenderID]?.removeAll { $0.id == cocktail.id }
+    }
+
+    func currentBartenderCocktails() -> [CustomCocktail] {
+        guard let bartenderID = currentShift?.openedBy?.id else { return [] }
+        return customCocktails[bartenderID] ?? []
+    }
+
+    // Deduct inventory for custom cocktail ingredients
+    private func deductCocktailInventory(for cocktail: CustomCocktail, quantity: Int) {
+        for ingredient in cocktail.ingredients {
+            deductInventory(for: ingredient.product, quantity: Int((ingredient.servings * Decimal(quantity) as NSDecimalNumber).doubleValue))
+        }
+    }
+
     func toggle86d(_ product: Product) {
         guard let index = products.firstIndex(where: { $0.id == product.id }) else { return }
         products[index].is86d.toggle()
@@ -649,6 +686,7 @@ final class InventoryVM: ObservableObject {
         var shiftReports: [ShiftReport]
         var productOrderByBartender: [UUID: [String: [UUID]]]
         var defaultProductOrdering: [String: [UUID]]
+        var customCocktails: [UUID: [CustomCocktail]]
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -668,7 +706,8 @@ final class InventoryVM: ObservableObject {
             allClosedTabs: allClosedTabs,
             shiftReports: shiftReports,
             productOrderByBartender: productOrderByBartender,
-            defaultProductOrdering: defaultProductOrdering
+            defaultProductOrdering: defaultProductOrdering,
+            customCocktails: customCocktails
         )
         
         do {
@@ -684,21 +723,22 @@ final class InventoryVM: ObservableObject {
         isAdminUnlocked = s.isAdminUnlocked
         enabledPaymentMethods = s.enabledPaymentMethods
         defaultPaymentMethod = s.defaultPaymentMethod
-        
+
         if let legacyValue = s.chipValue { chipValue = legacyValue }
         if let legacyOutstanding = s.chipsOutstanding { chipsOutstanding = legacyOutstanding }
-        
+
         chipsOutstandingByType = s.chipsOutstandingByType
         chipPriceOverrides = s.chipPriceOverrides ?? [.white: 3, .gray: 4, .black: 5]
-        
+
         bartenders = s.bartenders
         allClosedTabs = s.allClosedTabs
         shiftReports = s.shiftReports
         products = s.products
-        
+
         productOrderByBartender = s.productOrderByBartender
         defaultProductOrdering = s.defaultProductOrdering
-        
+        customCocktails = s.customCocktails
+
         print("✅ State applied successfully")
     }
     
@@ -714,6 +754,7 @@ final class InventoryVM: ObservableObject {
             products = []
             productOrderByBartender = [:]
             defaultProductOrdering = [:]
+            customCocktails = [:]
         }
     }
     
@@ -733,7 +774,8 @@ final class InventoryVM: ObservableObject {
             allClosedTabs: allClosedTabs,
             shiftReports: shiftReports,
             productOrderByBartender: productOrderByBartender,
-            defaultProductOrdering: defaultProductOrdering
+            defaultProductOrdering: defaultProductOrdering,
+            customCocktails: customCocktails
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")
         do {

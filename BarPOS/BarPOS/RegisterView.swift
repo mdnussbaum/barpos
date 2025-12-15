@@ -14,6 +14,7 @@ struct RegisterView: View {
     @State private var selectedCategory: ProductCategory? = nil
     @State private var categoryToReorder: ProductCategory? = nil
     @State private var showingChangePINSheet = false
+    @State private var showingBuildCocktail = false
     
     var body: some View {
         ZStack {
@@ -126,6 +127,10 @@ struct RegisterView: View {
                 ChangePINSheet(bartender: bartender)
                     .environmentObject(vm)
             }
+        }
+        .sheet(isPresented: $showingBuildCocktail) {
+            BuildCocktailSheet()
+                .environmentObject(vm)
         }
     }
     // MARK: - Left column (tabs + current ticket + totals/checkout)
@@ -275,7 +280,23 @@ struct RegisterView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
+            // Build Cocktail button
+            if vm.currentShift != nil {
+                Button {
+                    showingBuildCocktail = true
+                } label: {
+                    Label("Build Cocktail", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundStyle(.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+            }
+
             if selectedCategory == .chips {
                 chipsGrid()
             } else {
@@ -302,7 +323,17 @@ struct RegisterView: View {
     
     // Products shown based on selectedCategory (uses per-bartender order)
     private var visibleProducts: [Product] {
-        vm.sortedProductsForCurrentBartender(category: selectedCategory)
+        let regularProducts = vm.sortedProductsForCurrentBartender(category: selectedCategory)
+        let customCocktails = vm.currentBartenderCocktails().map { cocktail in
+            Product(
+                id: cocktail.id,
+                name: cocktail.name + " ⭐",  // Star to indicate custom
+                category: cocktail.category,
+                price: cocktail.price
+            )
+        }
+        let allProducts = customCocktails + regularProducts
+        return allProducts
     }
     
     // Compact segmented picker for categories (nil = All)

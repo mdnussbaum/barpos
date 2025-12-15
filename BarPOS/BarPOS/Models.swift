@@ -38,6 +38,7 @@ public enum ChipType: String, Codable, Hashable, CaseIterable {
 enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
     case each = "each"
     case bottle = "bottle"
+    case can = "can"        // ← ADD THIS
     case case_ = "case"
     case oz = "oz"
     case liter = "liter"
@@ -50,6 +51,7 @@ enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .each: return "Each"
         case .bottle: return "Bottle"
+        case .can: return "Can"      
         case .case_: return "Case"
         case .oz: return "oz"
         case .liter: return "Liter"

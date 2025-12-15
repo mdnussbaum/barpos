@@ -497,7 +497,24 @@ struct ProductEditSheet: View {
                     }
                 }
             }
-            
+
+            // MARK: - Product Type
+            Section("Product Type") {
+                Picker("Tier", selection: $draft.tier) {
+                    ForEach(ProductTier.allCases) { tier in
+                        Text(tier.displayName).tag(tier)
+                    }
+                }
+
+                Toggle("Gun/BIB Item", isOn: $draft.isGunItem)
+
+                if draft.isGunItem {
+                    Text("Gun items are tracked by estimated servings per drink (e.g., 1 serving sour mix per cocktail)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             // MARK: - Supplier
             Section("Supplier") {
                 TextField("Supplier Name", text: $supplier)

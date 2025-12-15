@@ -5,11 +5,11 @@ struct BuildCocktailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var cocktailName: String = ""
-    @State private var selectedIngredients: [CocktailIngredient] = []
+    @State private var selectedIngredients: [RecipeIngredient] = []
     @State private var showingAddIngredient = false
 
     private var totalPrice: Decimal {
-        selectedIngredients.reduce(0) { $0 + ($1.product.price * $1.servings) }
+        selectedIngredients.reduce(0) { $0 + ($1.defaultProduct.price * $1.servings) }
     }
 
     var body: some View {
@@ -28,14 +28,14 @@ struct BuildCocktailSheet: View {
                         ForEach(selectedIngredients) { ingredient in
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(ingredient.product.name)
+                                    Text(ingredient.defaultProduct.name)
                                         .font(.body)
                                     Text(ingredient.displayText)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Text((ingredient.product.price * ingredient.servings).currencyString())
+                                Text((ingredient.defaultProduct.price * ingredient.servings).currencyString())
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -102,7 +102,7 @@ struct AddIngredientSheet: View {
     @EnvironmentObject var vm: InventoryVM
     @Environment(\.dismiss) private var dismiss
 
-    let onAdd: (CocktailIngredient) -> Void
+    let onAdd: (RecipeIngredient) -> Void
 
     @State private var selectedProduct: Product?
     @State private var servings: Decimal = 1.0
@@ -159,7 +159,7 @@ struct AddIngredientSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
                         if let product = selectedProduct {
-                            let ingredient = CocktailIngredient(product: product, servings: servings)
+                            let ingredient = RecipeIngredient(defaultProduct: product, servings: servings)
                             onAdd(ingredient)
                             dismiss()
                         }

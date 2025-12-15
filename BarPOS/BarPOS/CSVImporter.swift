@@ -164,6 +164,18 @@ struct CSVImporter {
         if let is86dStr = rowData["86d"], !is86dStr.isEmpty {
             product.is86d = (is86dStr.lowercased() == "true" || is86dStr == "1" || is86dStr.lowercased() == "yes")
         }
+
+        // Tier
+        if let tierStr = rowData["tier"], !tierStr.isEmpty {
+            if let tier = ProductTier(rawValue: tierStr.lowercased()) {
+                product.tier = tier
+            }
+        }
+
+        // Gun item
+        if let gunStr = rowData["gun_item"], !gunStr.isEmpty {
+            product.isGunItem = (gunStr.lowercased() == "true" || gunStr == "1" || gunStr.lowercased() == "yes")
+        }
     }
     
     // MARK: - Parse CSV Row
@@ -205,7 +217,9 @@ struct CSVImporter {
             "supplier",
             "sku",
             "hidden",
-            "86d"
+            "86d",
+            "tier",
+            "gun_item"
         ]
         
         let examples = [
@@ -223,6 +237,8 @@ struct CSVImporter {
                 "ABC Distributing",
                 "BUD-12OZ",
                 "false",
+                "false",
+                "none",
                 "false"
             ],
             [
@@ -239,6 +255,8 @@ struct CSVImporter {
                 "ABC Distributing",
                 "VODKA-WELL",
                 "false",
+                "false",
+                "well",
                 "false"
             ],
             [
@@ -255,6 +273,8 @@ struct CSVImporter {
                 "Restaurant Depot",
                 "OJ-GAL",
                 "false",
+                "false",
+                "none",
                 "false"
             ]
         ]
@@ -284,7 +304,9 @@ struct CSVImporter {
             "supplier",
             "sku",
             "hidden",
-            "86d"
+            "86d",
+            "tier",
+            "gun_item"
         ]
         
         var csv = headers.joined(separator: ",") + "\n"
@@ -305,10 +327,13 @@ struct CSVImporter {
                     let sku = product.supplierSKU ?? ""
                     let hidden = product.isHidden ? "true" : "false"
                     let is86d = product.is86d ? "true" : "false"
-                    
+                    let tier = product.tier.rawValue
+                    let gunItem = product.isGunItem ? "true" : "false"
+
                     let row = [
                         name, category, price, cost, stock, par, unit,
-                        caseSize, servingSize, servingUnit, supplier, sku, hidden, is86d
+                        caseSize, servingSize, servingUnit, supplier, sku, hidden, is86d,
+                        tier, gunItem
                     ]
             
             // Escape commas in values

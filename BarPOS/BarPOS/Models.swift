@@ -60,6 +60,26 @@ enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: - Product Tier
+enum ProductTier: String, Codable, CaseIterable, Identifiable {
+    case none = "none"
+    case well = "well"
+    case call = "call"
+    case premium = "premium"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .well: return "Well"
+        case .call: return "Call"
+        case .premium: return "Premium"
+        }
+    }
+}
+
 // MARK: - Bartender
 struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
@@ -110,7 +130,11 @@ struct Product: Identifiable, Codable, Hashable {
     var unit: UnitOfMeasure = .each
     var servingSize: Decimal? = nil
     var servingUnit: UnitOfMeasure? = nil
-    
+
+    // Product type
+    var tier: ProductTier = .none
+    var isGunItem: Bool = false  // Soda guns, BIB mixers
+
     // Cost & profit
     var cost: Decimal? = nil
     
@@ -202,35 +226,55 @@ struct Product: Identifiable, Codable, Hashable {
         }
     }
 
-// MARK: - Custom Cocktail
+// MARK: - Custom Cocktail Recipe
 struct CustomCocktail: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var name: String
     var createdBy: UUID  // Bartender ID
-    var ingredients: [CocktailIngredient]
-    var price: Decimal  // Auto-calculated from ingredients
+    var ingredients: [RecipeIngredient]
+    var basePrice: Decimal  // Calculated from well/default ingredients
     var category: ProductCategory = .cocktails
+    var isPending: Bool = true  // Awaiting admin approval
+    var approvedBy: UUID? = nil  // Admin who approved
+    var approvedAt: Date? = nil
 
-    init(id: UUID = UUID(), name: String, createdBy: UUID, ingredients: [CocktailIngredient]) {
+    init(id: UUID = UUID(), name: String, createdBy: UUID, ingredients: [RecipeIngredient], isPending: Bool = true) {
         self.id = id
         self.name = name
         self.createdBy = createdBy
         self.ingredients = ingredients
+        self.isPending = isPending
 
-        // Auto-calculate price from ingredients
-        self.price = ingredients.reduce(0) { total, ingredient in
-            total + (ingredient.product.price * ingredient.servings)
+        // Auto-calculate base price from ingredients
+        self.basePrice = ingredients.reduce(0) { total, ingredient in
+            total + (ingredient.defaultProduct.price * ingredient.servings)
+        }
+    }
+
+    // Calculate price based on actual ingredient selections
+    func calculatePrice(selectedIngredients: [UUID: Product]) -> Decimal {
+        ingredients.reduce(0) { total, ingredient in
+            let product = ingredient.isVariable ? (selectedIngredients[ingredient.id] ?? ingredient.defaultProduct) : ingredient.defaultProduct
+            return total + (product.price * ingredient.servings)
         }
     }
 }
 
-struct CocktailIngredient: Identifiable, Codable, Hashable {
+struct RecipeIngredient: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
-    var product: Product
+    var defaultProduct: Product  // The default/well product
     var servings: Decimal  // 0.25, 0.5, 0.75, 1, 1.25, etc.
+    var isVariable: Bool = false  // If true, bartender selects at register
+    var variableCategory: ProductCategory? = nil  // Filter for variable selection (e.g., .liquor)
+    var variableTier: ProductTier? = nil  // Filter for variable selection (e.g., .call)
 
     var displayText: String {
-        "\(servings.plainString()) serving\(servings == 1 ? "" : "s") of \(product.name)"
+        let servingText = "\(servings.plainString()) serving\(servings == 1 ? "" : "s")"
+        if isVariable {
+            return "\(servingText) of variable \(defaultProduct.category.displayName) (\(defaultProduct.name) default)"
+        } else {
+            return "\(servingText) of \(defaultProduct.name)"
+        }
     }
 }
 

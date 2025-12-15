@@ -655,13 +655,59 @@ final class InventoryVM: ObservableObject {
 
     func currentBartenderCocktails() -> [CustomCocktail] {
         guard let bartenderID = currentShift?.openedBy?.id else { return [] }
-        return customCocktails[bartenderID] ?? []
+        return customCocktails[bartenderID]?.filter { $0.isPending } ?? []
+    }
+
+    // Get all pending cocktails across all bartenders (for admin)
+    func allPendingCocktails() -> [CustomCocktail] {
+        customCocktails.values.flatMap { $0 }.filter { $0.isPending }
+    }
+
+    // Approve a cocktail - creates a real product
+    func approveCocktail(_ cocktail: CustomCocktail, approvedBy: UUID) {
+        // Create a real product from the recipe
+        var newProduct = Product(
+            name: cocktail.name,
+            category: cocktail.category,
+            price: cocktail.basePrice
+        )
+
+        // Store recipe in a way we can reference it
+        // For now, we'll just create the product - in the future we can add a recipeID field
+        products.append(newProduct)
+
+        // Mark cocktail as approved (keep for reference)
+        if let bartenderID = customCocktails.first(where: { $0.value.contains(where: { $0.id == cocktail.id }) })?.key,
+           let index = customCocktails[bartenderID]?.firstIndex(where: { $0.id == cocktail.id }) {
+            customCocktails[bartenderID]?[index].isPending = false
+            customCocktails[bartenderID]?[index].approvedBy = approvedBy
+            customCocktails[bartenderID]?[index].approvedAt = Date()
+        }
+
+        print("✅ Cocktail approved: \(cocktail.name) → Product added to catalog")
+    }
+
+    func rejectCocktail(_ cocktail: CustomCocktail) {
+        // Find and remove from all bartenders
+        for bartenderID in customCocktails.keys {
+            customCocktails[bartenderID]?.removeAll { $0.id == cocktail.id }
+        }
+        print("❌ Cocktail rejected: \(cocktail.name)")
+    }
+
+    // Deduct inventory for recipe ingredients with selected variable products
+    func deductRecipeInventory(for cocktail: CustomCocktail, quantity: Int, selectedIngredients: [UUID: Product]) {
+        for ingredient in cocktail.ingredients {
+            let product = ingredient.isVariable ? (selectedIngredients[ingredient.id] ?? ingredient.defaultProduct) : ingredient.defaultProduct
+            let totalServings = ingredient.servings * Decimal(quantity)
+            deductInventory(for: product, quantity: Int((totalServings as NSDecimalNumber).doubleValue))
+        }
     }
 
     // Deduct inventory for custom cocktail ingredients
     private func deductCocktailInventory(for cocktail: CustomCocktail, quantity: Int) {
         for ingredient in cocktail.ingredients {
-            deductInventory(for: ingredient.product, quantity: Int((ingredient.servings * Decimal(quantity) as NSDecimalNumber).doubleValue))
+            deductInventory(for: ingredient.defaultProduct, quantity: Int((ingredient.servings * Decimal(quantity) as NSDecimalNumber).doubleValue))
         }
     }
 

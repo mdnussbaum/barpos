@@ -49,6 +49,13 @@ struct AdminView: View {
                     } label: {
                         Label("Inventory", systemImage: "box.truck")
                     }
+
+                    NavigationLink {
+                        PendingCocktailsView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Pending Cocktails", systemImage: "clock.badge.checkmark")
+                    }
                 }
                 
                 // MARK: - Staff

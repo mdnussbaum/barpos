@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 
 // MARK: - ViewModel
+@MainActor
 final class InventoryVM: ObservableObject {
     
     // MARK: - Admin lock / Settings

@@ -121,7 +121,8 @@ struct Product: Identifiable, Codable, Hashable {
     
     // Status
     var is86d: Bool = false
-    
+    var canBeIngredient: Bool = false
+
     // Computed properties
         var profitMargin: Decimal? {
             guard let cost = cost, cost > 0 else { return nil }

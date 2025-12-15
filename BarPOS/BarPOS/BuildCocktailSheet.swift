@@ -111,7 +111,8 @@ struct AddIngredientSheet: View {
     private let servingOptions: [Decimal] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
 
     private var availableProducts: [Product] {
-        vm.products.filter { !$0.isHidden && $0.category != .chips }
+        vm.products
+            .filter { $0.canBeIngredient && !$0.isHidden && $0.category != .chips }
             .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 

@@ -164,6 +164,11 @@ struct CSVImporter {
         if let is86dStr = rowData["86d"], !is86dStr.isEmpty {
             product.is86d = (is86dStr.lowercased() == "true" || is86dStr == "1" || is86dStr.lowercased() == "yes")
         }
+
+        // Can be ingredient
+        if let ingredientStr = rowData["can_be_ingredient"], !ingredientStr.isEmpty {
+            product.canBeIngredient = (ingredientStr.lowercased() == "true" || ingredientStr == "1" || ingredientStr.lowercased() == "yes")
+        }
     }
     
     // MARK: - Parse CSV Row
@@ -205,7 +210,8 @@ struct CSVImporter {
             "supplier",
             "sku",
             "hidden",
-            "86d"
+            "86d",
+            "can_be_ingredient"
         ]
         
         let examples = [
@@ -223,6 +229,7 @@ struct CSVImporter {
                 "ABC Distributing",
                 "BUD-12OZ",
                 "false",
+                "false",
                 "false"
             ],
             [
@@ -239,7 +246,8 @@ struct CSVImporter {
                 "ABC Distributing",
                 "VODKA-WELL",
                 "false",
-                "false"
+                "false",
+                "true"
             ],
             [
                 "Orange Juice",
@@ -255,7 +263,8 @@ struct CSVImporter {
                 "Restaurant Depot",
                 "OJ-GAL",
                 "false",
-                "false"
+                "false",
+                "true"
             ]
         ]
         
@@ -284,7 +293,8 @@ struct CSVImporter {
             "supplier",
             "sku",
             "hidden",
-            "86d"
+            "86d",
+            "can_be_ingredient"
         ]
         
         var csv = headers.joined(separator: ",") + "\n"
@@ -305,10 +315,11 @@ struct CSVImporter {
                     let sku = product.supplierSKU ?? ""
                     let hidden = product.isHidden ? "true" : "false"
                     let is86d = product.is86d ? "true" : "false"
-                    
+                    let canBeIngredient = product.canBeIngredient ? "true" : "false"
+
                     let row = [
                         name, category, price, cost, stock, par, unit,
-                        caseSize, servingSize, servingUnit, supplier, sku, hidden, is86d
+                        caseSize, servingSize, servingUnit, supplier, sku, hidden, is86d, canBeIngredient
                     ]
             
             // Escape commas in values

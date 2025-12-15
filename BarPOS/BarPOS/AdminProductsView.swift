@@ -220,6 +220,8 @@ struct AdminProductsView: View {
 
     private func beginNew() {
         draft = Product(name: "", category: category ?? .misc, price: 0)
+        // Set smart defaults for new products
+        draft.canBeIngredient = [.liquor, .shots, .wine, .na].contains(draft.category)
         isNew = true
         showingEditor = true
     }
@@ -345,8 +347,14 @@ struct ProductEditSheet: View {
                 
                 Toggle("Hide from register", isOn: $draft.isHidden)
                 Toggle("86'd (Out of Stock)", isOn: $draft.is86d)
+
+                Toggle("Can Be Ingredient", isOn: $draft.canBeIngredient)
+
+                Text("Enable this if the product can be used as a cocktail ingredient (liquor, mixers, etc.)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            
+
             // MARK: - Pricing
             Section("Pricing") {
                 HStack {

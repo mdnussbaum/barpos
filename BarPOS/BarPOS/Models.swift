@@ -80,6 +80,31 @@ enum ProductTier: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Bottle Size Helper
+enum BottleSize: String, CaseIterable, Identifiable {
+    case fifth = "fifth"      // 750ml / 25.36 oz
+    case liter = "liter"      // 1L / 33.81 oz
+    case handle = "handle"    // 1.75L / 59.17 oz
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .fifth: return "Fifth (750ml)"
+        case .liter: return "Liter (1L)"
+        case .handle: return "Handle (1.75L)"
+        }
+    }
+    
+    var ozEquivalent: Decimal {
+        switch self {
+        case .fifth: return 25.36
+        case .liter: return 33.81
+        case .handle: return 59.17
+        }
+    }
+}
+
 // MARK: - Bartender
 struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
@@ -154,7 +179,49 @@ struct Product: Identifiable, Codable, Hashable {
               price > 0,
               cost.isFinite,
               price.isFinite else { return nil }
-        return ((price - cost) / price) * 100
+        
+        // If we have a cost per serving, use that for margin calculation
+        if let costPerServ = costPerServing {
+            return ((price - costPerServ) / costPerServ) * 100
+        }
+        
+        // Otherwise use whole-unit cost
+        return ((price - cost) / cost) * 100
+    }
+    var suggestedPrice: Decimal? {
+        guard let costPerServ = costPerServing,
+              costPerServ > 0 else { return nil }
+        
+        // Markup varies by tier
+        let markup: Decimal = {
+            switch tier {
+            case .well: return 6.0      // Higher markup on well
+            case .call: return 5.5      // Standard markup
+            case .premium: return 5.0   // Lower markup (premium already expensive)
+            case .none: return 5.5      // Default
+            }
+        }()
+        
+        let calculatedPrice = costPerServ * markup
+        
+        // Round to nearest $0.50
+        let halfDollars = ((calculatedPrice as NSDecimalNumber).doubleValue / 0.5).rounded()
+        return Decimal(halfDollars * 0.5)
+    }
+
+    var priceVariance: Decimal? {
+        guard let suggested = suggestedPrice else { return nil }
+        
+        // How much over/under suggested price
+        return price - suggested
+    }
+
+    var priceVariancePercent: Decimal? {
+        guard let suggested = suggestedPrice,
+              suggested > 0 else { return nil }
+        
+        // Percentage over/under
+        return ((price - suggested) / suggested) * 100
     }
     var stockDisplayString: String? {
             guard let stock = stockQuantity, let size = caseSize, size > 0 else {
@@ -184,8 +251,14 @@ struct Product: Identifiable, Codable, Hashable {
             return cost / servingSize
         }
         
-        // Otherwise we need conversion
-        return convertedCostPerServing(baseCost: cost)
+        // Convert: cost per stock unit → cost per serving unit → cost per serving
+        guard let conversionFactor = getConversionFactor(from: unit, to: servingUnit ?? unit) else { return nil }
+        
+        // Cost per serving unit
+        let costPerServingUnit = cost / conversionFactor
+        
+        // Cost per individual serving
+        return costPerServingUnit / servingSize
     }
         
         private func convertedCostPerServing(baseCost: Decimal) -> Decimal? {
@@ -328,4 +401,12 @@ struct TabTicket: Identifiable, Hashable, Codable {
     }
     var tax: Decimal { 0 }
     var total: Decimal { subtotal + tax }
+}
+
+extension Decimal {
+    func rounded(to places: Int) -> Decimal {
+        let divisor = pow(10.0, Double(places))
+        let rounded = (self as NSDecimalNumber).doubleValue * divisor
+        return Decimal(round(rounded) / divisor)
+    }
 }

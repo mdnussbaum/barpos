@@ -382,6 +382,44 @@ struct ProductEditSheet: View {
                     }
                 }
             }
+            // MARK: - Pricing Analysis
+            if let suggested = draft.suggestedPrice {
+                Section("Pricing Analysis") {
+                    HStack {
+                        Text("Suggested Price")
+                        Spacer()
+                        Text(suggested.currencyString())
+                            .foregroundStyle(.blue)
+                    }
+                    
+                    if let variance = draft.priceVariance {
+                        HStack {
+                            Text("Price Difference")
+                            Spacer()
+                            Text(variance.currencyString())
+                                .foregroundStyle(variance >= 0 ? .green : .red)
+                        }
+                    }
+                    
+                    if let variancePercent = draft.priceVariancePercent {
+                        HStack {
+                            Text("vs. Suggested")
+                            Spacer()
+                            Text("\(Int((variancePercent as NSDecimalNumber).doubleValue.rounded()))%")
+                                .foregroundStyle(abs((variancePercent as NSDecimalNumber).doubleValue) < 10 ? .green : .orange)
+                        }
+                    }
+                    
+                    if let margin = draft.profitMargin {
+                        HStack {
+                            Text("Actual Margin")
+                            Spacer()
+                            Text("\(Int((margin as NSDecimalNumber).doubleValue.rounded()))%")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
             
             // MARK: - Inventory
             Section("Inventory") {
@@ -390,7 +428,35 @@ struct ProductEditSheet: View {
                         Text(unit.displayName).tag(unit)
                     }
                 }
-                
+                // Liquor bottle size helper
+                if draft.category == .liquor {
+                    Picker("Bottle Size", selection: Binding(
+                        get: {
+                            // Try to match current servingSize to a standard bottle
+                            if let size = draft.servingSize {
+                                let sizeDouble = (size as NSDecimalNumber).doubleValue
+                                if abs(sizeDouble - 25.36) < 0.1 { return BottleSize.fifth }
+                                if abs(sizeDouble - 33.81) < 0.1 { return BottleSize.liter }
+                                if abs(sizeDouble - 59.17) < 0.1 { return BottleSize.handle }
+                            }
+                            return BottleSize.liter // default
+                        },
+                        set: { (newSize: BottleSize) in
+                            // When changed, update the unit to "bottle" and servingSize to oz equivalent
+                            draft.unit = .bottle
+                            draft.servingSize = newSize.ozEquivalent
+                            draft.servingUnit = .oz
+                        }
+                    )) {
+                        ForEach(BottleSize.allCases) { size in
+                            Text(size.displayName).tag(size)
+                        }
+                    }
+                    
+                    Text("Automatically sets stock unit to 'bottle' and converts to oz for serving calculations")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 HStack {
                     Text("Case Size")
                     Spacer()

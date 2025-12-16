@@ -295,7 +295,7 @@ struct StockAdjustmentSheet: View {
                     Text(product.name)
                         .font(.headline)
 
-                    Text("Current Stock: \(product.stockQuantity?.plainString() ?? "0") \(product.unit.displayName)")
+                    Text("Current Stock: \(product.stockDisplayString ?? (product.stockQuantity?.plainString() ?? "0"))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

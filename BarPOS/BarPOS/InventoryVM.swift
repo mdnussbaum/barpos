@@ -666,7 +666,7 @@ final class InventoryVM: ObservableObject {
     // Approve a cocktail - creates a real product
     func approveCocktail(_ cocktail: CustomCocktail, approvedBy: UUID) {
         // Create a real product from the recipe
-        var newProduct = Product(
+        let newProduct = Product(
             name: cocktail.name,
             category: cocktail.category,
             price: cocktail.basePrice

@@ -148,10 +148,14 @@ struct Product: Identifiable, Codable, Hashable {
     var canBeIngredient: Bool = false
 
     // Computed properties
-        var profitMargin: Decimal? {
-            guard let cost = cost, cost > 0 else { return nil }
-            return ((price - cost) / price) * 100
-        }
+    var profitMargin: Decimal? {
+        guard let cost = cost,
+              cost > 0,
+              price > 0,
+              cost.isFinite,
+              price.isFinite else { return nil }
+        return ((price - cost) / price) * 100
+    }
     var stockDisplayString: String? {
             guard let stock = stockQuantity, let size = caseSize, size > 0 else {
                 return stockQuantity?.plainString()
@@ -168,19 +172,21 @@ struct Product: Identifiable, Codable, Hashable {
             }
         }
     
-        var costPerServing: Decimal? {
-            guard let cost = cost,
-                  let servingSize = servingSize,
-                  servingSize > 0 else { return nil }
-            
-            // If serving unit matches stock unit, it's simple
-            if servingUnit == nil || servingUnit == unit {
-                return cost / servingSize
-            }
-            
-            // Otherwise we need conversion (we'll handle common cases)
-            return convertedCostPerServing(baseCost: cost)
+    var costPerServing: Decimal? {
+        guard let cost = cost,
+              let servingSize = servingSize,
+              servingSize > 0,
+              cost.isFinite,
+              servingSize.isFinite else { return nil }
+        
+        // If serving unit matches stock unit, it's simple
+        if servingUnit == nil || servingUnit == unit {
+            return cost / servingSize
         }
+        
+        // Otherwise we need conversion
+        return convertedCostPerServing(baseCost: cost)
+    }
         
         private func convertedCostPerServing(baseCost: Decimal) -> Decimal? {
             guard let servingSize = servingSize,

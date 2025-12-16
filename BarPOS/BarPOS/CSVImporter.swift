@@ -5,7 +5,6 @@
 //  Created by Michael Nussbaum on 11/29/25.
 //
 
-
 import Foundation
 
 struct CSVImporter {
@@ -140,9 +139,22 @@ struct CSVImporter {
                 product.servingUnit = unit
             }
         }
+        
         // Case Size
         if let caseSizeStr = rowData["case_size"], !caseSizeStr.isEmpty {
             product.caseSize = Int(caseSizeStr)
+        }
+        
+        // Tier
+        if let tierStr = rowData["tier"], !tierStr.isEmpty {
+            if let tier = ProductTier(rawValue: tierStr.lowercased()) {
+                product.tier = tier
+            }
+        }
+        
+        // Gun item
+        if let gunStr = rowData["gun_item"], !gunStr.isEmpty {
+            product.isGunItem = (gunStr.lowercased() == "true" || gunStr == "1" || gunStr.lowercased() == "yes")
         }
         
         // Supplier
@@ -207,6 +219,8 @@ struct CSVImporter {
             "case_size",
             "serving_size",
             "serving_unit",
+            "tier",
+            "gun_item",
             "supplier",
             "sku",
             "hidden",
@@ -226,11 +240,12 @@ struct CSVImporter {
                 "24",
                 "1",
                 "bottle",
+                "none",
+                "false",
                 "ABC Distributing",
                 "BUD-12OZ",
                 "false",
                 "false",
-                "none",
                 "false"
             ],
             [
@@ -244,6 +259,8 @@ struct CSVImporter {
                 "",
                 "1.5",
                 "oz",
+                "well",
+                "false",
                 "ABC Distributing",
                 "VODKA-WELL",
                 "false",
@@ -261,6 +278,8 @@ struct CSVImporter {
                 "",
                 "6",
                 "oz",
+                "none",
+                "true",
                 "Restaurant Depot",
                 "OJ-GAL",
                 "false",
@@ -291,6 +310,8 @@ struct CSVImporter {
             "case_size",
             "serving_size",
             "serving_unit",
+            "tier",
+            "gun_item",
             "supplier",
             "sku",
             "hidden",
@@ -301,28 +322,30 @@ struct CSVImporter {
         var csv = headers.joined(separator: ",") + "\n"
         
         for product in products.sorted(by: { $0.displayOrder < $1.displayOrder }) {
-                    // Build row values
-                    let name = product.name
-                    let category = product.category.rawValue
-                    let price = "\(product.price)"
-                    let cost = product.cost.map { "\($0)" } ?? ""
-                    let stock = product.stockQuantity.map { "\($0)" } ?? ""
-                    let par = product.parLevel.map { "\($0)" } ?? ""
-                    let unit = product.unit.rawValue
-                    let caseSize = product.caseSize.map { "\($0)" } ?? ""
-                    let servingSize = product.servingSize.map { "\($0)" } ?? ""
-                    let servingUnit = product.servingUnit?.rawValue ?? ""
-                    let supplier = product.supplier ?? ""
-                    let sku = product.supplierSKU ?? ""
-                    let hidden = product.isHidden ? "true" : "false"
-                    let is86d = product.is86d ? "true" : "false"
-                    let canBeIngredient = product.canBeIngredient ? "true" : "false"
+            // Build row values
+            let name = product.name
+            let category = product.category.rawValue
+            let price = "\(product.price)"
+            let cost = product.cost.map { "\($0)" } ?? ""
+            let stock = product.stockQuantity.map { "\($0)" } ?? ""
+            let par = product.parLevel.map { "\($0)" } ?? ""
+            let unit = product.unit.rawValue
+            let caseSize = product.caseSize.map { "\($0)" } ?? ""
+            let servingSize = product.servingSize.map { "\($0)" } ?? ""
+            let servingUnit = product.servingUnit?.rawValue ?? ""
+            let tier = product.tier.rawValue
+            let gunItem = product.isGunItem ? "true" : "false"
+            let supplier = product.supplier ?? ""
+            let sku = product.supplierSKU ?? ""
+            let hidden = product.isHidden ? "true" : "false"
+            let is86d = product.is86d ? "true" : "false"
+            let canBeIngredient = product.canBeIngredient ? "true" : "false"
 
-                    let row = [
-                        name, category, price, cost, stock, par, unit,
-                        caseSize, servingSize, servingUnit, supplier, sku, hidden, is86d, canBeIngredient
-                    ]
-            
+            let row = [
+                name, category, price, cost, stock, par, unit,
+                caseSize, servingSize, servingUnit, tier, gunItem, supplier, sku, hidden, is86d, canBeIngredient
+            ]
+    
             // Escape commas in values
             let escapedRow = row.map { value in
                 if value.contains(",") {

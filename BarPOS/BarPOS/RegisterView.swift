@@ -329,7 +329,7 @@ struct RegisterView: View {
                 id: cocktail.id,
                 name: cocktail.name + " ⭐",  // Star to indicate custom
                 category: cocktail.category,
-                price: cocktail.price
+                price: 0 // TODO: Replace with the correct custom cocktail price once available
             )
         }
         let allProducts = customCocktails + regularProducts
@@ -654,3 +654,4 @@ struct RegisterView: View {
         }
     }
 }
+

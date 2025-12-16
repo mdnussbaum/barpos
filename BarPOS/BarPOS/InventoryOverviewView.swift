@@ -155,6 +155,7 @@ struct InventoryOverviewView: View {
                             adjustStock(product: product, amount: amount, isAdding: true)
                         }
                     )
+                    .environmentObject(vm)  // ADD THIS LINE
                 }
             }
             .sheet(isPresented: $showingRemoveStock) {
@@ -167,6 +168,7 @@ struct InventoryOverviewView: View {
                             adjustStock(product: product, amount: amount, isAdding: false)
                         }
                     )
+                    .environmentObject(vm)  // ADD THIS LINE
                 }
             }
         }

@@ -8,9 +8,10 @@ struct InventoryOverviewView: View {
     @State private var selectedCategory: ProductCategory?
     @State private var sortOption: SortOption = .stockLevel
     @State private var showingAddStock: Bool = false
-    @State private var showingRemoveStock: Bool = false
+    @State private var showingAdjustStock: Bool = false
     @State private var selectedProduct: Product?
     @State private var stockAdjustmentAmount: String = ""
+    @State private var adjustmentReason: String = ""
 
     enum SortOption: String, CaseIterable {
         case stockLevel = "Stock Level"
@@ -116,10 +117,11 @@ struct InventoryOverviewView: View {
                             Button {
                                 selectedProduct = product
                                 stockAdjustmentAmount = ""
-                                showingRemoveStock = true
+                                adjustmentReason = ""
+                                showingAdjustStock = true
                             } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundStyle(.red)
+                                Image(systemName: "pencil.circle.fill")
+                                    .foregroundStyle(.orange)
                                     .font(.title3)
                             }
                             .buttonStyle(.plain)
@@ -152,23 +154,23 @@ struct InventoryOverviewView: View {
                         isAdding: true,
                         amount: $stockAdjustmentAmount,
                         onSave: { amount in
-                            adjustStock(product: product, amount: amount, isAdding: true)
+                            addStock(product: product, amount: amount)
                         }
                     )
                     .environmentObject(vm)  // ADD THIS LINE
                 }
             }
-            .sheet(isPresented: $showingRemoveStock) {
+            .sheet(isPresented: $showingAdjustStock) {
                 if let product = selectedProduct {
-                    StockAdjustmentSheet(
+                    InventoryAdjustmentSheet(
                         product: product,
-                        isAdding: false,
-                        amount: $stockAdjustmentAmount,
-                        onSave: { amount in
-                            adjustStock(product: product, amount: amount, isAdding: false)
+                        newCountString: $stockAdjustmentAmount,
+                        reason: $adjustmentReason,
+                        onSave: { newCount, reason in
+                            adjustStockToCount(product: product, newCount: newCount, reason: reason)
                         }
                     )
-                    .environmentObject(vm)  // ADD THIS LINE
+                    .environmentObject(vm)
                 }
             }
         }
@@ -263,17 +265,36 @@ struct InventoryOverviewView: View {
         }
     }
 
-    /// Adjust stock for a product
-    private func adjustStock(product: Product, amount: Decimal, isAdding: Bool) {
+    /// Add stock for a product (receiving shipments)
+    private func addStock(product: Product, amount: Decimal) {
         guard let index = vm.products.firstIndex(where: { $0.id == product.id }) else { return }
 
         let currentStock = vm.products[index].stockQuantity ?? 0
-        let newStock = isAdding ? currentStock + amount : currentStock - amount
+        let newStock = currentStock + amount
 
-        vm.products[index].stockQuantity = max(0, newStock)
+        vm.products[index].stockQuantity = newStock
+
+        print("📦 Stock added: \(product.name) +\(amount.plainString()) (New: \(newStock.plainString()))")
 
         showingAddStock = false
-        showingRemoveStock = false
+        selectedProduct = nil
+    }
+
+    /// Adjust stock to exact count (physical inventory audit)
+    private func adjustStockToCount(product: Product, newCount: Decimal, reason: String) {
+        guard let index = vm.products.firstIndex(where: { $0.id == product.id }) else { return }
+
+        let oldStock = vm.products[index].stockQuantity ?? 0
+        let variance = newCount - oldStock
+        let varianceStr = variance >= 0 ? "+\(variance.plainString())" : "\(variance.plainString())"
+
+        vm.products[index].stockQuantity = max(0, newCount)
+
+        // TODO: Save adjustment to audit log
+
+        print("📝 Stock adjusted: \(product.name) | Old: \(oldStock.plainString()) → New: \(newCount.plainString()) (\(varianceStr)) | Reason: \(reason)")
+
+        showingAdjustStock = false
         selectedProduct = nil
     }
 }
@@ -325,6 +346,129 @@ struct StockAdjustmentSheet: View {
                     }
                     .disabled(Decimal(string: amount) == nil || Decimal(string: amount) ?? 0 <= 0)
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Inventory Adjustment Sheet
+
+struct InventoryAdjustmentSheet: View {
+    let product: Product
+    @Binding var newCountString: String
+    @Binding var reason: String
+    let onSave: (Decimal, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var isCountFieldFocused: Bool
+
+    private var currentStock: Decimal {
+        product.stockQuantity ?? 0
+    }
+
+    private var newCount: Decimal? {
+        Decimal(string: newCountString)
+    }
+
+    private var variance: Decimal? {
+        guard let count = newCount else { return nil }
+        return count - currentStock
+    }
+
+    private var varianceText: String {
+        guard let variance = variance else { return "" }
+        if variance > 0 {
+            return "+\(variance.plainString())"
+        } else if variance < 0 {
+            return "\(variance.plainString())"
+        } else {
+            return "±0"
+        }
+    }
+
+    private var varianceColor: Color {
+        guard let variance = variance else { return .secondary }
+        if variance > 0 {
+            return .green
+        } else if variance < 0 {
+            return .red
+        } else {
+            return .secondary
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                // Section 1: Product Info
+                Section {
+                    Text(product.name)
+                        .font(.headline)
+
+                    Text("Current Stock: \(product.stockDisplayString ?? currentStock.plainString())")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                // Section 2: Physical Count
+                Section {
+                    TextField("New count", text: $newCountString)
+                        .keyboardType(.decimalPad)
+                        .focused($isCountFieldFocused)
+
+                    if let variance = variance {
+                        HStack {
+                            Text("Variance:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(varianceText)
+                                .fontWeight(.semibold)
+                                .foregroundColor(varianceColor)
+                        }
+                    }
+                } header: {
+                    Text("Physical Count")
+                }
+
+                // Section 3: Reason
+                Section {
+                    TextField("Reason for adjustment", text: $reason, axis: .vertical)
+                        .lineLimit(2...4)
+                } header: {
+                    Text("Reason")
+                } footer: {
+                    Text("Examples: Broken bottle, Case damaged, Over-pouring, Physical count correction")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .navigationTitle("Adjust Stock")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        if let count = newCount {
+                            let finalReason = reason.isEmpty ? "Manual adjustment" : reason
+                            onSave(count, finalReason)
+                            dismiss()
+                        }
+                    }
+                    .disabled(newCount == nil)
+                }
+            }
+            .onAppear {
+                // Pre-fill with current stock
+                if newCountString.isEmpty {
+                    newCountString = currentStock.plainString()
+                }
+                // Focus on count field
+                isCountFieldFocused = true
             }
         }
     }

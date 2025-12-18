@@ -104,9 +104,11 @@ struct InventoryOverviewView: View {
                             
                             // Quick action buttons
                             Button {
+                                print("🟢 Add Stock button tapped for: \(product.name)")
                                 selectedProduct = product
                                 stockAdjustmentAmount = ""
                                 showingAddStock = true
+                                print("🟢 showingAddStock set to: \(showingAddStock)")
                             } label: {
                                 Image(systemName: "plus.circle.fill")
                                     .foregroundStyle(.blue)
@@ -148,18 +150,33 @@ struct InventoryOverviewView: View {
                 }
             }
             .sheet(isPresented: $showingAddStock) {
-                if let product = selectedProduct {
-                    StockAdjustmentSheet(
-                        product: product,
-                        isAdding: true,
-                        amount: $stockAdjustmentAmount,
-                        onSave: { amount in
-                            addStock(product: product, amount: amount)
-                        }
-                    )
-                    .environmentObject(vm)  // ADD THIS LINE
+                Group {
+                    let _ = print("🟡 Sheet isPresented triggered, showingAddStock = \(showingAddStock)")
+                    
+                    if let product = selectedProduct {
+                        let _ = print("🟡 Creating StockAdjustmentSheet for: \(product.name)")
+                        
+                        StockAdjustmentSheet(
+                            product: product,
+                            isAdding: true,
+                            amount: $stockAdjustmentAmount,
+                            onSave: { amount in
+                                addStock(product: product, amount: amount)
+                            }
+                        )
+                        .environmentObject(vm)
+                    } else {
+                        let _ = print("🔴 ERROR: selectedProduct is nil!")
+                        Text("Error: No product selected")
+                    }
                 }
+            }  // ← THIS CLOSING BRACE
+        .onChange(of: showingAddStock) { oldValue, newValue in  // ← ADD THIS ENTIRE BLOCK HERE
+            print("🔵 showingAddStock changed from \(oldValue) to \(newValue)")
+            if newValue {
+                print("🔵 selectedProduct when sheet opens: \(selectedProduct?.name ?? "nil")")
             }
+        }
             .sheet(isPresented: $showingAdjustStock) {
                 if let product = selectedProduct {
                     InventoryAdjustmentSheet(
@@ -270,11 +287,20 @@ struct InventoryOverviewView: View {
         guard let index = vm.products.firstIndex(where: { $0.id == product.id }) else { return }
 
         let currentStock = vm.products[index].stockQuantity ?? 0
-        let newStock = currentStock + amount
-
+        
+        // If stock unit is "case", multiply by case size to get individual units
+        let amountToAdd: Decimal
+        if vm.products[index].unit == .case_, let caseSize = vm.products[index].caseSize, caseSize > 0 {
+            amountToAdd = amount * Decimal(caseSize)
+            print("📦 Converting \(amount) cases × \(caseSize) = \(amountToAdd) units")
+        } else {
+            amountToAdd = amount
+        }
+        
+        let newStock = currentStock + amountToAdd
         vm.products[index].stockQuantity = newStock
 
-        print("📦 Stock added: \(product.name) +\(amount.plainString()) (New: \(newStock.plainString()))")
+        print("📦 Stock added: \(product.name) +\(amount) \(product.unit.displayName) (New: \(newStock.plainString()))")
 
         showingAddStock = false
         selectedProduct = nil
@@ -310,7 +336,9 @@ struct StockAdjustmentSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        let _ = print("🔵 StockAdjustmentSheet appearing for: \(product.name)")
+        
+        return NavigationStack {
             Form {
                 Section {
                     Text(product.name)
@@ -326,6 +354,9 @@ struct StockAdjustmentSheet: View {
                         .keyboardType(.decimalPad)
                 } header: {
                     Text(isAdding ? "Add Stock" : "Remove Stock")
+                } footer: {
+                    Text("Enter amount in \(product.unit.displayName)")
+                        .font(.caption)
                 }
             }
             .navigationTitle(isAdding ? "Add Stock" : "Remove Stock")

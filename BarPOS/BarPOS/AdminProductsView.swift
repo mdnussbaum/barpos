@@ -628,7 +628,13 @@ struct ProductEditSheet: View {
         name = draft.name
         priceString = draft.price.currencyEditingString()
         costString = draft.cost?.currencyEditingString() ?? ""
-        parString = draft.parLevel?.plainString() ?? ""
+        // Load par level - convert back to cases if applicable
+        if let par = draft.parLevel, draft.unit == .case_, let caseSize = draft.caseSize, caseSize > 0 {
+            let parInCases = (par as NSDecimalNumber).intValue / caseSize
+            parString = "\(parInCases)"
+        } else {
+            parString = draft.parLevel?.plainString() ?? ""
+        }
         servingSizeString = draft.servingSize?.plainString() ?? ""
         supplier = draft.supplier ?? ""
         supplierSKU = draft.supplierSKU ?? ""
@@ -669,7 +675,20 @@ struct ProductEditSheet: View {
         draft.price = price
         draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
         draft.stockQuantity = Decimal(string: stockString)
-        draft.parLevel = Decimal(string: parString)
+
+        // Parse par level and convert to individual units if using cases
+        if let parValue = Decimal(string: parString) {
+            if draft.unit == .case_, let caseSize = draft.caseSize, caseSize > 0 {
+                // Convert cases to individual units
+                draft.parLevel = parValue * Decimal(caseSize)
+                print("📦 Par level: \(parValue) cases × \(caseSize) = \(draft.parLevel ?? 0) units")
+            } else {
+                draft.parLevel = parValue
+            }
+        } else {
+            draft.parLevel = nil
+        }
+
         draft.servingSize = Decimal(string: servingSizeString)
         draft.supplier = supplier.isEmpty ? nil : supplier
         draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU

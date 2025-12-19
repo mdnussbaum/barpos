@@ -201,8 +201,9 @@ final class InventoryVM: ObservableObject {
 
         // Deduct inventory for sold items
         for line in ticket.lines {
-            // Check if this is a custom cocktail
-            if let cocktail = currentBartenderCocktails().first(where: { $0.name == line.product.name }) {
+            // Check if this is a custom cocktail (strip the star suffix for comparison)
+            let productNameWithoutStar = line.product.name.replacingOccurrences(of: " ⭐", with: "")
+            if let cocktail = currentBartenderCocktails().first(where: { $0.name == productNameWithoutStar }) {
                 deductCocktailInventory(for: cocktail, quantity: line.qty)
             } else {
                 deductInventory(for: line.product, quantity: line.qty)

@@ -1,13 +1,12 @@
 import SwiftUI
 
 enum MainSection: String, CaseIterable, Identifiable {
-    case register, history, inventory, admin
+    case register, history, admin
     var id: String { rawValue }
     var title: String {
         switch self {
         case .register:  return "Register"
         case .history:   return "History"
-        case .inventory: return "Inventory"
         case .admin:     return "Admin"
         }
     }
@@ -15,7 +14,6 @@ enum MainSection: String, CaseIterable, Identifiable {
         switch self {
         case .register:  return "creditcard"
         case .history:   return "clock.arrow.circlepath"
-        case .inventory: return "shippingbox"
         case .admin:     return "gearshape"
         }
     }
@@ -33,7 +31,7 @@ struct AppShell: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
                 Picker("Section", selection: $section) {
                     ForEach(MainSection.allCases) { s in
                         Label(s.title, systemImage: s.systemImage).tag(s)
@@ -41,6 +39,8 @@ struct AppShell: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
                 .zIndex(1000)
 
                 Group {
@@ -49,8 +49,6 @@ struct AppShell: View {
                         RegisterView().environmentObject(vm)
                     case .history:
                         HistoryView().environmentObject(vm)
-                    case .inventory:
-                        placeholder(icon: "shippingbox", title: "Inventory")
                     case .admin:
                         AdminView().environmentObject(vm)
                     }

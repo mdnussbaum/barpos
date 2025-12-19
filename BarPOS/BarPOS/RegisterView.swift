@@ -17,7 +17,8 @@ struct RegisterView: View {
     @State private var showingBuildCocktail = false
     
     var body: some View {
-        Group {
+        GeometryReader { geometry in
+            Group {
             if vm.currentShift == nil {
                 // Not on shift - show overlay
                 ZStack {
@@ -53,6 +54,7 @@ struct RegisterView: View {
             } else {
                 // On shift - normal view
                 registerContent
+            }
             }
         }
         .onAppear {
@@ -143,115 +145,120 @@ struct RegisterView: View {
     
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
-        VStack(spacing: 0) {
-            // Tab strip - fixed at top
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(vm.tabIDsForUI, id: \.self) { id in
-                        Button { vm.selectTab(id: id) } label: {
-                            Text(vm.tabDisplayName(id: id))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
-                                .clipShape(Capsule())
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                // Tab strip - fixed at top
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(vm.tabIDsForUI, id: \.self) { id in
+                            Button { vm.selectTab(id: id) } label: {
+                                Text(vm.tabDisplayName(id: id))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
+                                    .clipShape(Capsule())
+                            }
                         }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
-            }
-            .padding(.horizontal, 6)
-            
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 6) {
-                    // Rename + trash (trash only deletes when EMPTY)
-                    HStack {
-                        TextField("Tab name", text: Binding(
-                            get: { vm.activeTab?.name ?? "" },
-                            set: { vm.renameActiveTab($0) }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        
-                        Button(role: .destructive) {
-                            vm.deleteActiveTabIfEmpty()
-                        } label: {
-                            Image(systemName: "trash")
+                .padding(.horizontal, 6)
+                .frame(height: 40)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        // Rename + trash (trash only deletes when EMPTY)
+                        HStack {
+                            TextField("Tab name", text: Binding(
+                                get: { vm.activeTab?.name ?? "" },
+                                set: { vm.renameActiveTab($0) }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+
+                            Button(role: .destructive) {
+                                vm.deleteActiveTabIfEmpty()
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .disabled(!vm.activeLines.isEmpty)
                         }
-                        .disabled(!vm.activeLines.isEmpty)
-                    }
-                    
-                    // New Tab
-                    Button { vm.createNewTab() } label: {
-                        Label("New Tab", systemImage: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .padding(.bottom, 6)
-                    
-                    // Current ticket lines
-                    if vm.activeLines.isEmpty {
-                        Text("No items yet")
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        List {
-                            ForEach(vm.activeLines) { line in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(line.product.name)
-                                        Text("@ \(line.product.price.currencyString())")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+
+                        // New Tab
+                        Button { vm.createNewTab() } label: {
+                            Label("New Tab", systemImage: "plus.circle.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .padding(.bottom, 6)
+
+                        // Current ticket lines
+                        if vm.activeLines.isEmpty {
+                            Text("No items yet")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            List {
+                                ForEach(vm.activeLines) { line in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(line.product.name)
+                                            Text("@ \(line.product.price.currencyString())")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+
+                                        // quantity badge
+                                        Text("×\(line.qty)")
+                                            .font(.headline)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color(.tertiarySystemFill))
+                                            .clipShape(Capsule())
+
+                                        // MINUS only
+                                        Button {
+                                            vm.decrementLine(lineID: line.id)
+                                        } label: {
+                                            Image(systemName: "minus.circle.fill")
+                                                .imageScale(.large)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(.leading, 4)
+                                        .accessibilityLabel("Decrease \(line.product.name)")
                                     }
-                                    Spacer()
-                                    
-                                    // quantity badge
-                                    Text("×\(line.qty)")
-                                        .font(.headline)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color(.tertiarySystemFill))
-                                        .clipShape(Capsule())
-                                    
-                                    // MINUS only
-                                    Button {
-                                        vm.decrementLine(lineID: line.id)
-                                    } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                            .imageScale(.large)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .padding(.leading, 4)
-                                    .accessibilityLabel("Decrease \(line.product.name)")
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button {
-                                        vm.decrementLine(lineID: line.id)
-                                    } label: {
-                                        Label("Decrease", systemImage: "minus.circle")
-                                    }
-                                    
-                                    Button(role: .destructive) {
-                                        vm.removeLine(lineID: line.id)
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button {
+                                            vm.decrementLine(lineID: line.id)
+                                        } label: {
+                                            Label("Decrease", systemImage: "minus.circle")
+                                        }
+
+                                        Button(role: .destructive) {
+                                            vm.removeLine(lineID: line.id)
+                                        } label: {
+                                            Label("Remove", systemImage: "trash")
+                                        }
                                     }
                                 }
                             }
+                            .listStyle(.plain)
+                            .frame(minHeight: 200)
                         }
-                        .listStyle(.plain)
-                        .frame(minHeight: 200)
-                    }
 
+                    }
+                    .padding(.bottom, 8)
                 }
-                .padding(.bottom, 8)
+                .frame(height: geo.size.height - 40 - 180)
+
+                // Totals + Chips - anchored at bottom as one unit
+                VStack(spacing: 4) {
+                    totalsCard
+                    chipActionsSection
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 6)
+                .frame(height: 180)
             }
-            
-            // Totals + Chips - anchored at bottom as one unit
-            VStack(spacing: 4) {
-                totalsCard
-                chipActionsSection
-            }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 6)
         }
     }
     
@@ -471,7 +478,7 @@ struct RegisterView: View {
                 return false
             }())
         }
-        .padding(8)
+        .padding(6)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
     
@@ -519,7 +526,7 @@ struct RegisterView: View {
                 chipButton(type: .black, action: .redeem)
             }
         }
-        .padding(8)
+        .padding(6)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
     

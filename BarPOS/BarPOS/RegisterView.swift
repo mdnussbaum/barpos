@@ -26,7 +26,7 @@ struct RegisterView: View {
                         .blur(radius: 2)
                     
                     Color.black.opacity(0.45)
-                        .ignoresSafeArea()
+                        .ignoresSafeArea(.all, edges: [.bottom, .leading, .trailing])
                     
                     VStack(spacing: 12) {
                         Image(systemName: "lock.fill")
@@ -127,17 +127,17 @@ struct RegisterView: View {
                 Spacer()
                 shiftStatusChip
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 4)
-            
+            .padding(.horizontal, 6)
+            .padding(.top, 2)
+
             // Main 1/3 : 2/3 layout
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
                 leftColumn
                     .frame(maxWidth: .infinity)
                 rightColumn
                     .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
         }
     }
     
@@ -157,9 +157,9 @@ struct RegisterView: View {
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -238,11 +238,11 @@ struct RegisterView: View {
                             }
                         }
                         .listStyle(.plain)
-                        .frame(minHeight: 400)
+                        .frame(minHeight: 200)
                     }
-                    
+
                 }
-                .padding(.bottom, 240)
+                .padding(.bottom, 8)
             }
             
             // Totals + Chips - anchored at bottom as one unit
@@ -250,14 +250,14 @@ struct RegisterView: View {
                 totalsCard
                 chipActionsSection
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 6)
+            .padding(.bottom, 6)
         }
     }
     
     // MARK: - Right column (category + products OR chips)
     private var rightColumn: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             HStack {
                 categoryBar
                 // Reorder button with category menu
@@ -296,13 +296,13 @@ struct RegisterView: View {
                 } label: {
                     Label("Build Cocktail", systemImage: "plus.circle.fill")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 8)
                         .background(Color.blue.opacity(0.1))
                         .foregroundStyle(.blue)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal)
+                .padding(.horizontal, 4)
             }
 
             if selectedCategory == .chips {
@@ -519,7 +519,7 @@ struct RegisterView: View {
                 chipButton(type: .black, action: .redeem)
             }
         }
-        .padding()
+        .padding(8)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
     

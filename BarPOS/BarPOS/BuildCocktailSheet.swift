@@ -7,6 +7,7 @@ struct BuildCocktailSheet: View {
     @State private var cocktailName: String = ""
     @State private var selectedIngredients: [RecipeIngredient] = []
     @State private var showingAddIngredient = false
+    @State private var customPriceString: String = ""
 
     private var totalPrice: Decimal {
         selectedIngredients.reduce(0) { $0 + ($1.defaultProduct.price * $1.servings) }
@@ -53,11 +54,19 @@ struct BuildCocktailSheet: View {
 
                 Section("Pricing") {
                     HStack {
-                        Text("Total Price")
-                            .font(.headline)
+                        Text("Ingredient Cost")
                         Spacer()
                         Text(totalPrice.currencyString())
-                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Sale Price")
+                        Spacer()
+                        TextField("0.00", text: $customPriceString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
                     }
                 }
             }
@@ -71,7 +80,9 @@ struct BuildCocktailSheet: View {
                     Button("Save") {
                         saveCocktail()
                     }
-                    .disabled(cocktailName.trimmingCharacters(in: .whitespaces).isEmpty || selectedIngredients.isEmpty)
+                    .disabled(cocktailName.trimmingCharacters(in: .whitespaces).isEmpty ||
+                             selectedIngredients.isEmpty ||
+                             (Decimal(string: customPriceString) ?? 0) <= 0)
                 }
             }
             .sheet(isPresented: $showingAddIngredient) {
@@ -80,16 +91,32 @@ struct BuildCocktailSheet: View {
                 }
                 .environmentObject(vm)
             }
+            .onAppear {
+                // Pre-fill price with calculated cost
+                if customPriceString.isEmpty {
+                    customPriceString = totalPrice.plainString()
+                }
+            }
+            .onChange(of: selectedIngredients) { _, _ in
+                // Update price when ingredients change (if user hasn't manually edited)
+                if let currentPrice = Decimal(string: customPriceString), currentPrice == 0 || customPriceString.isEmpty {
+                    customPriceString = totalPrice.plainString()
+                }
+            }
         }
     }
 
     private func saveCocktail() {
         guard let bartender = vm.currentShift?.openedBy else { return }
+        
+        // Use custom price if provided, otherwise use calculated total
+        let finalPrice = Decimal(string: customPriceString) ?? totalPrice
 
         let cocktail = CustomCocktail(
             name: cocktailName.trimmingCharacters(in: .whitespaces),
             createdBy: bartender.id,
-            ingredients: selectedIngredients
+            ingredients: selectedIngredients,
+            basePrice: finalPrice
         )
 
         vm.addCustomCocktail(cocktail)
@@ -106,48 +133,87 @@ struct AddIngredientSheet: View {
 
     @State private var selectedProduct: Product?
     @State private var servings: Decimal = 1.0
-    @State private var searchText: String = ""
-
-    private let servingOptions: [Decimal] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
+    @State private var servingsString: String = "1"
+    @State private var selectedCategory: ProductCategory? = .liquor // Default to liquor
 
     private var availableProducts: [Product] {
-        vm.products
-            .filter { $0.canBeIngredient && !$0.isHidden && $0.category != .chips }
-            .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+        let filtered = vm.products.filter { $0.canBeIngredient && !$0.is86d }
+        
+        if let category = selectedCategory {
+            return filtered.filter { $0.category == category }
+        }
+        return filtered
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Select Product") {
-                    List {
-                        ForEach(availableProducts) { product in
-                            Button {
-                                selectedProduct = product
-                            } label: {
+                Section("Category") {
+                    Picker("Filter by", selection: $selectedCategory) {
+                        Text("All").tag(nil as ProductCategory?)
+                        ForEach(ProductCategory.allCases.filter { $0 != .chips }) { category in
+                            Text(category.displayName).tag(category as ProductCategory?)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
+                Section("Select Ingredient") {
+                    if availableProducts.isEmpty {
+                        Text("No ingredients available in this category")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Picker("Product", selection: $selectedProduct) {
+                            Text("Select...").tag(nil as Product?)
+                            ForEach(availableProducts) { product in
                                 HStack {
                                     Text(product.name)
                                     Spacer()
-                                    if selectedProduct?.id == product.id {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(.blue)
+                                    if product.tier != .none {
+                                        Text(product.tier.displayName)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
+                                .tag(product as Product?)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
-                .searchable(text: $searchText, prompt: "Search products")
 
                 if selectedProduct != nil {
                     Section("Servings") {
-                        Picker("Servings", selection: $servings) {
-                            ForEach(servingOptions, id: \.self) { option in
-                                Text(option.plainString()).tag(option)
+                        HStack {
+                            Text("Amount")
+                            Spacer()
+                            TextField("1.0", text: $servingsString)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                                .onChange(of: servingsString) { _, newValue in
+                                    if let decimal = Decimal(string: newValue) {
+                                        servings = decimal
+                                    }
+                                }
+                            Text("servings")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let product = selectedProduct {
+                            HStack {
+                                Text("Cost per Serving")
+                                Spacer()
+                                Text(product.price.currencyString())
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Total Cost")
+                                Spacer()
+                                Text((product.price * servings).currencyString())
+                                    .font(.headline)
                             }
                         }
-                        .pickerStyle(.wheel)
                     }
                 }
             }
@@ -160,12 +226,15 @@ struct AddIngredientSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
                         if let product = selectedProduct {
-                            let ingredient = RecipeIngredient(defaultProduct: product, servings: servings)
+                            let ingredient = RecipeIngredient(
+                                defaultProduct: product,
+                                servings: servings
+                            )
                             onAdd(ingredient)
                             dismiss()
                         }
                     }
-                    .disabled(selectedProduct == nil)
+                    .disabled(selectedProduct == nil || servings <= 0)
                 }
             }
         }

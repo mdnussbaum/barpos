@@ -17,35 +17,16 @@ struct RegisterView: View {
     @State private var showingBuildCocktail = false
     
     var body: some View {
-        ZStack {
-            VStack {
-                // Top bar with Shift Status chip
-                HStack {
-                    Spacer()
-                    shiftStatusChip
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                
-                // Main 1/3 : 2/3 layout
-                HStack(alignment: .top, spacing: 16) {
-                    leftColumn
-                        .frame(maxWidth: .infinity)   // 1/3
-                    rightColumn
-                        .frame(maxWidth: .infinity)   // 2/3
-                }
-            }
-            // Disable + blur the register when not on shift
-            .disabled(vm.currentShift == nil)
-            .blur(radius: vm.currentShift == nil ? 2 : 0)
-            
-            // Overlay when not on shift
+        Group {
             if vm.currentShift == nil {
+                // Not on shift - show overlay
                 ZStack {
+                    registerContent
+                        .disabled(true)
+                        .blur(radius: 2)
+                    
                     Color.black.opacity(0.45)
                         .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .zIndex(1)
                     
                     VStack(spacing: 12) {
                         Image(systemName: "lock.fill")
@@ -68,11 +49,12 @@ struct RegisterView: View {
                         }
                         .accessibilityLabel("Begin Shift")
                     }
-                    .zIndex(2)
                 }
+            } else {
+                // On shift - normal view
+                registerContent
             }
         }
-        .padding()
         .onAppear {
             print("🔍 All bartenders: \(vm.bartenders.map { "\($0.name) - active: \($0.isActive)" })")
             print("🔍 Active only: \(vm.bartenders.filter { $0.isActive }.map { $0.name })")
@@ -83,7 +65,10 @@ struct RegisterView: View {
             BeginShiftSheet(
                 carryoverTabs: Array(vm.tabs.values).filter { !$0.lines.isEmpty },
                 onStart: { bartender, openingCash in
-                    vm.beginShift(bartender: bartender, openingCash: openingCash)
+                    showingBeginSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        vm.beginShift(bartender: bartender, openingCash: openingCash)
+                    }
                 }
             )
             .environmentObject(vm)
@@ -133,6 +118,29 @@ struct RegisterView: View {
                 .environmentObject(vm)
         }
     }
+    
+    // MARK: - Register Content
+    private var registerContent: some View {
+        VStack(spacing: 0) {
+            // Top bar with Shift Status chip
+            HStack {
+                Spacer()
+                shiftStatusChip
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+            
+            // Main 1/3 : 2/3 layout
+            HStack(alignment: .top, spacing: 8) {
+                leftColumn
+                    .frame(maxWidth: .infinity)
+                rightColumn
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 8)
+        }
+    }
+    
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
         VStack(spacing: 0) {
@@ -327,9 +335,9 @@ struct RegisterView: View {
         let customCocktails = vm.currentBartenderCocktails().map { cocktail in
             Product(
                 id: cocktail.id,
-                name: cocktail.name + " ⭐",  // Star to indicate custom
+                name: cocktail.name + " ⭐",
                 category: cocktail.category,
-                price: 0 // TODO: Replace with the correct custom cocktail price once available
+                price: cocktail.basePrice
             )
         }
         let allProducts = customCocktails + regularProducts
@@ -400,6 +408,7 @@ struct RegisterView: View {
             }
         }
     }
+    
     // MARK: - Totals + Checkout (Quick Actions)
     private var totalsCard: some View {
         VStack(spacing: 4) {
@@ -654,4 +663,3 @@ struct RegisterView: View {
         }
     }
 }
-

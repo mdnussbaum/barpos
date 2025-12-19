@@ -5,9 +5,9 @@ struct BeginShiftSheet: View {
     let carryoverTabs: [TabTicket]
     var onStart: (_ bartender: Bartender, _ openingCash: Decimal) -> Void
     var onCancel: () -> Void = {}
-
+    
     @Environment(\.dismiss) private var dismiss
-
+    
     @State private var authenticatedBartender: Bartender? = nil
     @State private var showingPINSheet = false
     @State private var openingCashString: String = ""
@@ -19,7 +19,7 @@ struct BeginShiftSheet: View {
     private var carryoverTabCount: Int {
         carryoverTabs.count
     }
-
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -41,7 +41,7 @@ struct BeginShiftSheet: View {
                         .padding(.vertical, 8)
                     }
                 }
-            
+                
                 Section("Bartender") {
                     if let bartender = authenticatedBartender {
                         HStack {
@@ -62,7 +62,7 @@ struct BeginShiftSheet: View {
                         }
                     }
                 }
-
+                
                 Section("Opening Cash") {
                     TextField("0.00", text: $openingCashString)
                         .keyboardType(.decimalPad)
@@ -90,20 +90,19 @@ struct BeginShiftSheet: View {
             }
         }
     }
-
+    
     private func startShift() {
         guard let bartender = authenticatedBartender else { return }
         let opening = Decimal(string: openingCashString) ?? 0
-        onStart(bartender, opening)
+        
+        // Dismiss BEFORE calling onStart to prevent blocking
         dismiss()
+        
+        // Small delay to let sheet dismiss completely
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onStart(bartender, opening)
+        }
     }
-}
-
-#Preview {
-    BeginShiftSheet(
-        carryoverTabs: [],
-        onStart: { _, _ in },
-        onCancel: {}
-    )
-    .environmentObject(InventoryVM())
+    
+    // Preview temporarily disabled due to macro issue
 }

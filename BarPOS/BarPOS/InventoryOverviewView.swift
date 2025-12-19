@@ -403,7 +403,8 @@ struct InventoryAdjustmentSheet: View {
 
     private var variance: Decimal? {
         guard let count = newCount else { return nil }
-        return count - currentStock
+        let calculatedVariance = count - currentStock
+        return calculatedVariance
     }
 
     private var varianceText: String {

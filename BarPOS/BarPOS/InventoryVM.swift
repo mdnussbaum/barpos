@@ -236,13 +236,29 @@ final class InventoryVM: ObservableObject {
 
         // Calculate amount to deduct based on serving size
         let servingSize = products[index].servingSize ?? 1.0
-        let amountToDeduct = servingSize * Decimal(quantity)
+        let servingsToDeduct = servingSize * Decimal(quantity)
+        
+        // Convert serving units to stock units if needed
+        let amountToDeduct: Decimal
+        if let servingUnit = products[index].servingUnit, servingUnit != products[index].unit {
+            // Need conversion (e.g., oz → liter)
+            if let conversionFactor = getConversionFactor(from: servingUnit, to: products[index].unit) {
+                amountToDeduct = servingsToDeduct * conversionFactor
+                print("🔄 Converting \(servingsToDeduct) \(servingUnit.displayName) × \(conversionFactor) = \(amountToDeduct) \(products[index].unit.displayName)")
+            } else {
+                print("⚠️ No conversion available from \(servingUnit.displayName) to \(products[index].unit.displayName)")
+                amountToDeduct = servingsToDeduct
+            }
+        } else {
+            // Same unit or no serving unit specified
+            amountToDeduct = servingsToDeduct
+        }
 
         // Deduct from stock
         let newStock = max(0, currentStock - amountToDeduct)
         products[index].stockQuantity = newStock
 
-        print("📦 Inventory deducted: \(product.name) - \(amountToDeduct) \(products[index].unit.displayName) (New stock: \(newStock))")
+        print("📦 Inventory deducted: \(product.name) - \(servingsToDeduct) \(products[index].servingUnit?.displayName ?? products[index].unit.displayName) (New stock: \(newStock) \(products[index].unit.displayName))")
 
         // Mark as 86'd if stock hits zero
         if newStock == 0 && !products[index].is86d {
@@ -251,6 +267,18 @@ final class InventoryVM: ObservableObject {
         }
     }
 
+    // Helper function for unit conversion
+    private func getConversionFactor(from: UnitOfMeasure, to: UnitOfMeasure) -> Decimal? {
+        if from == to { return 1 }
+        
+        switch (from, to) {
+        case (.oz, .liter): return Decimal(1.0 / 33.814)  // 1 oz = 0.0295735 liters
+        case (.liter, .oz): return 33.814
+        case (.oz, .gallon): return Decimal(1.0 / 128.0)
+        case (.gallon, .oz): return 128
+        default: return nil
+        }
+    }
     var currentShiftGross: Decimal {
         closedTabs.reduce(0) { $0 + $1.total }
     }

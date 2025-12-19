@@ -41,6 +41,7 @@ struct AppShell: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
+                .zIndex(1000)
 
                 Group {
                     switch section {

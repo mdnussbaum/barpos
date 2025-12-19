@@ -318,16 +318,20 @@ struct CustomCocktail: Identifiable, Codable, Hashable {
     var approvedBy: UUID? = nil  // Admin who approved
     var approvedAt: Date? = nil
 
-    init(id: UUID = UUID(), name: String, createdBy: UUID, ingredients: [RecipeIngredient], isPending: Bool = true) {
+    init(id: UUID = UUID(), name: String, createdBy: UUID, ingredients: [RecipeIngredient], basePrice: Decimal? = nil, isPending: Bool = true) {
         self.id = id
         self.name = name
         self.createdBy = createdBy
         self.ingredients = ingredients
         self.isPending = isPending
 
-        // Auto-calculate base price from ingredients
-        self.basePrice = ingredients.reduce(0) { total, ingredient in
-            total + (ingredient.defaultProduct.price * ingredient.servings)
+        // Use provided price, or auto-calculate from ingredients
+        if let providedPrice = basePrice {
+            self.basePrice = providedPrice
+        } else {
+            self.basePrice = ingredients.reduce(0) { total, ingredient in
+                total + (ingredient.defaultProduct.price * ingredient.servings)
+            }
         }
     }
 

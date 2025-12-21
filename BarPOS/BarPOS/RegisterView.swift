@@ -418,34 +418,38 @@ struct RegisterView: View {
     
     // MARK: - Totals + Checkout (Quick Actions)
     private var totalsCard: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 8) {
-                Text(vm.totalActive.currencyString())
-                    .font(.system(size: 24, weight: .bold))
-                
-                if payMethod == .cash {
-                    TextField("Tendered", text: $cashGivenString)
+        VStack(spacing: 6) {
+            // Total display
+            Text(vm.totalActive.currencyString())
+                .font(.system(size: 28, weight: .bold))
+                .frame(maxWidth: .infinity)
+
+            // Cash entry (full width)
+            if payMethod == .cash {
+                VStack(spacing: 4) {
+                    TextField("Cash Tendered", text: $cashGivenString)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
-                        .font(.body)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 120)
+                        .font(.title3)
+                        .multilineTextAlignment(.center)
+
+                    if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
+                        let change = tendered - vm.totalActive
+                        Text("Change: \(change.currencyString())")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+                    }
                 }
             }
-            
-            if payMethod == .cash, let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                let change = tendered - vm.totalActive
-                Text("Change: \(change.currencyString())")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            }
-            
-            HStack(spacing: 4) {
+
+            // Payment method buttons
+            HStack(spacing: 6) {
                 paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
                 paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
                 paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
             }
-            
+
+            // Close Tab button (BIGGER and full width)
             Button {
                 switch payMethod {
                 case .cash:
@@ -465,10 +469,11 @@ struct RegisterView: View {
                 }
             } label: {
                 Label("Close Tab", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .controlSize(.large)
             .disabled({
                 if vm.activeLines.isEmpty { return true }
                 if payMethod == .cash {
@@ -478,7 +483,7 @@ struct RegisterView: View {
                 return false
             }())
         }
-        .padding(6)
+        .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
     

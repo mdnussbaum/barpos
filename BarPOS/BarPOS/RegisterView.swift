@@ -442,46 +442,47 @@ struct RegisterView: View {
                 }
             }
 
-            // Payment method buttons
+            // Payment buttons + Close Tab side-by-side
             HStack(spacing: 6) {
-                paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
-            }
+                // Left side: Payment method buttons
+                HStack(spacing: 6) {
+                    paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
+                    paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
+                }
 
-            // Close Tab button (BIGGER and full width)
-            Button {
-                switch payMethod {
-                case .cash:
-                    guard let cash = Decimal(string: cashGivenString) else { return }
-                    if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
-                        cashGivenString = ""
-                        showingSummary = true
+                // Right side: Close Tab button
+                Button {
+                    switch payMethod {
+                    case .cash:
+                        guard let cash = Decimal(string: cashGivenString) else { return }
+                        if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
+                            cashGivenString = ""
+                            showingSummary = true
+                        }
+                    case .card:
+                        if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
+                            showingSummary = true
+                        }
+                    case .other:
+                        if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
+                            showingSummary = true
+                        }
                     }
-                case .card:
-                    if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
-                        showingSummary = true
-                    }
-                case .other:
-                    if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
-                        showingSummary = true
-                    }
+                } label: {
+                    Label("Close Tab", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
                 }
-            } label: {
-                Label("Close Tab", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled({
+                    if vm.activeLines.isEmpty { return true }
+                    if payMethod == .cash {
+                        let tendered = Decimal(string: cashGivenString) ?? 0
+                        return tendered < vm.totalActive
+                    }
+                    return false
+                }())
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled({
-                if vm.activeLines.isEmpty { return true }
-                if payMethod == .cash {
-                    let tendered = Decimal(string: cashGivenString) ?? 0
-                    return tendered < vm.totalActive
-                }
-                return false
-            }())
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))

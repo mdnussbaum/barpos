@@ -166,16 +166,8 @@ struct AddIngredientSheet: View {
                         Picker("Product", selection: $selectedProduct) {
                             Text("Select...").tag(nil as Product?)
                             ForEach(availableProducts) { product in
-                                HStack {
-                                    Text(product.name)
-                                    Spacer()
-                                    if product.tier != .none {
-                                        Text(product.tier.displayName)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .tag(product as Product?)
+                                Text(product.tier != .none ? "\(product.name) (\(product.tier.displayName))" : product.name)
+                                    .tag(product as Product?)
                             }
                         }
                     }

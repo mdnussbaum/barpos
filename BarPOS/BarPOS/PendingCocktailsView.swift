@@ -22,6 +22,11 @@ struct PendingCocktailsView: View {
             } else {
                 ForEach(pendingCocktails) { cocktail in
                     Button {
+                        print("🔵 Selected cocktail: \(cocktail.name)")
+                        print("🔵 Ingredients count: \(cocktail.ingredients.count)")
+                        for (index, ingredient) in cocktail.ingredients.enumerated() {
+                            print("🔵 Ingredient \(index): \(ingredient.defaultProduct.name)")
+                        }
                         selectedCocktail = cocktail
                         showingDetail = true
                     } label: {

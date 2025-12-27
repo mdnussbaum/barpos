@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RegisterView: View {
     @EnvironmentObject var vm: InventoryVM
-    
+
     // UI State
     @State private var cashGivenString: String = ""
     @State private var showingSummary = false
@@ -15,6 +15,11 @@ struct RegisterView: View {
     @State private var categoryToReorder: ProductCategory? = nil
     @State private var showingChangePINSheet = false
     @State private var showingBuildCocktail = false
+
+    // Printer state
+    @StateObject private var printer = MockPrinterManager()
+    @State private var showReceiptPrompt = false
+    @State private var pendingReceipt: CloseResult?
     
     var body: some View {
         GeometryReader { geometry in
@@ -118,6 +123,31 @@ struct RegisterView: View {
         .sheet(isPresented: $showingBuildCocktail) {
             BuildCocktailSheet()
                 .environmentObject(vm)
+        }
+        .alert("Print Receipt?", isPresented: $showReceiptPrompt) {
+            Button("Print & Open Drawer") {
+                Task {
+                    if let receipt = pendingReceipt {
+                        await printReceipt(receipt)
+                        if receipt.paymentMethod == .cash && vm.printerSettings.autoOpenDrawer {
+                            await printer.openCashDrawer()
+                        }
+                    }
+                    showingSummary = true
+                }
+            }
+            Button("Skip Receipt") {
+                Task {
+                    if let receipt = pendingReceipt, receipt.paymentMethod == .cash && vm.printerSettings.autoOpenDrawer {
+                        await printer.openCashDrawer()
+                    }
+                    showingSummary = true
+                }
+            }
+        } message: {
+            if let receipt = pendingReceipt {
+                Text("Tab: \(receipt.tabName) • Total: \(receipt.total.currencyString())")
+            }
         }
     }
     
@@ -450,17 +480,32 @@ struct RegisterView: View {
                 switch payMethod {
                 case .cash:
                     guard let cash = Decimal(string: cashGivenString) else { return }
-                    if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
+                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                        pendingReceipt = result
                         cashGivenString = ""
-                        showingSummary = true
+                        if vm.printerSettings.autoPrintReceipts {
+                            showReceiptPrompt = true
+                        } else {
+                            showingSummary = true
+                        }
                     }
                 case .card:
-                    if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
-                        showingSummary = true
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                        pendingReceipt = result
+                        if vm.printerSettings.autoPrintReceipts {
+                            showReceiptPrompt = true
+                        } else {
+                            showingSummary = true
+                        }
                     }
                 case .other:
-                    if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
-                        showingSummary = true
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                        pendingReceipt = result
+                        if vm.printerSettings.autoPrintReceipts {
+                            showReceiptPrompt = true
+                        } else {
+                            showingSummary = true
+                        }
                     }
                 }
             } label: {
@@ -619,6 +664,14 @@ struct RegisterView: View {
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
     
+    // MARK: - Helper Functions
+
+    private func printReceipt(_ result: CloseResult) async {
+        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: vm.printerSettings)
+        let receipt = ReceiptData(type: .customer(result), content: content, settings: vm.printerSettings)
+        _ = await printer.printReceipt(receipt)
+    }
+
     // MARK: - Reorder sheet (drag-and-drop per bartender)
     struct ReorderProductsSheet: View {
         let category: ProductCategory?

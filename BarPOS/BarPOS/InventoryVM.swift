@@ -9,6 +9,9 @@ final class InventoryVM: ObservableObject {
     // MARK: - Admin lock / Settings
     @Published var isAdminUnlocked: Bool = false { didSet { saveState() } }
     @Published var managerPIN: String = "0420"   { didSet { saveState() } }
+
+    // MARK: - Printer Settings
+    @Published var printerSettings: ReceiptSettings = ReceiptSettings() { didSet { saveState() } }
     
     // Staff list for Begin Shift
     @Published var bartenders: [Bartender] = [] { didSet { saveState() } }
@@ -762,6 +765,7 @@ final class InventoryVM: ObservableObject {
         var productOrderByBartender: [UUID: [String: [UUID]]]
         var defaultProductOrdering: [String: [UUID]]
         var customCocktails: [UUID: [CustomCocktail]]
+        var printerSettings: ReceiptSettings?
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -782,7 +786,8 @@ final class InventoryVM: ObservableObject {
             shiftReports: shiftReports,
             productOrderByBartender: productOrderByBartender,
             defaultProductOrdering: defaultProductOrdering,
-            customCocktails: customCocktails
+            customCocktails: customCocktails,
+            printerSettings: printerSettings
         )
         
         do {
@@ -813,6 +818,7 @@ final class InventoryVM: ObservableObject {
         productOrderByBartender = s.productOrderByBartender
         defaultProductOrdering = s.defaultProductOrdering
         customCocktails = s.customCocktails
+        printerSettings = s.printerSettings ?? ReceiptSettings()
 
         print("✅ State applied successfully")
     }
@@ -850,7 +856,8 @@ final class InventoryVM: ObservableObject {
             shiftReports: shiftReports,
             productOrderByBartender: productOrderByBartender,
             defaultProductOrdering: defaultProductOrdering,
-            customCocktails: customCocktails
+            customCocktails: customCocktails,
+            printerSettings: printerSettings
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")
         do {

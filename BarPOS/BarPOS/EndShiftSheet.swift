@@ -7,6 +7,11 @@ struct EndShiftSheet: View {
     @State private var closingCashString: String = ""
     @State private var showUnsettledAlert = false
     @State private var unsettledDetail = ""
+
+    // Printer & report options
+    @StateObject private var printer = MockPrinterManager()
+    @State private var showReportOptions = false
+    @State private var settledReport: ShiftReport?
     
     var body: some View {
         NavigationStack {
@@ -69,7 +74,8 @@ struct EndShiftSheet: View {
 
                         // Settle shift
                         if vm.settleShift(closingCash: counted) {
-                            dismiss()
+                            settledReport = vm.lastShiftReport
+                            showReportOptions = true
                         }
                     }
                     .disabled(vm.currentShift == nil)
@@ -83,19 +89,124 @@ struct EndShiftSheet: View {
                     vm.closeAllUnsettledTabs()
                     if let counted = Decimal(string: closingCashString) {
                         _ = vm.settleShift(closingCash: counted)
-                        dismiss()
+                        settledReport = vm.lastShiftReport
+                        showReportOptions = true
                     }
                 }
                 Button("Carry Over to Next Shift") {
                     if let counted = Decimal(string: closingCashString) {
                         vm.settleShiftWithCarryOver(closingCash: counted)
-                        dismiss()
+                        settledReport = vm.lastShiftReport
+                        showReportOptions = true
                     }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("You have open tabs with items:\n\n\(unsettledDetail)\n\nWhat would you like to do?")
             }
+            .sheet(isPresented: $showReportOptions) {
+                if let report = settledReport {
+                    ReportOptionsSheet(report: report, printer: printer) {
+                        dismiss()
+                    }
+                    .environmentObject(vm)
+                }
+            }
         }
     }
+}
+
+// MARK: - Report Options Sheet
+
+struct ReportOptionsSheet: View {
+    let report: ShiftReport
+    @ObservedObject var printer: MockPrinterManager
+    @EnvironmentObject var vm: InventoryVM
+    @Environment(\.dismiss) private var dismiss
+
+    let onDone: () -> Void
+
+    @State private var showingReport = false
+    @State private var pdfToShare: URL?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Button {
+                    showingReport = true
+                } label: {
+                    Label("View on Screen", systemImage: "doc.text")
+                }
+
+                Button {
+                    Task {
+                        await printReport()
+                    }
+                } label: {
+                    Label("Print Report", systemImage: "printer")
+                }
+
+                Button {
+                    Task {
+                        await generateAndSharePDF()
+                    }
+                } label: {
+                    Label("Email/Share PDF", systemImage: "square.and.arrow.up")
+                }
+            }
+            .navigationTitle("Shift Report")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        onDone()
+                        dismiss()
+                    }
+                }
+            }
+            .sheet(isPresented: $showingReport) {
+                ShiftReportSheet(report: report) {
+                    showingReport = false
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $pdfToShare) { url in
+                ShareSheet(activityItems: [url])
+            }
+        }
+    }
+
+    private func printReport() async {
+        let content = ReceiptFormatter.formatShiftReport(report, settings: vm.printerSettings)
+        let receipt = ReceiptData(type: .shiftReport(report), content: content, settings: vm.printerSettings)
+        _ = await printer.printReceipt(receipt)
+    }
+
+    private func generateAndSharePDF() async {
+        let content = ReceiptFormatter.formatShiftReport(report, settings: vm.printerSettings)
+        let receipt = ReceiptData(type: .shiftReport(report), content: content, settings: vm.printerSettings)
+        let result = await printer.printReceipt(receipt)
+
+        if case .success(let pdfURL) = result, let url = pdfURL {
+            pdfToShare = url
+        }
+    }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// Make URL Identifiable for sheet presentation
+extension URL: Identifiable {
+    public var id: String { self.absoluteString }
 }

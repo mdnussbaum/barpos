@@ -55,7 +55,7 @@ struct AppShell: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationTitle(section.title)
+            .navigationTitle(section == .admin ? section.title : "")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

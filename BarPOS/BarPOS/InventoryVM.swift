@@ -589,31 +589,33 @@ final class InventoryVM: ObservableObject {
     }
     
     func addChipSold(_ type: ChipType, count: Int = 1) {
-        guard count > 0 else { return }
-        let p = Product(
-            id: UUID(),
-            name: "\(type.displayName) Chip Sold",
-            category: .misc,
-            price: price(for: type)
-        )
-        for _ in 0..<count { addLine(product: p) }
-        chipsOutstandingByType[type, default: 0] += count
-        saveState()
-    }
-    
-    func addChipRedeemed(_ type: ChipType, count: Int = 1) {
-        guard count > 0 else { return }
-        let p = Product(
-            id: UUID(),
-            name: "\(type.displayName) Chip Redeemed",
-            category: .misc,
-            price: (0 as Decimal) - price(for: type)
-        )
-        for _ in 0..<count { addLine(product: p) }
-        let cur = chipsOutstandingByType[type, default: 0]
-        chipsOutstandingByType[type] = max(0, cur - count)
-        saveState()
-    }
+            guard count > 0 else { return }
+            let chipID = UUID(uuidString: "10000000-0000-0000-0000-00000000000\(type == .white ? "1" : type == .gray ? "2" : "3")")!
+            let p = Product(
+                id: chipID,
+                name: "\(type.displayName) Chip Sold",
+                category: .misc,
+                price: price(for: type)
+            )
+            for _ in 0..<count { addLine(product: p) }
+            chipsOutstandingByType[type, default: 0] += count
+            saveState()
+        }
+        
+        func addChipRedeemed(_ type: ChipType, count: Int = 1) {
+            guard count > 0 else { return }
+            let chipID = UUID(uuidString: "20000000-0000-0000-0000-00000000000\(type == .white ? "1" : type == .gray ? "2" : "3")")!
+            let p = Product(
+                id: chipID,
+                name: "\(type.displayName) Chip Redeemed",
+                category: .misc,
+                price: (0 as Decimal) - price(for: type)
+            )
+            for _ in 0..<count { addLine(product: p) }
+            let cur = chipsOutstandingByType[type, default: 0]
+            chipsOutstandingByType[type] = max(0, cur - count)
+            saveState()
+        }
     // MARK: - Staff Management
     func addBartender(name: String, pin: String) {
             let trimmed = name.trimmingCharacters(in: .whitespaces)

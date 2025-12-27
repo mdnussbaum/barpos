@@ -249,16 +249,15 @@ struct RegisterView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .frame(height: geo.size.height - 40 - 180)
+                .frame(height: geo.size.height - 40 - 260)
 
-                // Totals + Chips - anchored at bottom as one unit
-                VStack(spacing: 4) {
-                    totalsCard
-                    chipActionsSection
-                }
-                .padding(.horizontal, 6)
-                .padding(.bottom, 6)
-                .frame(height: 180)
+                                // Totals + Chips - anchored at bottom as one unit
+                                VStack(spacing: 4) {
+                                    totalsCard
+                                    chipActionsSection
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.bottom, 12)
             }
         }
     }
@@ -418,72 +417,76 @@ struct RegisterView: View {
     }
     
     // MARK: - Totals + Checkout (Quick Actions)
-    private var totalsCard: some View {
-        VStack(spacing: 6) {
-            Text(vm.totalActive.currencyString())
-                .font(.system(size: 28, weight: .bold))
-
-            if payMethod == .cash {
-                TextField("Cash Tendered", text: $cashGivenString)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-
-            if payMethod == .cash, let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                let change = tendered - vm.totalActive
-                Text("Change: \(change.currencyString())")
-                    .font(.headline)
-                    .foregroundStyle(.green)
-            }
-
+        private var totalsCard: some View {
             HStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                    paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                }
-                .frame(maxWidth: .infinity)
-
-                Button {
-                    switch payMethod {
-                    case .cash:
-                        guard let cash = Decimal(string: cashGivenString) else { return }
-                        if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
-                            cashGivenString = ""
-                            showingSummary = true
-                        }
-                    case .card:
-                        if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
-                            showingSummary = true
-                        }
-                    case .other:
-                        if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
-                            showingSummary = true
+                // Left side: Total + Cash entry
+                VStack(spacing: 4) {
+                    Text(vm.totalActive.currencyString())
+                        .font(.system(size: 22, weight: .bold))
+                    
+                    if payMethod == .cash {
+                        TextField("Cash", text: $cashGivenString)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .frame(height: 36)
+                        
+                        if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
+                            let change = tendered - vm.totalActive
+                            Text("Change: \(change.currencyString())")
+                                .font(.caption)
+                                .foregroundStyle(.green)
                         }
                     }
-                } label: {
+                    
+                    HStack(spacing: 4) {
+                        paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
+                        paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
+                    }
+                    .frame(height: 36)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Right side: Close Tab button
+                Button {
+                                switch payMethod {
+                                case .cash:
+                                    let cash = Decimal(string: cashGivenString) ?? 0
+                                    if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
+                                        cashGivenString = ""
+                                        showingSummary = true
+                                    }
+                                case .card:
+                                    if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
+                                        showingSummary = true
+                                    }
+                                case .other:
+                                    if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
+                                        showingSummary = true
+                                    }
+                                }
+                            } label: {
                     Text("Close Tab")
                         .font(.body)
                         .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity, minHeight: 50)
+                .frame(width: 120)
                 .disabled({
                     if vm.activeLines.isEmpty { return true }
                     if payMethod == .cash {
                         let tendered = Decimal(string: cashGivenString) ?? 0
-                        return tendered < vm.totalActive
+                        return tendered < vm.totalActive && vm.totalActive > 0
                     }
                     return false
                 }())
             }
-            .frame(height: 50)
+            .frame(height: 120)
+            .padding(8)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
-        .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
         Button {

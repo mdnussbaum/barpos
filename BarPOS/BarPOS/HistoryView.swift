@@ -138,7 +138,7 @@ struct HistoryView: View {
                 .listStyle(.insetGrouped)
             }
         }
-        .navigationTitle("History")
+        .navigationBarHidden(true)
         // Admin PIN sheet
         .sheet(isPresented: $showPIN) {
             VStack(spacing: 16) {

@@ -85,6 +85,16 @@ struct SettingsSheet: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // MARK: Hardware
+                Section("Hardware") {
+                    NavigationLink {
+                        PrinterSettingsView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Printer & Cash Drawer", systemImage: "printer")
+                    }
+                }
+
                 // Roadmap placeholders
                 Section("Coming soon") {
                     Text("Multiple chip types")

@@ -445,122 +445,73 @@ struct RegisterView: View {
     }
     
     // MARK: - Totals + Checkout (Quick Actions)
-        private var totalsCard: some View {
-            HStack(spacing: 8) {
-                // Left side: Total + Cash entry
-                VStack(spacing: 4) {
-                    Text(vm.totalActive.currencyString())
-                        .font(.system(size: 22, weight: .bold))
-                    
-                    if payMethod == .cash {
-                        TextField("Cash", text: $cashGivenString)
-                            .keyboardType(.decimalPad)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .frame(height: 36)
-                        
-                        if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                            let change = tendered - vm.totalActive
-                            Text("Change: \(change.currencyString())")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-                    }
-                    
-                    HStack(spacing: 4) {
-                        paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                        paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                    }
+    private var totalsCard: some View {
+        VStack(spacing: 4) {
+            Text(vm.totalActive.currencyString())
+                .font(.system(size: 22, weight: .bold))
+
+            if payMethod == .cash {
+                TextField("Cash", text: $cashGivenString)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
                     .frame(height: 36)
-                }
-                .frame(maxWidth: .infinity)
-                
-                // Right side: Close Tab button
-                Button {
-                    switch payMethod {
-                    case .cash:
-                        let cash = Decimal(string: cashGivenString) ?? 0
-                        if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                            cashGivenString = ""
-                            
-                            // 1. Open drawer immediately for cash
-                            if vm.printerSettings.autoOpenDrawer {
-                                Task {
-                                    await printer.openCashDrawer()
-                                }
-                            }
-                            
-                            // 2. Then prompt for receipt print
-                            pendingReceipt = result
-                            showReceiptPrompt = true
-                        }
-                    case .card:
-                        if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                            pendingReceipt = result
-                            showReceiptPrompt = true
-                        }
-                    case .other:
-                        if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                            pendingReceipt = result
-                            showReceiptPrompt = true
-                        }
-                    }
-                }
-                            } label: {
-                    Text("Close Tab")
-                        .font(.body)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
+                    let change = tendered - vm.totalActive
+                    Text("Change: \(change.currencyString())")
+                        .font(.caption)
+                        .foregroundStyle(.green)
                 }
             }
-            
-            if payMethod == .cash, let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                let change = tendered - vm.totalActive
-                Text("Change: \(change.currencyString())")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            }
-            
+
             HStack(spacing: 4) {
                 paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
                 paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
                 paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
             }
-            
+
             Button {
                 switch payMethod {
                 case .cash:
-                                    guard let cash = Decimal(string: cashGivenString) else { return }
-                                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                                        pendingReceipt = result
-                                        cashGivenString = ""
-                                        
-                                        // Open drawer immediately for cash sales
-                                        Task {
-                                            await printer.openCashDrawer()
-                                        }
-                                        
-                                        // Then show simple receipt prompt
-                                        showReceiptPrompt = true
-                                    }
+                    guard let cash = Decimal(string: cashGivenString) else { return }
+                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                        pendingReceipt = result
+                        cashGivenString = ""
+
+                        // Open drawer immediately for cash sales
+                        if vm.printerSettings.autoOpenDrawer {
+                            Task {
+                                await printer.openCashDrawer()
+                            }
+                        }
+
+                        // Then show simple receipt prompt
+                        showReceiptPrompt = true
+                    }
                 case .card:
-                                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                                        pendingReceipt = result
-                                        showReceiptPrompt = true
-                                    }
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                        pendingReceipt = result
+                        showReceiptPrompt = true
+                    }
                 case .other:
-                                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                                        pendingReceipt = result
-                                        showReceiptPrompt = true
-                                    }
-                    return false
-                }())
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                        pendingReceipt = result
+                        showReceiptPrompt = true
+                    }
+                }
+            } label: {
+                Text("Close Tab")
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(height: 120)
-            .padding(8)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
+        .frame(height: 120)
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
         Button {

@@ -67,6 +67,16 @@ struct AdminView: View {
                         Label("Staff", systemImage: "person.2.fill")
                     }
                 }
+
+                // MARK: - Security
+                Section("Security") {
+                    NavigationLink {
+                        AdminSecurityView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Security & PIN", systemImage: "lock.shield")
+                    }
+                }
             }
             .navigationTitle("Admin")
             .navigationBarTitleDisplayMode(.inline)

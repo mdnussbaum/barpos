@@ -7,40 +7,9 @@ struct SettingsSheet: View {
     // Chips editor
     @State private var chipValueText: String = ""
 
-    // Manager PIN editor
-    @State private var newPIN: String = ""
-    @State private var confirmPIN: String = ""
-    @State private var pinError: String = ""
-
     var body: some View {
         NavigationStack {
             List {
-                // MARK: Admin / Security
-                Section("Manager / Admin") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        SecureField("New PIN (4–8 digits)", text: $newPIN)
-                            .keyboardType(.numberPad)
-                        SecureField("Confirm PIN", text: $confirmPIN)
-                            .keyboardType(.numberPad)
-
-                        if !pinError.isEmpty {
-                            Text(pinError)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                        }
-
-                        HStack {
-                            Button("Save PIN") { savePIN() }
-                                .buttonStyle(.borderedProminent)
-                            Spacer()
-                            if vm.isAdminUnlocked {
-                                Button("Lock Admin") { vm.lockAdmin() }
-                                    .buttonStyle(.bordered)
-                            }
-                        }
-                    }
-                }
-
                 // MARK: Payments
                 Section("Payments") {
                     Toggle("Enable Cash",  isOn: binding(for: .cash))
@@ -136,25 +105,6 @@ struct SettingsSheet: View {
     }
 
     // MARK: - Actions
-
-    private func savePIN() {
-        pinError = ""
-        let trimmed = newPIN.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              trimmed.count >= 4, trimmed.count <= 8,
-              trimmed.allSatisfy({ $0.isNumber }) else {
-            pinError = "PIN must be 4–8 digits."
-            return
-        }
-        guard trimmed == confirmPIN else {
-            pinError = "PINs do not match."
-            return
-        }
-        vm.managerPIN = trimmed
-        vm.isAdminUnlocked = true
-        newPIN = ""
-        confirmPIN = ""
-    }
 
     private func commitChipValue() {
         let filtered = chipValueText

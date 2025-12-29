@@ -125,32 +125,28 @@ struct RegisterView: View {
                 .environmentObject(vm)
         }
         .alert("Print Receipt?", isPresented: $showReceiptPrompt) {
-            Button("Print & Open Drawer") {
+            Button("Yes") {
                 Task {
                     if let receipt = pendingReceipt {
                         await printReceipt(receipt)
-                        if receipt.paymentMethod == .cash && vm.printerSettings.autoOpenDrawer {
-                            await printer.openCashDrawer()
-                        }
                     }
                     showingSummary = true
                 }
             }
-            Button("Skip Receipt") {
-                Task {
-                    if let receipt = pendingReceipt, receipt.paymentMethod == .cash && vm.printerSettings.autoOpenDrawer {
-                        await printer.openCashDrawer()
-                    }
-                    showingSummary = true
-                }
+            Button("No") {
+                showingSummary = true
             }
         } message: {
-            if let receipt = pendingReceipt {
-                Text("Tab: \(receipt.tabName) • Total: \(receipt.total.currencyString())")
-            }
+            Text("Print customer copy?")
         }
     }
     
+    // MARK: - Print Receipt Helper
+    private func printReceipt(_ result: CloseResult) async {
+        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: vm.printerSettings)
+        let receipt = ReceiptData(type: .customer(result), content: content, settings: vm.printerSettings)
+        _ = await printer.printReceipt(receipt)
+    }
     // MARK: - Register Content
     private var registerContent: some View {
         VStack(spacing: 0) {
@@ -480,22 +476,35 @@ struct RegisterView: View {
                 
                 // Right side: Close Tab button
                 Button {
-                                switch payMethod {
-                                case .cash:
-                                    let cash = Decimal(string: cashGivenString) ?? 0
-                                    if vm.closeActiveTab(cashTendered: cash, method: .cash) != nil {
-                                        cashGivenString = ""
-                                        showingSummary = true
-                                    }
-                                case .card:
-                                    if vm.closeActiveTab(cashTendered: 0, method: .card) != nil {
-                                        showingSummary = true
-                                    }
-                                case .other:
-                                    if vm.closeActiveTab(cashTendered: 0, method: .other) != nil {
-                                        showingSummary = true
-                                    }
+                    switch payMethod {
+                    case .cash:
+                        let cash = Decimal(string: cashGivenString) ?? 0
+                        if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                            cashGivenString = ""
+                            
+                            // 1. Open drawer immediately for cash
+                            if vm.printerSettings.autoOpenDrawer {
+                                Task {
+                                    await printer.openCashDrawer()
                                 }
+                            }
+                            
+                            // 2. Then prompt for receipt print
+                            pendingReceipt = result
+                            showReceiptPrompt = true
+                        }
+                    case .card:
+                        if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                            pendingReceipt = result
+                            showReceiptPrompt = true
+                        }
+                    case .other:
+                        if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                            pendingReceipt = result
+                            showReceiptPrompt = true
+                        }
+                    }
+                }
                             } label: {
                     Text("Close Tab")
                         .font(.body)

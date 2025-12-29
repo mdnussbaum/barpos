@@ -15,44 +15,45 @@ struct ReceiptFormatter {
         lines.append("")
 
         // Date/Time
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
-        lines.append("Date: \(dateFormatter.string(from: result.closedAt))")
-        lines.append("Tab: \(result.tabName)")
-        if let bartender = result.bartenderName {
-            lines.append("Server: \(bartender)")
-        }
-        lines.append(String(repeating: "-", count: 32))
-        lines.append("")
-
+                if settings.showDate {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
+                    lines.append("Date: \(dateFormatter.string(from: result.closedAt))")
+                }
+                lines.append("Tab: \(result.tabName)")
+                if settings.showServer, let bartender = result.bartenderName {
+                    lines.append("Server: \(bartender)")
+                }
         // Items
-        lines.append("ITEMS:")
-        for line in result.lines {
-            let qty = "x\(line.qty)"
-            let price = line.lineTotal.currencyString()
-            let nameWidth = 32 - qty.count - price.count - 2
-            let truncatedName = String(line.productName.prefix(nameWidth))
-            lines.append("\(truncatedName) \(qty)  \(price)")
-        }
+                lines.append("ITEMS:")
+                for line in result.lines {
+                    let qty = "x\(line.qty)"
+                    let price = line.lineTotal.currencyString()
+                    
+                    // Format: "x3  Product Name               $24.00"
+                    let qtyCol = qty.padding(toLength: 4, withPad: " ", startingAt: 0) // "x3  "
+                    let priceCol = price.padding(toLength: 8, withPad: " ", startingAt: 0) // Right-align price
+                    let nameWidth = 32 - qtyCol.count - priceCol.count
+                    let nameTruncated = String(line.productName.prefix(nameWidth))
+                    let namePadded = nameTruncated.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
+                    
+                    lines.append("\(qtyCol)\(namePadded)\(price)")
+                }
         lines.append("")
-
-        // Totals
-        let subtotalLine = formatLine("Subtotal:", result.subtotal.currencyString())
-        let taxLine = formatLine("Tax:", (result.total - result.subtotal).currencyString())
-        let totalLine = formatLine("TOTAL:", result.total.currencyString())
-
-        lines.append(String(repeating: " ", count: 16) + subtotalLine)
-        lines.append(String(repeating: " ", count: 16) + taxLine)
         lines.append(String(repeating: "-", count: 32))
-        lines.append(String(repeating: " ", count: 16) + totalLine)
+
+        // Totals (right-aligned)
+        lines.append(formatLine("Subtotal:", result.subtotal.currencyString()))
+        lines.append(formatLine("Tax:", (result.total - result.subtotal).currencyString()))
+        lines.append(formatLine("TOTAL:", result.total.currencyString()))
         lines.append("")
 
         // Payment
         if result.paymentMethod == .cash {
-            lines.append(formatLine("Cash Tendered:", result.cashTendered.currencyString(), rightPad: 16))
-            lines.append(formatLine("Change Due:", result.changeDue.currencyString(), rightPad: 16))
+            lines.append(formatLine("Cash Tendered:", result.cashTendered.currencyString()))
+            lines.append(formatLine("Change Due:", result.changeDue.currencyString()))
         } else {
-            lines.append(formatLine("Payment:", result.paymentMethod.rawValue.capitalized, rightPad: 16))
+            lines.append(formatLine("Payment:", result.paymentMethod.rawValue.capitalized))
         }
 
         // Footer
@@ -165,8 +166,8 @@ struct ReceiptFormatter {
         return String(repeating: " ", count: padding) + text
     }
 
-    private static func formatLine(_ label: String, _ value: String, rightPad: Int = 0) -> String {
-        let totalWidth = 32 - rightPad
+    private static func formatLine(_ label: String, _ value: String) -> String {
+        let totalWidth = 32
         let spaces = max(1, totalWidth - label.count - value.count)
         return label + String(repeating: " ", count: spaces) + value
     }

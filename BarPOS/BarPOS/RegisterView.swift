@@ -125,30 +125,31 @@ struct RegisterView: View {
                 .environmentObject(vm)
         }
         .alert("Print customer copy?", isPresented: $showReceiptPrompt) {
-                    Button("Yes") {
-                        Task {
-                            if let receipt = pendingReceipt {
-                                await printReceipt(receipt)
-                            }
-                            showingSummary = true
-                        }
-                    }
-                    Button("No") {
-                        showingSummary = true
-                    }
-                } message: {
+            Button("Yes") {
+                Task {
                     if let receipt = pendingReceipt {
-                        Text("Tab: \(receipt.tabName) • \(receipt.total.currencyString())")
+                        await printReceipt(receipt, settings: vm.printerSettings)
                     }
+                    showingSummary = true
                 }
+            }
+            Button("No") {
+                showingSummary = true
+            }
+        } message: {
+            if let receipt = pendingReceipt {
+                Text("Tab: \(receipt.tabName) • \(receipt.total.currencyString())")
+            }
+        }
     }
     
     // MARK: - Print Receipt Helper
-    private func printReceipt(_ result: CloseResult) async {
-        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: vm.printerSettings)
-        let receipt = ReceiptData(type: .customer(result), content: content, settings: vm.printerSettings)
+    private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
+        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: settings)
+        let receipt = ReceiptData(type: .customer(result), content: content, settings: settings)
         _ = await printer.printReceipt(receipt)
     }
+    
     // MARK: - Register Content
     private var registerContent: some View {
         VStack(spacing: 0) {
@@ -279,13 +280,13 @@ struct RegisterView: View {
                 }
                 .frame(height: geo.size.height - 40 - 260)
 
-                                // Totals + Chips - anchored at bottom as one unit
-                                VStack(spacing: 4) {
-                                    totalsCard
-                                    chipActionsSection
-                                }
-                                .padding(.horizontal, 6)
-                                .padding(.bottom, 12)
+                // Totals + Chips - anchored at bottom as one unit
+                VStack(spacing: 4) {
+                    totalsCard
+                    chipActionsSection
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 12)
             }
         }
     }
@@ -445,73 +446,90 @@ struct RegisterView: View {
     }
     
     // MARK: - Totals + Checkout (Quick Actions)
-    private var totalsCard: some View {
-        VStack(spacing: 4) {
-            Text(vm.totalActive.currencyString())
-                .font(.system(size: 22, weight: .bold))
-
-            if payMethod == .cash {
-                TextField("Cash", text: $cashGivenString)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.body)
-                    .multilineTextAlignment(.center)
+        private var totalsCard: some View {
+            HStack(spacing: 8) {
+                // Left side: Total + Cash entry
+                VStack(spacing: 4) {
+                    Text(vm.totalActive.currencyString())
+                        .font(.system(size: 22, weight: .bold))
+                    
+                    if payMethod == .cash {
+                        TextField("Cash", text: $cashGivenString)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .frame(height: 36)
+                        
+                        if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
+                            let change = tendered - vm.totalActive
+                            Text("Change: \(change.currencyString())")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    
+                    HStack(spacing: 4) {
+                        paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
+                        paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
+                        paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
+                    }
                     .frame(height: 36)
-
-                if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                    let change = tendered - vm.totalActive
-                    Text("Change: \(change.currencyString())")
-                        .font(.caption)
-                        .foregroundStyle(.green)
                 }
-            }
-
-            HStack(spacing: 4) {
-                paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
-            }
-
-            Button {
-                switch payMethod {
-                case .cash:
-                    guard let cash = Decimal(string: cashGivenString) else { return }
-                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                        pendingReceipt = result
-                        cashGivenString = ""
-
-                        // Open drawer immediately for cash sales
-                        if vm.printerSettings.autoOpenDrawer {
+                .frame(maxWidth: .infinity)
+                
+                // Right side: Close Tab button
+                Button {
+                    switch payMethod {
+                    case .cash:
+                        guard let cash = Decimal(string: cashGivenString) else { return }
+                        if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                            pendingReceipt = result
+                            cashGivenString = ""
+                            
+                            // 1. Open drawer IMMEDIATELY for cash sales
                             Task {
                                 await printer.openCashDrawer()
                             }
+                            
+                            // 2. Then show receipt prompt
+                            showReceiptPrompt = true
                         }
-
-                        // Then show simple receipt prompt
-                        showReceiptPrompt = true
+                        
+                    case .card:
+                        if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                            pendingReceipt = result
+                            showReceiptPrompt = true
+                        }
+                        
+                    case .other:
+                        if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                            pendingReceipt = result
+                            showReceiptPrompt = true
+                        }
                     }
-                case .card:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                        pendingReceipt = result
-                        showReceiptPrompt = true
-                    }
-                case .other:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                        pendingReceipt = result
-                        showReceiptPrompt = true
-                    }
+                } label: {
+                    Text("Close Tab")
+                        .font(.body)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } label: {
-                Text("Close Tab")
-                    .font(.body)
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.borderedProminent)
+                .disabled({
+                    if vm.activeLines.isEmpty { return true }
+                    if payMethod == .cash {
+                        // Allow closing if total is $0 or negative (chip redemptions)
+                        if vm.totalActive <= 0 { return false }
+                        let tendered = Decimal(string: cashGivenString) ?? 0
+                        return tendered < vm.totalActive
+                    }
+                    return false
+                }())
             }
+            .frame(height: 120)
+            .padding(8)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
-        .frame(height: 120)
-        .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
         Button {
@@ -649,7 +667,7 @@ struct RegisterView: View {
         let m = (secs % 3600) / 60
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
-    
+
     // MARK: - Reorder sheet (drag-and-drop per bartender)
     struct ReorderProductsSheet: View {
         let category: ProductCategory?

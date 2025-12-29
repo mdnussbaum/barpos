@@ -44,6 +44,13 @@ struct AdminView: View {
                     }
 
                     NavigationLink {
+                        AnalyticsView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Analytics", systemImage: "chart.bar.xaxis")
+                    }
+
+                    NavigationLink {
                         InventoryOverviewView()
                             .environmentObject(vm)
                     } label: {

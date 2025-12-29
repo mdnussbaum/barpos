@@ -124,21 +124,23 @@ struct RegisterView: View {
             BuildCocktailSheet()
                 .environmentObject(vm)
         }
-        .alert("Print Receipt?", isPresented: $showReceiptPrompt) {
-            Button("Yes") {
-                Task {
-                    if let receipt = pendingReceipt {
-                        await printReceipt(receipt)
+        .alert("Print customer copy?", isPresented: $showReceiptPrompt) {
+                    Button("Yes") {
+                        Task {
+                            if let receipt = pendingReceipt {
+                                await printReceipt(receipt)
+                            }
+                            showingSummary = true
+                        }
                     }
-                    showingSummary = true
+                    Button("No") {
+                        showingSummary = true
+                    }
+                } message: {
+                    if let receipt = pendingReceipt {
+                        Text("Tab: \(receipt.tabName) • \(receipt.total.currencyString())")
+                    }
                 }
-            }
-            Button("No") {
-                showingSummary = true
-            }
-        } message: {
-            Text("Print customer copy?")
-        }
     }
     
     // MARK: - Print Receipt Helper
@@ -529,34 +531,29 @@ struct RegisterView: View {
             Button {
                 switch payMethod {
                 case .cash:
-                    guard let cash = Decimal(string: cashGivenString) else { return }
-                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                        pendingReceipt = result
-                        cashGivenString = ""
-                        if vm.printerSettings.autoPrintReceipts {
-                            showReceiptPrompt = true
-                        } else {
-                            showingSummary = true
-                        }
-                    }
+                                    guard let cash = Decimal(string: cashGivenString) else { return }
+                                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                                        pendingReceipt = result
+                                        cashGivenString = ""
+                                        
+                                        // Open drawer immediately for cash sales
+                                        Task {
+                                            await printer.openCashDrawer()
+                                        }
+                                        
+                                        // Then show simple receipt prompt
+                                        showReceiptPrompt = true
+                                    }
                 case .card:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                        pendingReceipt = result
-                        if vm.printerSettings.autoPrintReceipts {
-                            showReceiptPrompt = true
-                        } else {
-                            showingSummary = true
-                        }
-                    }
+                                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                                        pendingReceipt = result
+                                        showReceiptPrompt = true
+                                    }
                 case .other:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                        pendingReceipt = result
-                        if vm.printerSettings.autoPrintReceipts {
-                            showReceiptPrompt = true
-                        } else {
-                            showingSummary = true
-                        }
-                    }
+                                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                                        pendingReceipt = result
+                                        showReceiptPrompt = true
+                                    }
                     return false
                 }())
             }

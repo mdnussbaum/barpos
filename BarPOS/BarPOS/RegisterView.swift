@@ -699,14 +699,6 @@ struct RegisterView: View {
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
     
-    // MARK: - Helper Functions
-
-    private func printReceipt(_ result: CloseResult) async {
-        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: vm.printerSettings)
-        let receipt = ReceiptData(type: .customer(result), content: content, settings: vm.printerSettings)
-        _ = await printer.printReceipt(receipt)
-    }
-
     // MARK: - Reorder sheet (drag-and-drop per bartender)
     struct ReorderProductsSheet: View {
         let category: ProductCategory?

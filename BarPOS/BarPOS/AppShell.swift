@@ -23,11 +23,8 @@ struct AppShell: View {
     @EnvironmentObject var vm: InventoryVM
     @State private var section: MainSection = .register
 
-    // Settings & PIN
+    // Settings
     @State private var showingSettings = false
-    @State private var showPINSheet = false
-    @State private var pinText = ""
-    @State private var pinError = ""
 
     var body: some View {
         NavigationStack {
@@ -59,13 +56,7 @@ struct AppShell: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        if vm.isAdminUnlocked {
-                            showingSettings = true
-                        } else {
-                            pinText = ""
-                            pinError = ""
-                            showPINSheet = true
-                        }
+                        showingSettings = true
                     } label: {
                         Image(systemName: "gearshape")
                     }
@@ -73,37 +64,6 @@ struct AppShell: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsSheet().environmentObject(vm)
-            }
-            .sheet(isPresented: $showPINSheet) {
-                VStack(spacing: 16) {
-                    Text("Manager Access").font(.title3).bold()
-                    Text("Enter manager PIN to open Settings.")
-                        .foregroundStyle(.secondary)
-                    SecureField("PIN", text: $pinText)
-                        .textContentType(.oneTimeCode)
-                        .keyboardType(.numberPad)
-                        .padding(12)
-                        .background(Color(.secondarySystemBackground),
-                                    in: RoundedRectangle(cornerRadius: 12))
-                    if !pinError.isEmpty {
-                        Text(pinError).foregroundStyle(.red).font(.footnote)
-                    }
-                    HStack {
-                        Button("Cancel") { showPINSheet = false }
-                        Spacer()
-                        Button("Unlock") {
-                            if vm.unlockAdmin(with: pinText) {
-                                showPINSheet = false
-                                showingSettings = true
-                            } else {
-                                pinError = "Incorrect PIN. Try again."
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                }
-                .padding()
-                .presentationDetents([.medium])
             }
         }
         .onAppear {

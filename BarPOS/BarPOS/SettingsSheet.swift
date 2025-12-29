@@ -93,6 +93,13 @@ struct SettingsSheet: View {
                     } label: {
                         Label("Printer & Cash Drawer", systemImage: "printer")
                     }
+
+                    NavigationLink {
+                        ReceiptCustomizerView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Receipt Customizer", systemImage: "doc.text")
+                    }
                 }
 
                 // Roadmap placeholders

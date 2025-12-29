@@ -60,6 +60,9 @@ struct ReceiptSettings: Codable {
     var autoPrintReceipts: Bool = true
     var autoOpenDrawer: Bool = true
     var paperWidth: PaperWidth = .mm80
+    var showDate: Bool = true
+    var showServer: Bool = true
+    var showTax: Bool = true
 
     enum PaperWidth: String, Codable {
         case mm58 = "58mm"

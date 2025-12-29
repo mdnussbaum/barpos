@@ -15,36 +15,38 @@ struct ReceiptFormatter {
         lines.append("")
 
         // Date/Time
-                if settings.showDate {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
-                    lines.append("Date: \(dateFormatter.string(from: result.closedAt))")
-                }
-                lines.append("Tab: \(result.tabName)")
-                if settings.showServer, let bartender = result.bartenderName {
-                    lines.append("Server: \(bartender)")
-                }
+        if settings.showDate {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
+            lines.append("Date: \(dateFormatter.string(from: result.closedAt))")
+        }
+        lines.append("Tab: \(result.tabName)")
+        if settings.showServer, let bartender = result.bartenderName {
+            lines.append("Server: \(bartender)")
+        }
         // Items
-                lines.append("ITEMS:")
-                for line in result.lines {
-                    let qty = "x\(line.qty)"
-                    let price = line.lineTotal.currencyString()
-                    
-                    // Format: "x3  Product Name               $24.00"
-                    let qtyCol = qty.padding(toLength: 4, withPad: " ", startingAt: 0) // "x3  "
-                    let priceCol = price.padding(toLength: 8, withPad: " ", startingAt: 0) // Right-align price
-                    let nameWidth = 32 - qtyCol.count - priceCol.count
-                    let nameTruncated = String(line.productName.prefix(nameWidth))
-                    let namePadded = nameTruncated.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
-                    
-                    lines.append("\(qtyCol)\(namePadded)\(price)")
-                }
+        lines.append("ITEMS:")
+        for line in result.lines {
+            let qty = "x\(line.qty)"
+            let price = line.lineTotal.currencyString()
+
+            // Format: "x3  Product Name               $24.00"
+            let qtyCol = qty.padding(toLength: 4, withPad: " ", startingAt: 0)
+            let priceCol = price
+            let nameWidth = 32 - qtyCol.count - priceCol.count
+            let nameTruncated = String(line.productName.prefix(nameWidth))
+            let namePadded = nameTruncated.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
+
+            lines.append("\(qtyCol)\(namePadded)\(priceCol)")
+        }
         lines.append("")
         lines.append(String(repeating: "-", count: 32))
 
         // Totals (right-aligned)
         lines.append(formatLine("Subtotal:", result.subtotal.currencyString()))
-        lines.append(formatLine("Tax:", (result.total - result.subtotal).currencyString()))
+        if settings.showTax {
+            lines.append(formatLine("Tax:", (result.total - result.subtotal).currencyString()))
+        }
         lines.append(formatLine("TOTAL:", result.total.currencyString()))
         lines.append("")
 

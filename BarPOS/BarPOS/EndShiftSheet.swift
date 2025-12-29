@@ -172,7 +172,7 @@ struct ReportOptionsSheet: View {
                 .presentationDragIndicator(.visible)
             }
             .sheet(item: $pdfToShare) { url in
-                ShareSheet(activityItems: [url])
+                ShareSheet(items: [url])
             }
         }
     }
@@ -192,18 +192,6 @@ struct ReportOptionsSheet: View {
             pdfToShare = url
         }
     }
-}
-
-// MARK: - Share Sheet
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // Make URL Identifiable for sheet presentation

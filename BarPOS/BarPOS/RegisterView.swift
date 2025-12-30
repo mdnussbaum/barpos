@@ -278,7 +278,7 @@ struct RegisterView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .frame(height: geo.size.height - 40 - 260)
+                .frame(height: max(200, geo.size.height - 40 - 260))
 
                 // Totals + Chips - anchored at bottom as one unit
                 VStack(spacing: 4) {

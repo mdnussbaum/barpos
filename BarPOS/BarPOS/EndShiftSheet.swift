@@ -127,7 +127,12 @@ struct ReportOptionsSheet: View {
     let onDone: () -> Void
 
     @State private var showingReport = false
-    @State private var pdfToShare: URL?
+    @State private var pdfToShare: IdentifiableURL?
+
+    private struct IdentifiableURL: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     var body: some View {
         NavigationStack {
@@ -171,8 +176,8 @@ struct ReportOptionsSheet: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
-            .sheet(item: $pdfToShare) { url in
-                ShareSheet(items: [url])
+            .sheet(item: $pdfToShare) { wrapper in
+                ShareSheet(activityItems: [wrapper.url])
             }
         }
     }
@@ -189,12 +194,8 @@ struct ReportOptionsSheet: View {
         let result = await printer.printReceipt(receipt)
 
         if case .success(let pdfURL) = result, let url = pdfURL {
-            pdfToShare = url
+            pdfToShare = IdentifiableURL(url: url)
         }
     }
 }
 
-// Make URL Identifiable for sheet presentation
-extension URL: Identifiable {
-    public var id: String { self.absoluteString }
-}

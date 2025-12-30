@@ -162,24 +162,37 @@ struct AnalyticsView: View {
             }
 
             NavigationLink {
-                InventoryAnalyticsView(analytics: analytics)
-            } label: {
-                AnalyticsNavCard(
-                    title: "Inventory Insights",
-                    subtitle: "Fast/slow movers & alerts",
-                    icon: "shippingbox.fill",
-                    color: .red
+                ExportToolsView(
+                    tickets: filteredTickets,
+                    reports: filteredReports,
+                    dateRange: "\(startDate.formatted(date: .abbreviated, time: .omitted)) - \(endDate.formatted(date: .abbreviated, time: .omitted))"
                 )
-            }
-
-            NavigationLink {
-                ExportToolsView(analytics: analytics, dateRange: dateRange)
             } label: {
                 AnalyticsNavCard(
                     title: "Export Tools",
                     subtitle: "CSV & PDF reports",
                     icon: "square.and.arrow.up.fill",
                     color: .indigo
+                )
+            }
+        }
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+        VStack(spacing: 12) {
+            Text("Coming Soon")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            NavigationLink {
+                Text("Inventory analytics coming soon")
+            } label: {
+                AnalyticsNavCard(
+                    title: "Inventory Insights",
+                    subtitle: "Fast/slow movers & alerts",
+                    icon: "shippingbox.fill",
+                    color: .red
                 )
             }
         }
@@ -230,6 +243,22 @@ struct AnalyticsView: View {
             products: vm.products,
             dateRange: dateRange
         )
+    }
+
+    private var startDate: Date {
+        dateRange.start
+    }
+
+    private var endDate: Date {
+        dateRange.end
+    }
+
+    private var filteredTickets: [Ticket] {
+        analytics.tickets
+    }
+
+    private var filteredReports: [ShiftReport] {
+        analytics.reports
     }
 }
 

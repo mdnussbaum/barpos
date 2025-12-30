@@ -126,8 +126,9 @@ struct AnalyticsView: View {
                 Section("Export") {
                     NavigationLink {
                         ExportToolsView(
-                            analytics: analytics,
-                            dateRange: (start: startDate, end: endDate)
+                            tickets: filteredTickets,
+                            reports: filteredReports,
+                            dateRange: "\(startDate.formatted(date: .abbreviated, time: .omitted)) – \(endDate.formatted(date: .abbreviated, time: .omitted))"
                         )
                     } label: {
                         Label("Export Tools", systemImage: "square.and.arrow.up")

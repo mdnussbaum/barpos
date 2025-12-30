@@ -278,12 +278,7 @@ struct RegisterView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .frame(height: {
-                    // Ensure we never pass a negative or non-finite height to frame
-                    let raw = geo.size.height - 40 - 260
-                    let clamped = max(200, raw)
-                    return clamped.isFinite ? clamped : 200
-                }())
+                .frame(height: safeScrollHeight(for: geo.size.height))
                 // Totals + Chips - anchored at bottom as one unit
                 VStack(spacing: 4) {
                     totalsCard
@@ -293,6 +288,17 @@ struct RegisterView: View {
                 .padding(.bottom, 12)
             }
         }
+    }
+
+    private func safeScrollHeight(for containerHeight: CGFloat) -> CGFloat {
+        // Guard against non-finite container heights during transient layout passes
+        guard containerHeight.isFinite && !containerHeight.isNaN else { return 200 }
+        // Subtract the fixed heights used above this ScrollView: tab strip (40) and bottom section (~260)
+        let raw = containerHeight - 40 - 260
+        // Clamp to a reasonable minimum
+        let clamped = max(200, raw)
+        // Ensure the return is finite
+        return clamped.isFinite ? clamped : 200
     }
     
     // MARK: - Right column (category + products OR chips)

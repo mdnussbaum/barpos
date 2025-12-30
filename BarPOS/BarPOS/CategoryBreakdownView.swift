@@ -98,7 +98,8 @@ struct CategoryBreakdownView: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                             if totalRevenue > 0 {
-                                let percentage = (data.revenue / totalRevenue) * 100
+                                let percentageDecimal = (data.revenue / totalRevenue) * 100
+                                let percentage = (percentageDecimal as NSDecimalNumber).doubleValue
                                 Text("\(Int(percentage.rounded()))%")
                                     .font(.caption2)
                                     .fontWeight(.semibold)

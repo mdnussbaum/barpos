@@ -448,7 +448,7 @@ struct InventoryAdjustmentSheet: View {
                         .keyboardType(.decimalPad)
                         .focused($isCountFieldFocused)
 
-                    if let variance = variance {
+                    if variance != nil {
                         HStack {
                             Text("Variance:")
                                 .foregroundColor(.secondary)

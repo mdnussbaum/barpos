@@ -197,4 +197,91 @@ struct AnalyticsEngine {
         let count = totalTickets()
         return count > 0 ? total / Decimal(count) : 0
     }
+
+    // MARK: - Happy Hour Analytics
+
+    enum TimeSlot: String, CaseIterable, Identifiable {
+        case morning = "11am-2pm"
+        case afternoon = "2pm-5pm"
+        case evening = "5pm-8pm"
+        case night = "8pm-close"
+
+        var id: String { rawValue }
+
+        var hourRange: ClosedRange<Int> {
+            switch self {
+            case .morning: return 11...13
+            case .afternoon: return 14...16
+            case .evening: return 17...19
+            case .night: return 20...23
+            }
+        }
+    }
+
+    struct TimeSlotStat: Identifiable {
+        let id = UUID()
+        let slot: TimeSlot
+        let revenue: Decimal
+        let ticketCount: Int
+        let avgTicket: Decimal
+    }
+
+    func timeSlotStats() -> [TimeSlotStat] {
+        var stats: [TimeSlot: (revenue: Decimal, count: Int)] = [:]
+        let calendar = Calendar.current
+
+        for ticket in tickets {
+            let hour = calendar.component(.hour, from: ticket.closedAt)
+
+            for slot in TimeSlot.allCases {
+                if slot.hourRange.contains(hour) {
+                    stats[slot, default: (0, 0)].revenue += ticket.total
+                    stats[slot, default: (0, 0)].count += 1
+                    break
+                }
+            }
+        }
+
+        return TimeSlot.allCases.map { slot in
+            let data = stats[slot] ?? (0, 0)
+            let avg = data.count > 0 ? data.revenue / Decimal(data.count) : 0
+            return TimeSlotStat(
+                slot: slot,
+                revenue: data.revenue,
+                ticketCount: data.count,
+                avgTicket: avg
+            )
+        }
+    }
+
+    // MARK: - Insights
+
+    func quickInsights() -> [String] {
+        var insights: [String] = []
+
+        // Best selling product
+        if let top = topProducts(limit: 1).first {
+            insights.append("🏆 Top seller: \(top.product) (\(top.quantity) sold)")
+        }
+
+        // Best bartender
+        if let best = bartenderStats().first {
+            insights.append("⭐ Top bartender: \(best.name) (\(best.sales.currencyString()))")
+        }
+
+        // Best day
+        let dayStats = dayOfWeekStats()
+        if let bestDay = dayStats.max(by: { $0.sales < $1.sales }) {
+            insights.append("📅 Best day: \(bestDay.day) (\(bestDay.sales.currencyString()))")
+        }
+
+        // Peak hour
+        let hourStats = hourlyStats()
+        if let peakHour = hourStats.max(by: { $0.sales < $1.sales }) {
+            let hourStr = "\(peakHour.hour):00"
+            insights.append("🕐 Peak hour: \(hourStr) (\(peakHour.sales.currencyString()))")
+        }
+
+        return insights
+    }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 struct AnalyticsView: View {
     @EnvironmentObject var vm: InventoryVM
@@ -95,7 +96,28 @@ struct AnalyticsView: View {
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-                
+
+                // Quick Insights
+                if !analytics.tickets.isEmpty {
+                    Section("Quick Insights") {
+                        ForEach(analytics.quickInsights(), id: \.self) { insight in
+                            Label(insight, systemImage: "sparkles")
+                                .font(.subheadline)
+                        }
+                    }
+                }
+
+                // Sales Trend Chart
+                if !analytics.dailyTrends().isEmpty {
+                    Section("Sales Trend") {
+                        salesTrendChart
+                            .frame(height: 200)
+                            .padding(.vertical, 8)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+
                 // Analytics Sections
                 Section("Detailed Analytics") {
                     NavigationLink {
@@ -120,6 +142,12 @@ struct AnalyticsView: View {
                         BartenderMetricsView(analytics: analytics)
                     } label: {
                         Label("Bartender Metrics", systemImage: "person.2.fill")
+                    }
+
+                    NavigationLink {
+                        HappyHourAnalysisView(analytics: analytics)
+                    } label: {
+                        Label("Happy Hour Analysis", systemImage: "clock.badge.checkmark.fill")
                     }
                 }
                 
@@ -157,11 +185,11 @@ struct AnalyticsView: View {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
-            
+
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
-            
+
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -170,6 +198,42 @@ struct AnalyticsView: View {
         .padding()
         .background(color.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private var salesTrendChart: some View {
+        let trends = analytics.dailyTrends()
+
+        if trends.count > 1 {
+            Chart(trends) { trend in
+                LineMark(
+                    x: .value("Date", trend.date),
+                    y: .value("Sales", (trend.sales as NSDecimalNumber).doubleValue)
+                )
+                .foregroundStyle(.blue)
+                .interpolationMethod(.catmullRom)
+
+                AreaMark(
+                    x: .value("Date", trend.date),
+                    y: .value("Sales", (trend.sales as NSDecimalNumber).doubleValue)
+                )
+                .foregroundStyle(.blue.opacity(0.2))
+                .interpolationMethod(.catmullRom)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.month().day())
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading)
+            }
+        } else {
+            Text("Need more days of data for trend analysis")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+        }
     }
 }
 

@@ -177,7 +177,7 @@ struct ReportOptionsSheet: View {
                 .presentationDragIndicator(.visible)
             }
             .sheet(item: $pdfToShare) { wrapper in
-                ShareSheet(activityItems: [wrapper.url])
+                ShareSheet(items: [wrapper.url])
             }
         }
     }

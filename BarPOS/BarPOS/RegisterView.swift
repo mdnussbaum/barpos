@@ -278,8 +278,12 @@ struct RegisterView: View {
                     }
                     .padding(.bottom, 8)
                 }
-                .frame(height: max(200, geo.size.height - 40 - 260))
-
+                .frame(height: {
+                    // Ensure we never pass a negative or non-finite height to frame
+                    let raw = geo.size.height - 40 - 260
+                    let clamped = max(200, raw)
+                    return clamped.isFinite ? clamped : 200
+                }())
                 // Totals + Chips - anchored at bottom as one unit
                 VStack(spacing: 4) {
                     totalsCard
@@ -719,3 +723,4 @@ struct RegisterView: View {
         }
     }
 }
+

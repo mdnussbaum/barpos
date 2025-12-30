@@ -11,7 +11,11 @@ class MockPrinterManager: ObservableObject, PrinterService {
 
     private var settings: ReceiptSettings
 
-    nonisolated init(settings: ReceiptSettings = ReceiptSettings()) {
+    init() {
+        self.settings = ReceiptSettings()
+    }
+
+    init(settings: ReceiptSettings) {
         self.settings = settings
     }
 

@@ -1,24 +1,25 @@
-//
-//  BartenderMetricsView.swift
-//  BarPOS
-//
-//  Created by Analytics Hub
-//
-
 import SwiftUI
 import Charts
 
 struct BartenderMetricsView: View {
     let analytics: AnalyticsEngine
-
+    
     @State private var sortBy: SortOption = .sales
-
+    
     enum SortOption: String, CaseIterable {
-        case sales = "Total Sales"
+        case sales = "Sales"
         case tickets = "Tickets"
         case avgTicket = "Avg Ticket"
+        
+        var icon: String {
+            switch self {
+            case .sales: return "dollarsign.circle"
+            case .tickets: return "receipt"
+            case .avgTicket: return "chart.bar"
+            }
+        }
     }
-
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -26,20 +27,23 @@ struct BartenderMetricsView: View {
                     ContentUnavailableView(
                         "No Data Available",
                         systemImage: "person.2",
-                        description: Text("No bartender data found for the selected date range")
+                        description: Text("Close some tabs to see bartender metrics")
                     )
                 } else {
-                    // MARK: - Controls
-                    controlSection
-
-                    // MARK: - Sales Leaderboard
-                    salesLeaderboardSection
-
-                    // MARK: - Performance Comparison
-                    performanceComparisonSection
-
-                    // MARK: - Individual Stats
-                    individualStatsSection
+                    // Sort picker
+                    Picker("Sort By", selection: $sortBy) {
+                        ForEach(SortOption.allCases, id: \.self) { option in
+                            Label(option.rawValue, systemImage: option.icon).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    
+                    // Comparison chart
+                    bartenderComparisonChart
+                    
+                    // Detailed cards
+                    bartenderDetailCards
                 }
             }
             .padding()
@@ -47,289 +51,126 @@ struct BartenderMetricsView: View {
         .navigationTitle("Bartender Metrics")
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    // MARK: - Control Section
-    private var controlSection: some View {
+    
+    private var sortedBartenders: [(name: String, sales: Decimal, tickets: Int, avgTicket: Decimal)] {
+        let stats = analytics.bartenderStats()
+        let tuples = stats.map { (name: $0.name, sales: $0.sales, tickets: $0.ticketCount, avgTicket: $0.avgTicket) }
+        
+        switch sortBy {
+        case .sales:
+            return tuples.sorted { $0.sales > $1.sales }
+        case .tickets:
+            return tuples.sorted { $0.tickets > $1.tickets }
+        case .avgTicket:
+            return tuples.sorted { $0.avgTicket > $1.avgTicket }
+        }
+    }
+    
+    private var bartenderComparisonChart: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Sort By")
+            Text("Performance Comparison")
                 .font(.headline)
-
-            Picker("Sort By", selection: $sortBy) {
-                ForEach(SortOption.allCases, id: \.self) { option in
-                    Text(option.rawValue).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-        .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    // MARK: - Sales Leaderboard Section
-    private var salesLeaderboardSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Sales Leaderboard")
-                .font(.headline)
-
-            Chart(sortedBartenders) { stat in
+            
+            Chart(sortedBartenders, id: \.name) { stat in
                 BarMark(
-                    x: .value("Sales", stat.sales as NSDecimalNumber),
-                    y: .value("Bartender", stat.name)
+                    x: .value("Bartender", stat.name),
+                    y: .value("Sales", (stat.sales as NSDecimalNumber).doubleValue)
                 )
-                .foregroundStyle(.blue)
-                .annotation(position: .trailing) {
-                    Text(stat.sales.currencyString())
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                .foregroundStyle(.blue.gradient)
             }
-            .frame(height: max(CGFloat(sortedBartenders.count * 60), 200))
-
-            // Medals for top 3
-            if sortedBartenders.count >= 3 {
-                HStack(spacing: 16) {
-                    // 2nd Place
-                    VStack(spacing: 8) {
-                        Text("🥈")
-                            .font(.largeTitle)
-                        Text(sortedBartenders[1].name)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                        Text(sortedBartenders[1].sales.currencyString())
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.gray.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    // 1st Place (larger)
-                    VStack(spacing: 8) {
-                        Text("🥇")
-                            .font(.system(size: 50))
-                        Text(sortedBartenders[0].name)
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-                        Text(sortedBartenders[0].sales.currencyString())
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.yellow.opacity(0.2))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    // 3rd Place
-                    VStack(spacing: 8) {
-                        Text("🥉")
-                            .font(.largeTitle)
-                        Text(sortedBartenders[2].name)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                        Text(sortedBartenders[2].sales.currencyString())
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.orange.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
+            .frame(height: 200)
+            .chartYAxis {
+                AxisMarks(position: .leading)
             }
         }
         .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(radius: 2)
     }
-
-    // MARK: - Performance Comparison Section
-    private var performanceComparisonSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Performance Metrics")
+    
+    private var bartenderDetailCards: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Detailed Metrics")
                 .font(.headline)
-
-            // Average Ticket Size Comparison
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Average Ticket Size")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                let maxAvgTicket = sortedBartenders.map { $0.avgTicket }.max() ?? 1
-
-                ForEach(sortedBartenders, id: \.name) { stat in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
+                .padding(.horizontal)
+            
+            ForEach(Array(sortedBartenders.enumerated()), id: \.offset) { index, stat in
+                VStack(spacing: 12) {
+                    HStack {
+                        // Rank badge
+                        Text("#\(index + 1)")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(rankColor(index))
+                            )
+                        
+                        // Name
+                        VStack(alignment: .leading) {
                             Text(stat.name)
+                                .font(.headline)
+                            Text("Total Sales")
                                 .font(.caption)
-                                .frame(width: 100, alignment: .leading)
-
-                            GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(.green.opacity(0.3))
-                                    .frame(width: geo.size.width * CGFloat(truncating: (stat.avgTicket / maxAvgTicket) as NSDecimalNumber))
-                                    .frame(height: 20)
-                                    .overlay(alignment: .leading) {
-                                        Text(stat.avgTicket.currencyString())
-                                            .font(.caption2)
-                                            .padding(.leading, 8)
-                                    }
-                            }
-                            .frame(height: 20)
+                                .foregroundStyle(.secondary)
                         }
-                    }
-                }
-            }
-            .padding()
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Tickets Per Hour Comparison
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Tickets Per Hour")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-
-                ForEach(sortedBartenders, id: \.name) { stat in
-                    HStack {
-                        Text(stat.name)
-                            .font(.caption)
-                            .frame(width: 100, alignment: .leading)
-
+                        
                         Spacer()
-
-                        let tph = analytics.ticketsPerHour(bartender: stat.name)
-                        Text(String(format: "%.1f tickets/hr", Double(truncating: tph as NSDecimalNumber)))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.orange)
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            .padding()
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    // MARK: - Individual Stats Section
-    private var individualStatsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Detailed Statistics")
-                .font(.headline)
-
-            ForEach(sortedBartenders, id: \.name) { stat in
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(stat.name)
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-
-                        Spacer()
-
+                        
+                        // Total sales
                         Text(stat.sales.currencyString())
                             .font(.title3)
                             .fontWeight(.bold)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.green)
                     }
-
+                    
                     Divider()
-
-                    // Metrics Grid
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        MetricCell(
-                            title: "Total Tickets",
-                            value: "\(stat.tickets)",
-                            icon: "receipt.fill",
-                            color: .green
-                        )
-
-                        MetricCell(
-                            title: "Avg Ticket",
-                            value: stat.avgTicket.currencyString(),
-                            icon: "chart.bar.fill",
-                            color: .orange
-                        )
-
-                        MetricCell(
-                            title: "Tickets/Hour",
-                            value: String(format: "%.1f", Double(truncating: analytics.ticketsPerHour(bartender: stat.name) as NSDecimalNumber)),
-                            icon: "clock.fill",
-                            color: .purple
-                        )
-
-                        MetricCell(
-                            title: "% of Total",
-                            value: String(format: "%.1f%%", Double(truncating: (stat.sales / totalSales * 100) as NSDecimalNumber)),
-                            icon: "percent",
-                            color: .indigo
-                        )
+                    
+                    // Stats row
+                    HStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Tickets")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("\(stat.tickets)")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Avg Ticket")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(stat.avgTicket.currencyString())
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                        }
                     }
                 }
                 .padding()
-                .background(.thinMaterial)
+                .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(radius: 2)
     }
-
-    // MARK: - Computed Properties
-    private var sortedBartenders: [(name: String, sales: Decimal, tickets: Int, avgTicket: Decimal)] {
-        let stats = analytics.salesByBartender()
-
-        switch sortBy {
-        case .sales:
-            return stats.sorted { $0.sales > $1.sales }
-        case .tickets:
-            return stats.sorted { $0.tickets > $1.tickets }
-        case .avgTicket:
-            return stats.sorted { $0.avgTicket > $1.avgTicket }
+    
+    // MARK: - Helpers
+    
+    private func rankColor(_ index: Int) -> Color {
+        switch index {
+        case 0: return .yellow
+        case 1: return .gray
+        case 2: return .orange
+        default: return .blue
         }
-    }
-
-    private var totalSales: Decimal {
-        analytics.totalRevenue()
-    }
-}
-
-// MARK: - Metric Cell Component
-struct MetricCell: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(color)
-                Spacer()
-            }
-
-            Text(value)
-                .font(.headline)
-                .fontWeight(.bold)
-
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .padding(10)
-        .background(color.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

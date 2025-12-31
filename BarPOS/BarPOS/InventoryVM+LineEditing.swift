@@ -5,32 +5,20 @@ extension InventoryVM {
     // ✅ NEW: addLine with optional variant
     func addLine(product: Product, variant: SizeVariant? = nil) {
         mutateActiveTicket { ticket in
-            // For products with variants, we need to match both product AND variant
+            // When variants exist, each variant is a separate line item
             if let variant = variant {
-                // Check if this exact product+variant combo exists
-                if let idx = ticket.lines.firstIndex(where: { 
-                    $0.product.id == product.id && $0.selectedVariant?.id == variant.id 
-                }) {
-                    // Increment qty for this specific variant
-                    var line = ticket.lines[idx]
-                    line.qty += 1
-                    ticket.lines[idx] = line
-                } else {
-                    // Create new line with variant
-                    let line = OrderLine(id: UUID(), product: product, qty: 1, selectedVariant: variant)
-                    ticket.lines.append(line)
-                }
+                // With variant: always create new line (Short and Tall don't stack)
+                let line = OrderLine(id: UUID(), product: product, qty: 1, selectedVariant: variant)
+                ticket.lines.append(line)
             } else {
-                // Original behavior for non-variant products
+                // Without variant: stack same products as before
                 if let idx = ticket.lines.firstIndex(where: { 
                     $0.product.id == product.id && $0.selectedVariant == nil 
                 }) {
-                    // Increment qty if this product already exists on the ticket
                     var line = ticket.lines[idx]
                     line.qty += 1
                     ticket.lines[idx] = line
                 } else {
-                    // Otherwise create a new line
                     let line = OrderLine(id: UUID(), product: product, qty: 1)
                     ticket.lines.append(line)
                 }

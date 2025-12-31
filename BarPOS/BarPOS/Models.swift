@@ -38,10 +38,11 @@ public enum ChipType: String, Codable, Hashable, CaseIterable {
 enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
     case each = "each"
     case bottle = "bottle"
-    case can = "can"        // ← ADD THIS
+    case can = "can"
     case case_ = "case"
     case oz = "oz"
     case liter = "liter"
+    case fifth = "fifth"    // 750ml bottle
     case gallon = "gallon"
     case keg = "keg"
     
@@ -55,6 +56,7 @@ enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
         case .case_: return "Case"
         case .oz: return "oz"
         case .liter: return "Liter"
+        case .fifth: return "Fifth (750ml)"
         case .gallon: return "Gallon"
         case .keg: return "Keg"
         }
@@ -293,8 +295,9 @@ struct Product: Identifiable, Codable, Hashable {
             switch (from, to) {
             case (.gallon, .oz): return 128
             case (.liter, .oz): return 33.814
-            case (.bottle, .oz): return 12  // Assuming standard 12oz bottle
-            case (.keg, .oz): return 1984   // Half barrel keg
+            case (.fifth, .oz): return 25.36     // 750ml bottle
+            case (.bottle, .oz): return 12       // Standard 12oz beer bottle
+            case (.keg, .oz): return 1984        // Half barrel keg
             default: return nil
             }
         }

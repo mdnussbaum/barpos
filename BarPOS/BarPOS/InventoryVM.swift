@@ -178,9 +178,9 @@ final class InventoryVM: ObservableObject {
         
         let snapshots: [LineSnapshot] = ticket.lines.map { line in
             LineSnapshot(
-                productName: line.product.name,
+                productName: line.displayName,  // Use displayName which includes variant info
                 qty: line.qty,
-                unitPrice: line.product.price,
+                unitPrice: line.unitPrice,  // Use unitPrice which handles variant pricing
                 lineTotal: line.lineTotal
             )
         }
@@ -209,7 +209,7 @@ final class InventoryVM: ObservableObject {
             if let cocktail = currentBartenderCocktails().first(where: { $0.name == productNameWithoutStar }) {
                 deductCocktailInventory(for: cocktail, quantity: line.qty)
             } else {
-                deductInventory(for: line.product, quantity: line.qty)
+                deductInventory(for: line.product, quantity: line.qty, variant: line.selectedVariant)
             }
         }
 
@@ -226,7 +226,7 @@ final class InventoryVM: ObservableObject {
     }
 
     /// Deduct inventory when product is sold
-    private func deductInventory(for product: Product, quantity: Int) {
+    private func deductInventory(for product: Product, quantity: Int, variant: SizeVariant? = nil) {
         guard let index = products.firstIndex(where: { $0.id == product.id }) else {
             print("⚠️ Product not found for inventory deduction: \(product.name)")
             return
@@ -239,12 +239,22 @@ final class InventoryVM: ObservableObject {
         }
 
         // Calculate amount to deduct based on serving size
-        let servingSize = products[index].servingSize ?? 1.0
+        // If a variant is provided, use its size; otherwise use product's serving size
+        let servingSize: Decimal
+        if let variant = variant {
+            servingSize = variant.sizeOz
+            print("📏 Using variant size: \(variant.name) - \(variant.sizeOz) oz")
+        } else {
+            servingSize = products[index].servingSize ?? 1.0
+        }
+        
         let servingsToDeduct = servingSize * Decimal(quantity)
         
         // Convert serving units to stock units if needed
         let amountToDeduct: Decimal
-        if let servingUnit = products[index].servingUnit, servingUnit != products[index].unit {
+        let servingUnit = variant != nil ? UnitOfMeasure.oz : (products[index].servingUnit ?? products[index].unit)
+        
+        if servingUnit != products[index].unit {
             // Need conversion (e.g., oz → liter)
             if let conversionFactor = getConversionFactor(from: servingUnit, to: products[index].unit) {
                 amountToDeduct = servingsToDeduct * conversionFactor
@@ -262,7 +272,8 @@ final class InventoryVM: ObservableObject {
         let newStock = max(0, currentStock - amountToDeduct)
         products[index].stockQuantity = newStock
 
-        print("📦 Inventory deducted: \(product.name) - \(servingsToDeduct) \(products[index].servingUnit?.displayName ?? products[index].unit.displayName) (New stock: \(newStock) \(products[index].unit.displayName))")
+        let variantInfo = variant != nil ? " (\(variant!.name))" : ""
+        print("📦 Inventory deducted: \(product.name)\(variantInfo) - \(servingsToDeduct) \(servingUnit.displayName) (New stock: \(newStock) \(products[index].unit.displayName))")
 
         // Mark as 86'd if stock hits zero
         if newStock == 0 && !products[index].is86d {

@@ -16,6 +16,10 @@ struct RegisterView: View {
     @State private var showingChangePINSheet = false
     @State private var showingBuildCocktail = false
 
+    // Size variant picker state
+    @State private var showingSizeVariantPicker = false
+    @State private var selectedProduct: Product? = nil
+
     // Printer state
     @StateObject private var printer = MockPrinterManager()
     @State private var showReceiptPrompt = false
@@ -124,6 +128,14 @@ struct RegisterView: View {
             BuildCocktailSheet()
                 .environmentObject(vm)
         }
+        .sheet(isPresented: $showingSizeVariantPicker) {
+            if let product = selectedProduct {
+                SizeVariantPicker(product: product) { variant in
+                    addLineItem(product: product, variant: variant)
+                    showingSizeVariantPicker = false
+                }
+            }
+        }
         .alert("Print customer copy?", isPresented: $showReceiptPrompt) {
             Button("Yes") {
                 Task {
@@ -230,8 +242,8 @@ struct RegisterView: View {
                                 ForEach(vm.activeLines) { line in
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(line.product.name)
-                                            Text("@ \(line.product.price.currencyString())")
+                                            Text(line.displayName)
+                                            Text("@ \(line.unitPrice.currencyString())")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
@@ -408,12 +420,14 @@ struct RegisterView: View {
             spacing: 12
         ) {
             ForEach(products) { p in
-                Button { vm.addLine(product: p) } label: {
+                Button { 
+                    handleProductTap(p)
+                } label: {
                     VStack(spacing: 6) {
                         Text(p.name)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                        Text(p.price.currencyString())
+                        Text(displayPrice(for: p))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -425,6 +439,34 @@ struct RegisterView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+    
+    // Helper: Display price for product (handles variants)
+    private func displayPrice(for product: Product) -> String {
+        if let variants = product.sizeVariants, !variants.isEmpty {
+            let prices = variants.map { $0.price }
+            if let minPrice = prices.min(), let maxPrice = prices.max(), minPrice != maxPrice {
+                return "\(minPrice.currencyString()) - \(maxPrice.currencyString())"
+            } else if let firstPrice = prices.first {
+                return firstPrice.currencyString()
+            }
+        }
+        return product.price.currencyString()
+    }
+    
+    // Helper: Handle product tap (checks for variants)
+    private func handleProductTap(_ product: Product) {
+        if let variants = product.sizeVariants, !variants.isEmpty {
+            selectedProduct = product
+            showingSizeVariantPicker = true
+        } else {
+            vm.addLine(product: product)
+        }
+    }
+    
+    // Helper: Add line item with variant
+    private func addLineItem(product: Product, variant: SizeVariant) {
+        vm.addLine(product: product, variant: variant)
     }
     
     // MARK: - Chips Grid (used when category == .chips)

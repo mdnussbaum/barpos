@@ -140,6 +140,15 @@ enum ProductCategory: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Size Variant
+struct SizeVariant: Codable, Hashable, Identifiable {
+    var id: UUID = UUID()
+    var name: String              // "Short" or "Tall" for draft beer
+    var sizeOz: Decimal           // 16 for Short, 22 for Tall
+    var price: Decimal            // Price for this size
+    var isDefault: Bool = false   // Which size shows first
+}
+
 // MARK: - Product
 struct Product: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
@@ -171,6 +180,9 @@ struct Product: Identifiable, Codable, Hashable {
     // Status
     var is86d: Bool = false
     var canBeIngredient: Bool = false
+    
+    // Size variants (for products with multiple size options)
+    var sizeVariants: [SizeVariant]? = nil
 
     // Computed properties
     var profitMargin: Decimal? {
@@ -368,15 +380,29 @@ struct OrderLine: Identifiable, Codable, Hashable {
     let id: UUID
     var product: Product
     var qty: Int
+    var selectedVariant: SizeVariant? = nil  // Which size was ordered
 
-    init(id: UUID = UUID(), product: Product, qty: Int = 1) {
+    init(id: UUID = UUID(), product: Product, qty: Int = 1, selectedVariant: SizeVariant? = nil) {
         self.id = id
         self.product = product
         self.qty = qty
+        self.selectedVariant = selectedVariant
     }
 
     var lineTotal: Decimal {
-        Decimal(qty) * product.price
+        let unitPrice = selectedVariant?.price ?? product.price
+        return Decimal(qty) * unitPrice
+    }
+    
+    var displayName: String {
+        if let variant = selectedVariant {
+            return "\(product.name) (\(variant.name) \(variant.sizeOz.plainString())oz)"
+        }
+        return product.name
+    }
+    
+    var unitPrice: Decimal {
+        selectedVariant?.price ?? product.price
     }
 }
 

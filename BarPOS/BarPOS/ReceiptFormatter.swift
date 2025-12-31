@@ -29,12 +29,13 @@ struct ReceiptFormatter {
         for line in result.lines {
             let qty = "x\(line.qty)"
             let price = line.lineTotal.currencyString()
+            let itemName = line.productName
 
             // Format: "x3  Product Name               $24.00"
             let qtyCol = qty.padding(toLength: 4, withPad: " ", startingAt: 0)
             let priceCol = price
             let nameWidth = 32 - qtyCol.count - priceCol.count
-            let nameTruncated = String(line.productName.prefix(nameWidth))
+            let nameTruncated = String(itemName.prefix(nameWidth))
             let namePadded = nameTruncated.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
 
             lines.append("\(qtyCol)\(namePadded)\(priceCol)")

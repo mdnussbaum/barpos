@@ -181,6 +181,43 @@ struct CSVImporter {
         if let ingredientStr = rowData["can_be_ingredient"], !ingredientStr.isEmpty {
             product.canBeIngredient = (ingredientStr.lowercased() == "true" || ingredientStr == "1" || ingredientStr.lowercased() == "yes")
         }
+        
+        // Size Variants
+        // Format: "Pint:16:3.00|Tall:22:3.50"
+        if let variantsStr = rowData["size_variants"], !variantsStr.isEmpty {
+            var variants: [SizeVariant] = []
+            let variantParts = variantsStr.split(separator: "|")
+            
+            for (index, part) in variantParts.enumerated() {
+                let components = part.split(separator: ":")
+                guard components.count == 3 else {
+                    errors.append("Line \(lineNumber): Invalid size variant format '\(part)'")
+                    continue
+                }
+                
+                let name = String(components[0])
+                guard let sizeOz = Decimal(string: String(components[1])) else {
+                    errors.append("Line \(lineNumber): Invalid size oz '\(components[1])'")
+                    continue
+                }
+                guard let price = Decimal(string: String(components[2]).replacingOccurrences(of: "$", with: "")) else {
+                    errors.append("Line \(lineNumber): Invalid variant price '\(components[2])'")
+                    continue
+                }
+                
+                let variant = SizeVariant(
+                    name: name,
+                    sizeOz: sizeOz,
+                    price: price,
+                    isDefault: index == 0  // First variant is default
+                )
+                variants.append(variant)
+            }
+            
+            if !variants.isEmpty {
+                product.sizeVariants = variants
+            }
+        }
     }
     
     // MARK: - Parse CSV Row
@@ -225,7 +262,8 @@ struct CSVImporter {
             "sku",
             "hidden",
             "86d",
-            "can_be_ingredient"
+            "can_be_ingredient",
+            "size_variants"
         ]
         
         let examples = [
@@ -246,7 +284,28 @@ struct CSVImporter {
                 "BUD-12OZ",
                 "false",
                 "false",
-                "false"
+                "false",
+                ""
+            ],
+            [
+                "Miller Lite Draft",
+                "beer",
+                "",
+                "119.00",
+                "1",
+                "1",
+                "keg",
+                "",
+                "16",
+                "oz",
+                "none",
+                "false",
+                "ABC Distributing",
+                "MILLER-KEG",
+                "false",
+                "false",
+                "false",
+                "Short:16:3.00|Tall:22:3.50"
             ],
             [
                 "Well Vodka",
@@ -265,26 +324,8 @@ struct CSVImporter {
                 "VODKA-WELL",
                 "false",
                 "false",
-                "true"
-            ],
-            [
-                "Orange Juice",
-                "na",
-                "3.00",
-                "8.00",
-                "3",
-                "5",
-                "gallon",
-                "",
-                "6",
-                "oz",
-                "none",
                 "true",
-                "Restaurant Depot",
-                "OJ-GAL",
-                "false",
-                "false",
-                "true"
+                ""
             ]
         ]
         
@@ -316,7 +357,8 @@ struct CSVImporter {
             "sku",
             "hidden",
             "86d",
-            "can_be_ingredient"
+            "can_be_ingredient",
+            "size_variants"
         ]
         
         var csv = headers.joined(separator: ",") + "\n"
@@ -340,10 +382,18 @@ struct CSVImporter {
             let hidden = product.isHidden ? "true" : "false"
             let is86d = product.is86d ? "true" : "false"
             let canBeIngredient = product.canBeIngredient ? "true" : "false"
+            
+            // Size variants - format: "name:sizeOz:price|name:sizeOz:price"
+            let sizeVariants: String
+            if let variants = product.sizeVariants, !variants.isEmpty {
+                sizeVariants = variants.map { "\($0.name):\($0.sizeOz):\($0.price)" }.joined(separator: "|")
+            } else {
+                sizeVariants = ""
+            }
 
             let row = [
                 name, category, price, cost, stock, par, unit,
-                caseSize, servingSize, servingUnit, tier, gunItem, supplier, sku, hidden, is86d, canBeIngredient
+                caseSize, servingSize, servingUnit, tier, gunItem, supplier, sku, hidden, is86d, canBeIngredient, sizeVariants
             ]
     
             // Escape commas in values

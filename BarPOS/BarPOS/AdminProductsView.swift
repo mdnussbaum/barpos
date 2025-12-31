@@ -331,6 +331,12 @@ struct ProductEditSheet: View {
     @State private var caseSizeString: String = ""
     @State private var casesString: String = ""
     @State private var extraBottlesString: String = ""
+    
+    // Size variants state
+    @State private var hasVariants: Bool = false
+    @State private var variants: [SizeVariant] = []
+    @State private var showingAddVariant = false
+    @State private var editingVariant: SizeVariant? = nil
 
     var body: some View {
         Form {
@@ -588,6 +594,69 @@ struct ProductEditSheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            // MARK: - Size Variants
+            Section("Size Variants") {
+                Toggle("Enable Size Variants", isOn: $hasVariants)
+                    .onChange(of: hasVariants) { _, newValue in
+                        if !newValue {
+                            variants.removeAll()
+                        }
+                    }
+                
+                Text("Allow customers to choose different sizes (e.g., Short vs Tall for draft beer)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                if hasVariants {
+                    if variants.isEmpty {
+                        Text("No variants added yet")
+                            .foregroundStyle(.secondary)
+                            .italic()
+                    } else {
+                        ForEach(variants) { variant in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(variant.name)
+                                        .font(.headline)
+                                    Text("\(variant.sizeOz.plainString()) oz • \(variant.price.currencyString())")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                if variant.isDefault {
+                                    Image(systemName: "star.fill")
+                                        .foregroundStyle(.yellow)
+                                        .font(.caption)
+                                }
+                                
+                                Button {
+                                    editingVariant = variant
+                                } label: {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .foregroundStyle(.blue)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    variants.removeAll { $0.id == variant.id }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    
+                    Button {
+                        showingAddVariant = true
+                    } label: {
+                        Label("Add Size Variant", systemImage: "plus.circle.fill")
+                    }
+                }
+            }
 
             // MARK: - Supplier
             Section("Supplier") {
@@ -622,6 +691,20 @@ struct ProductEditSheet: View {
         .onAppear {
             loadValues()
         }
+        .sheet(isPresented: $showingAddVariant) {
+            AddSizeVariantSheet { newVariant in
+                variants.append(newVariant)
+                showingAddVariant = false
+            }
+        }
+        .sheet(item: $editingVariant) { variant in
+            EditSizeVariantSheet(variant: variant) { updatedVariant in
+                if let index = variants.firstIndex(where: { $0.id == variant.id }) {
+                    variants[index] = updatedVariant
+                }
+                editingVariant = nil
+            }
+        }
     }
     
     private func loadValues() {
@@ -639,6 +722,15 @@ struct ProductEditSheet: View {
         supplier = draft.supplier ?? ""
         supplierSKU = draft.supplierSKU ?? ""
         caseSizeString = draft.caseSize.map { "\($0)" } ?? ""
+        
+        // Load size variants
+        if let sizeVariants = draft.sizeVariants, !sizeVariants.isEmpty {
+            hasVariants = true
+            variants = sizeVariants
+        } else {
+            hasVariants = false
+            variants = []
+        }
         
         // Load stock - split into cases + bottles if case size exists
         if let stock = draft.stockQuantity, let caseSize = draft.caseSize, caseSize > 0 {
@@ -693,6 +785,13 @@ struct ProductEditSheet: View {
         draft.supplier = supplier.isEmpty ? nil : supplier
         draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
         draft.caseSize = Int(caseSizeString)
+        
+        // Save size variants
+        if hasVariants && !variants.isEmpty {
+            draft.sizeVariants = variants
+        } else {
+            draft.sizeVariants = nil
+        }
         
         onComplete(.save(draft))
     }
@@ -807,6 +906,167 @@ struct FilterPill: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Add Size Variant Sheet
+struct AddSizeVariantSheet: View {
+    let onSave: (SizeVariant) -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String = ""
+    @State private var sizeOzString: String = ""
+    @State private var priceString: String = ""
+    @State private var isDefault: Bool = false
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Variant Details") {
+                    TextField("Name (e.g., Short, Tall)", text: $name)
+                        .textInputAutocapitalization(.words)
+                    
+                    HStack {
+                        Text("Size (oz)")
+                        Spacer()
+                        TextField("16", text: $sizeOzString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    
+                    HStack {
+                        Text("Price")
+                        Spacer()
+                        TextField("0.00", text: $priceString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    
+                    Toggle("Set as Default", isOn: $isDefault)
+                }
+            }
+            .navigationTitle("Add Size Variant")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        saveVariant()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+    }
+    
+    private var canSave: Bool {
+        !name.isEmpty &&
+        Decimal(string: sizeOzString) != nil &&
+        Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) != nil
+    }
+    
+    private func saveVariant() {
+        guard let sizeOz = Decimal(string: sizeOzString),
+              let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else {
+            return
+        }
+        
+        let variant = SizeVariant(
+            name: name.trimmingCharacters(in: .whitespaces),
+            sizeOz: sizeOz,
+            price: price,
+            isDefault: isDefault
+        )
+        
+        onSave(variant)
+    }
+}
+
+// MARK: - Edit Size Variant Sheet
+struct EditSizeVariantSheet: View {
+    let variant: SizeVariant
+    let onSave: (SizeVariant) -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String = ""
+    @State private var sizeOzString: String = ""
+    @State private var priceString: String = ""
+    @State private var isDefault: Bool = false
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Variant Details") {
+                    TextField("Name (e.g., Short, Tall)", text: $name)
+                        .textInputAutocapitalization(.words)
+                    
+                    HStack {
+                        Text("Size (oz)")
+                        Spacer()
+                        TextField("16", text: $sizeOzString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    
+                    HStack {
+                        Text("Price")
+                        Spacer()
+                        TextField("0.00", text: $priceString)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    
+                    Toggle("Set as Default", isOn: $isDefault)
+                }
+            }
+            .navigationTitle("Edit Size Variant")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveVariant()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+            .onAppear {
+                loadValues()
+            }
+        }
+    }
+    
+    private var canSave: Bool {
+        !name.isEmpty &&
+        Decimal(string: sizeOzString) != nil &&
+        Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) != nil
+    }
+    
+    private func loadValues() {
+        name = variant.name
+        sizeOzString = variant.sizeOz.plainString()
+        priceString = variant.price.currencyEditingString()
+        isDefault = variant.isDefault
+    }
+    
+    private func saveVariant() {
+        guard let sizeOz = Decimal(string: sizeOzString),
+              let price = Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) else {
+            return
+        }
+        
+        var updated = variant
+        updated.name = name.trimmingCharacters(in: .whitespaces)
+        updated.sizeOz = sizeOz
+        updated.price = price
+        updated.isDefault = isDefault
+        
+        onSave(updated)
+        dismiss()
     }
 }
 

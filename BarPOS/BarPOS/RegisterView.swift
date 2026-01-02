@@ -415,29 +415,32 @@ struct RegisterView: View {
     
     // Reusable grid for a given product list
     private func productGrid(_ products: [Product]) -> some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-            spacing: 12
-        ) {
-            ForEach(products) { p in
-                Button { 
-                    handleProductTap(p)
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(p.name)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                        Text(displayPrice(for: p))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        ScrollView {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                spacing: 12
+            ) {
+                ForEach(products) { p in
+                    Button { 
+                        handleProductTap(p)
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text(p.name)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                            Text(displayPrice(for: p))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 64)
+                        .padding(.vertical, 6)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .padding(.vertical, 6)
-                    .background(Color(.tertiarySystemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 4)
         }
     }
     
@@ -471,29 +474,32 @@ struct RegisterView: View {
     
     // MARK: - Chips Grid (used when category == .chips)
     private func chipsGrid() -> some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-            spacing: 12
-        ) {
-            ForEach(ChipType.allCases, id: \.self) { chip in
-                VStack(spacing: 6) {
-                    Text(chip.displayName)
-                        .multilineTextAlignment(.center)
-                    Text(vm.price(for: chip).currencyString())
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 64)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemFill))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .onTapGesture { vm.addChipSold(chip) }
-                .contextMenu {
-                    Button("Redeem 1") { vm.addChipRedeemed(chip) }
-                    Button("Sell 5") { vm.addChipSold(chip, count: 5) }
-                    Button("Redeem 5") { vm.addChipRedeemed(chip, count: 5) }
+        ScrollView {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+                spacing: 12
+            ) {
+                ForEach(ChipType.allCases, id: \.self) { chip in
+                    VStack(spacing: 6) {
+                        Text(chip.displayName)
+                            .multilineTextAlignment(.center)
+                        Text(vm.price(for: chip).currencyString())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 64)
+                    .padding(.vertical, 6)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .onTapGesture { vm.addChipSold(chip) }
+                    .contextMenu {
+                        Button("Redeem 1") { vm.addChipRedeemed(chip) }
+                        Button("Sell 5") { vm.addChipSold(chip, count: 5) }
+                        Button("Redeem 5") { vm.addChipRedeemed(chip, count: 5) }
+                    }
                 }
             }
+            .padding(.horizontal, 4)
         }
     }
     

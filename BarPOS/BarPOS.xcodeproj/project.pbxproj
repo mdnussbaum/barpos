@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		91723E3F2F04B93100A6F8D1 /* SizeVariantPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91723E3E2F04B93100A6F8D1 /* SizeVariantPicker.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		9128889E2ECD5DDA0055B448 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -31,7 +27,6 @@
 		9128888E2ECD5DD90055B448 /* BarPOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarPOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9128889D2ECD5DDA0055B448 /* BarPOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		912888A72ECD5DDA0055B448 /* BarPOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		91723E3E2F04B93100A6F8D1 /* SizeVariantPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SizeVariantPicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -84,7 +79,6 @@
 				912888A02ECD5DDA0055B448 /* BarPOSTests */,
 				912888AA2ECD5DDA0055B448 /* BarPOSUITests */,
 				9128888F2ECD5DD90055B448 /* Products */,
-				91723E3E2F04B93100A6F8D1 /* SizeVariantPicker.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -242,7 +236,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91723E3F2F04B93100A6F8D1 /* SizeVariantPicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

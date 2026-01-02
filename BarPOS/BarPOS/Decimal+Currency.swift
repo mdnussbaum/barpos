@@ -5,6 +5,8 @@ extension Decimal {
         let nf = NumberFormatter()
         nf.locale = locale
         nf.numberStyle = .currency
+        nf.minimumFractionDigits = 2  // Always show 2 decimal places
+        nf.maximumFractionDigits = 2
         return nf.string(from: self as NSNumber) ?? "\(self)"
     }
 }

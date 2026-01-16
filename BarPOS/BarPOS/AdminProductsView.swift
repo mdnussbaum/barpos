@@ -1095,31 +1095,4 @@ extension InventoryVM {
     }
 }
 
-// MARK: - Decimal formatting helpers
-    extension Decimal {
-    func currencyString() -> String {
-        let ns = self as NSDecimalNumber
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return f.string(from: ns) ?? "$\(self)"
-    }
-    func currencyEditingString() -> String {
-        let ns = self as NSDecimalNumber
-        let f = NumberFormatter()
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        f.minimumIntegerDigits = 1
-        f.numberStyle = .decimal
-        return f.string(from: ns) ?? "\(self)"
-    }
-    func plainString() -> String {
-        let ns = self as NSDecimalNumber
-        let f = NumberFormatter()
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        f.numberStyle = .decimal
-        return f.string(from: ns) ?? "\(self)"
-    }
-}
+

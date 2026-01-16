@@ -818,7 +818,8 @@ final class InventoryVM: ObservableObject {
         var defaultProductOrdering: [String: [UUID]]
         var customCocktails: [UUID: [CustomCocktail]]
         var printerSettings: ReceiptSettings?
-        var happyHourConfig: HappyHourConfig
+        var happyHourConfig: HappyHourConfig?
+        var schemaVersion: Int?   // Added schemaVersion property
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -841,7 +842,8 @@ final class InventoryVM: ObservableObject {
             defaultProductOrdering: defaultProductOrdering,
             customCocktails: customCocktails,
             printerSettings: printerSettings,
-            happyHourConfig: happyHourConfig
+            happyHourConfig: happyHourConfig,
+            schemaVersion: 2
         )
         
         do {
@@ -873,7 +875,7 @@ final class InventoryVM: ObservableObject {
         defaultProductOrdering = s.defaultProductOrdering
         customCocktails = s.customCocktails
         printerSettings = s.printerSettings ?? ReceiptSettings()
-        happyHourConfig = s.happyHourConfig
+        happyHourConfig = s.happyHourConfig ?? HappyHourConfig()
 
         print("✅ State applied successfully")
     }
@@ -912,7 +914,9 @@ final class InventoryVM: ObservableObject {
             productOrderByBartender: productOrderByBartender,
             defaultProductOrdering: defaultProductOrdering,
             customCocktails: customCocktails,
-            printerSettings: printerSettings
+            printerSettings: printerSettings,
+            happyHourConfig: happyHourConfig,
+            schemaVersion: 2
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")
         do {
@@ -941,3 +945,4 @@ final class InventoryVM: ObservableObject {
         Array(Set(shiftReports.map { $0.bartenderName })).sorted()
     }
 }
+

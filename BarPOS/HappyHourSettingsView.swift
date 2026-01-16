@@ -10,6 +10,9 @@ struct HappyHourSettingsView: View {
             // Status Section
             Section {
                 Toggle("Happy Hour Enabled", isOn: $vm.happyHourConfig.isEnabled)
+                    .onChange(of: vm.happyHourConfig.isEnabled) { _, _ in
+                        vm.saveState()
+                    }
                 
                 HStack {
                     Text("Current Status:")
@@ -31,6 +34,9 @@ struct HappyHourSettingsView: View {
                     Text("Auto (Follow Schedule)").tag(nil as Bool?)
                     Text("Force ON").tag(true as Bool?)
                     Text("Force OFF").tag(false as Bool?)
+                }
+                .onChange(of: vm.happyHourConfig.manualOverride) { _, _ in
+                    vm.saveState()
                 }
                 
                 Text("Manual override ignores the schedule below")
@@ -55,6 +61,7 @@ struct HappyHourSettingsView: View {
                 }
                 .onDelete { indexSet in
                     vm.happyHourConfig.schedule.remove(atOffsets: indexSet)
+                    vm.saveState()
                 }
                 
                 Button {
@@ -69,14 +76,12 @@ struct HappyHourSettingsView: View {
             }
         }
         .navigationTitle("Happy Hour Settings")
-        .onChange(of: vm.happyHourConfig) { _, _ in
-            vm.saveState()
-        }
         .sheet(isPresented: $showingAddSchedule) {
             EditHappyHourScheduleSheet(
                 schedule: HappyHourSchedule(),
                 onSave: { newSchedule in
                     vm.happyHourConfig.schedule.append(newSchedule)
+                    vm.saveState()
                     showingAddSchedule = false
                 }
             )
@@ -88,6 +93,7 @@ struct HappyHourSettingsView: View {
                     if let index = vm.happyHourConfig.schedule.firstIndex(where: { $0.id == schedule.id }) {
                         vm.happyHourConfig.schedule[index] = updatedSchedule
                     }
+                    vm.saveState()
                     editingSchedule = nil
                 }
             )
@@ -206,3 +212,4 @@ struct EditHappyHourScheduleSheet: View {
         }
     }
 }
+

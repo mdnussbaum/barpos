@@ -778,8 +778,8 @@ struct ProductEditSheet: View {
         draft.price = price
         
         // Parse Happy Hour price
-        if let hhPriceStr = happyHourPriceString.trimmingCharacters(in: .whitespaces),
-           !hhPriceStr.isEmpty,
+        let hhPriceStr = happyHourPriceString.trimmingCharacters(in: .whitespaces)
+        if !hhPriceStr.isEmpty,
            let hhPrice = Decimal(string: hhPriceStr.replacingOccurrences(of: ",", with: ".")) {
             draft.happyHourPrice = hhPrice
         } else {

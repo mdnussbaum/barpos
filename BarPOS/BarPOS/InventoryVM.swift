@@ -204,11 +204,22 @@ final class InventoryVM: ObservableObject {
 
         // Deduct inventory for sold items
         for line in ticket.lines {
-            // Check if this is a custom cocktail (strip the star suffix for comparison)
-            let productNameWithoutStar = line.product.name.replacingOccurrences(of: " ⭐", with: "")
-            if let cocktail = currentBartenderCocktails().first(where: { $0.name == productNameWithoutStar }) {
+            // Check if product has a recipe link (approved cocktail)
+            if let recipeID = line.product.recipeID,
+               let cocktail = findCocktailByID(recipeID) {
                 deductCocktailInventory(for: cocktail, quantity: line.qty)
-            } else {
+                print("🍹 Deducted ingredients for approved cocktail: \(line.product.name)")
+            }
+            // Check if this is a pending custom cocktail (with star)
+            else if line.product.name.hasSuffix(" ⭐") {
+                let productNameWithoutStar = line.product.name.replacingOccurrences(of: " ⭐", with: "")
+                if let cocktail = currentBartenderCocktails().first(where: { $0.name == productNameWithoutStar }) {
+                    deductCocktailInventory(for: cocktail, quantity: line.qty)
+                    print("🍹 Deducted ingredients for pending cocktail: \(line.product.name)")
+                }
+            }
+            // Regular product
+            else {
                 deductInventory(for: line.product, quantity: line.qty, variant: line.selectedVariant)
             }
         }
@@ -702,6 +713,16 @@ final class InventoryVM: ObservableObject {
         guard let bartenderID = currentShift?.openedBy?.id else { return [] }
         return customCocktails[bartenderID]?.filter { $0.isPending } ?? []
     }
+    
+    // Find a cocktail by ID across all bartenders (for approved cocktails)
+    private func findCocktailByID(_ recipeID: UUID) -> CustomCocktail? {
+        for cocktails in customCocktails.values {
+            if let cocktail = cocktails.first(where: { $0.id == recipeID }) {
+                return cocktail
+            }
+        }
+        return nil
+    }
 
     // Get all pending cocktails across all bartenders (for admin)
     func allPendingCocktails() -> [CustomCocktail] {
@@ -710,18 +731,19 @@ final class InventoryVM: ObservableObject {
 
     // Approve a cocktail - creates a real product
     func approveCocktail(_ cocktail: CustomCocktail, approvedBy: UUID) {
-        // Create a real product from the recipe
-        let newProduct = Product(
+        // Create a real product from the recipe with recipeID link
+        var newProduct = Product(
             name: cocktail.name,
             category: cocktail.category,
             price: cocktail.basePrice
         )
-
-        // Store recipe in a way we can reference it
-        // For now, we'll just create the product - in the future we can add a recipeID field
+        
+        // Link this product to its recipe for inventory deduction
+        newProduct.recipeID = cocktail.id
+        
         products.append(newProduct)
 
-        // Mark cocktail as approved (keep for reference)
+        // Mark cocktail as approved (keep for inventory tracking)
         if let bartenderID = customCocktails.first(where: { $0.value.contains(where: { $0.id == cocktail.id }) })?.key,
            let index = customCocktails[bartenderID]?.firstIndex(where: { $0.id == cocktail.id }) {
             customCocktails[bartenderID]?[index].isPending = false
@@ -729,7 +751,7 @@ final class InventoryVM: ObservableObject {
             customCocktails[bartenderID]?[index].approvedAt = Date()
         }
 
-        print("✅ Cocktail approved: \(cocktail.name) → Product added to catalog")
+        print("✅ Cocktail approved: \(cocktail.name) → Product added with recipe link")
     }
 
     func rejectCocktail(_ cocktail: CustomCocktail) {

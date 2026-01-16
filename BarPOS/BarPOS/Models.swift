@@ -185,6 +185,9 @@ struct Product: Identifiable, Codable, Hashable {
     
     // Size variants (for products with multiple size options)
     var sizeVariants: [SizeVariant]? = nil
+    
+    // Recipe link (for approved cocktails)
+    var recipeID: UUID? = nil
 
     // Computed properties
     var profitMargin: Decimal? {

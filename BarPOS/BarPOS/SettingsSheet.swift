@@ -70,6 +70,15 @@ struct SettingsSheet: View {
                         Label("Receipt Customizer", systemImage: "doc.text")
                     }
                 }
+                
+                // MARK: Features
+                Section("Features") {
+                    NavigationLink {
+                        HappyHourSettingsView(vm: vm)
+                    } label: {
+                        Label("Happy Hour Settings", systemImage: "clock.badge.checkmark")
+                    }
+                }
 
                 // Roadmap placeholders
                 Section("Coming soon") {

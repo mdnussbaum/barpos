@@ -322,6 +322,7 @@ struct ProductEditSheet: View {
 
     @State private var name: String = ""
     @State private var priceString: String = ""
+    @State private var happyHourPriceString: String = ""
     @State private var costString: String = ""
     @State private var stockString: String = ""
     @State private var parString: String = ""
@@ -370,6 +371,15 @@ struct ProductEditSheet: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
+                
+                HStack {
+                    Text("Happy Hour Price")
+                    Spacer()
+                    TextField("Optional", text: $happyHourPriceString)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                }
+                .foregroundStyle(happyHourPriceString.isEmpty ? .secondary : .primary)
                 
                 HStack {
                     Text("Cost")
@@ -710,6 +720,7 @@ struct ProductEditSheet: View {
     private func loadValues() {
         name = draft.name
         priceString = draft.price.currencyEditingString()
+        happyHourPriceString = draft.happyHourPrice?.currencyEditingString() ?? ""
         costString = draft.cost?.currencyEditingString() ?? ""
         // Load par level - convert back to cases if applicable
         if let par = draft.parLevel, draft.unit == .case_, let caseSize = draft.caseSize, caseSize > 0 {
@@ -765,6 +776,16 @@ struct ProductEditSheet: View {
         
         draft.name = name.trimmingCharacters(in: .whitespaces)
         draft.price = price
+        
+        // Parse Happy Hour price
+        if let hhPriceStr = happyHourPriceString.trimmingCharacters(in: .whitespaces),
+           !hhPriceStr.isEmpty,
+           let hhPrice = Decimal(string: hhPriceStr.replacingOccurrences(of: ",", with: ".")) {
+            draft.happyHourPrice = hhPrice
+        } else {
+            draft.happyHourPrice = nil
+        }
+        
         draft.cost = Decimal(string: costString.replacingOccurrences(of: ",", with: "."))
         draft.stockQuantity = Decimal(string: stockString)
 

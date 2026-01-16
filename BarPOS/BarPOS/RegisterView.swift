@@ -165,6 +165,21 @@ struct RegisterView: View {
     // MARK: - Register Content
     private var registerContent: some View {
         VStack(spacing: 0) {
+            // Happy Hour Banner
+            if vm.isHappyHourActive() {
+                HStack {
+                    Image(systemName: "party.popper.fill")
+                        .foregroundStyle(.orange)
+                    Text("HAPPY HOUR ACTIVE")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.2))
+            }
+            
             // Top bar with Shift Status chip
             HStack {
                 Spacer()

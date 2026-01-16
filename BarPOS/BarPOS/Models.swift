@@ -188,6 +188,9 @@ struct Product: Identifiable, Codable, Hashable {
     
     // Recipe link (for approved cocktails)
     var recipeID: UUID? = nil
+    
+    // Happy hour pricing
+    var happyHourPrice: Decimal? = nil  // Optional HH price (nil = not on HH)
 
     // Computed properties
     var profitMargin: Decimal? {
@@ -323,6 +326,70 @@ struct Product: Identifiable, Codable, Hashable {
             return stock < par
         }
     }
+
+// MARK: - Happy Hour Configuration
+struct HappyHourConfig: Codable {
+    var isEnabled: Bool = false               // Master on/off switch
+    var manualOverride: Bool? = nil           // true=force on, false=force off, nil=auto
+    var schedule: [HappyHourSchedule] = []    // Time ranges for auto-enable
+    
+    // Check if happy hour should be active right now
+    func isActive(currentDate: Date = Date()) -> Bool {
+        // Manual override takes precedence
+        if let override = manualOverride {
+            return override
+        }
+        
+        // If not enabled, definitely not active
+        guard isEnabled else { return false }
+        
+        // Check if current time matches any schedule
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: currentDate)  // 1=Sunday, 7=Saturday
+        let hour = calendar.component(.hour, from: currentDate)
+        let minute = calendar.component(.minute, from: currentDate)
+        let currentMinutes = hour * 60 + minute
+        
+        for sched in schedule {
+            if sched.daysOfWeek.contains(weekday) {
+                let startMinutes = sched.startHour * 60 + sched.startMinute
+                let endMinutes = sched.endHour * 60 + sched.endMinute
+                
+                if currentMinutes >= startMinutes && currentMinutes < endMinutes {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
+}
+
+struct HappyHourSchedule: Codable, Identifiable {
+    var id: UUID = UUID()
+    var daysOfWeek: [Int] = []  // 1=Sunday, 2=Monday, ..., 7=Saturday
+    var startHour: Int = 16      // 4pm
+    var startMinute: Int = 0
+    var endHour: Int = 19        // 7pm
+    var endMinute: Int = 0
+    
+    var displayDays: String {
+        let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return daysOfWeek.sorted().map { dayNames[$0 - 1] }.joined(separator: ", ")
+    }
+    
+    var displayTime: String {
+        let start = String(format: "%d:%02d %@", 
+                          startHour > 12 ? startHour - 12 : (startHour == 0 ? 12 : startHour),
+                          startMinute,
+                          startHour >= 12 ? "PM" : "AM")
+        let end = String(format: "%d:%02d %@",
+                        endHour > 12 ? endHour - 12 : (endHour == 0 ? 12 : endHour),
+                        endMinute,
+                        endHour >= 12 ? "PM" : "AM")
+        return "\(start) - \(end)"
+    }
+}
 
 // MARK: - Custom Cocktail Recipe
 struct CustomCocktail: Identifiable, Codable, Hashable {

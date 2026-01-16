@@ -44,6 +44,9 @@ final class InventoryVM: ObservableObject {
     // Custom cocktails per bartender
     @Published var customCocktails: [UUID: [CustomCocktail]] = [:] { didSet { saveState() } }
     
+    // Happy Hour Configuration
+    @Published var happyHourConfig: HappyHourConfig = HappyHourConfig() { didSet { saveState() } }
+    
     // Categories to show in the picker
     var availableCategories: [ProductCategory] {
         let productCats = Set(products.map { $0.category })
@@ -783,6 +786,20 @@ final class InventoryVM: ObservableObject {
         products[index].is86d.toggle()
     }
     
+    // Get effective price for product (HH price if active, otherwise regular)
+    func effectivePrice(for product: Product) -> Decimal {
+        if happyHourConfig.isActive(),
+           let hhPrice = product.happyHourPrice {
+            return hhPrice
+        }
+        return product.price
+    }
+    
+    // Check if happy hour is currently active
+    func isHappyHourActive() -> Bool {
+        return happyHourConfig.isActive()
+    }
+    
     // MARK: - Persistence
     struct PersistedState: Codable {
         var products: [Product]
@@ -801,6 +818,7 @@ final class InventoryVM: ObservableObject {
         var defaultProductOrdering: [String: [UUID]]
         var customCocktails: [UUID: [CustomCocktail]]
         var printerSettings: ReceiptSettings?
+        var happyHourConfig: HappyHourConfig
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -822,7 +840,8 @@ final class InventoryVM: ObservableObject {
             productOrderByBartender: productOrderByBartender,
             defaultProductOrdering: defaultProductOrdering,
             customCocktails: customCocktails,
-            printerSettings: printerSettings
+            printerSettings: printerSettings,
+            happyHourConfig: happyHourConfig
         )
         
         do {
@@ -854,6 +873,7 @@ final class InventoryVM: ObservableObject {
         defaultProductOrdering = s.defaultProductOrdering
         customCocktails = s.customCocktails
         printerSettings = s.printerSettings ?? ReceiptSettings()
+        happyHourConfig = s.happyHourConfig
 
         print("✅ State applied successfully")
     }

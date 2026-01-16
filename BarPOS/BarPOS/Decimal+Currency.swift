@@ -9,4 +9,20 @@ extension Decimal {
         nf.maximumFractionDigits = 2
         return nf.string(from: self as NSNumber) ?? "\(self)"
     }
+    
+    func plainString() -> String {
+        let nf = NumberFormatter()
+        nf.numberStyle = .decimal
+        nf.minimumFractionDigits = 0
+        nf.maximumFractionDigits = 2
+        return nf.string(from: self as NSNumber) ?? "\(self)"
+    }
+    
+    func currencyEditingString() -> String {
+        let nf = NumberFormatter()
+        nf.numberStyle = .decimal
+        nf.minimumFractionDigits = 0
+        nf.maximumFractionDigits = 2
+        return nf.string(from: self as NSNumber) ?? "\(self)"
+    }
 }

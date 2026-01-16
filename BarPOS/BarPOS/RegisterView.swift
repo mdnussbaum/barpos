@@ -444,26 +444,42 @@ struct RegisterView: View {
         }
     }
     
-    // Helper: Display price for product (handles variants)
+    // Helper: Display price for product (handles variants + happy hour)
     private func displayPrice(for product: Product) -> String {
+        let isHH = vm.isHappyHourActive()
+        
+        // Handle size variants
         if let variants = product.sizeVariants, !variants.isEmpty {
             let prices = variants.map { $0.price }
             if let minPrice = prices.min(), let maxPrice = prices.max(), minPrice != maxPrice {
-                return "\(minPrice.currencyString()) - \(maxPrice.currencyString())"
+                let display = "\(minPrice.currencyString()) - \(maxPrice.currencyString())"
+                return isHH && product.happyHourPrice != nil ? display + " 🎉" : display
             } else if let firstPrice = prices.first {
-                return firstPrice.currencyString()
+                return isHH && product.happyHourPrice != nil ? firstPrice.currencyString() + " 🎉" : firstPrice.currencyString()
             }
         }
+        
+        // Regular products - show HH price if active
+        if isHH, let hhPrice = product.happyHourPrice {
+            return hhPrice.currencyString() + " 🎉"
+        }
+        
         return product.price.currencyString()
     }
     
     // Helper: Handle product tap (checks for variants)
     private func handleProductTap(_ product: Product) {
-        if let variants = product.sizeVariants, !variants.isEmpty {
-            selectedProduct = product
+        // Use effective price (HH if active, otherwise regular)
+        var effectiveProduct = product
+        if vm.isHappyHourActive(), let hhPrice = product.happyHourPrice {
+            effectiveProduct.price = hhPrice
+        }
+        
+        if let variants = effectiveProduct.sizeVariants, !variants.isEmpty {
+            selectedProduct = effectiveProduct
             showingSizeVariantPicker = true
         } else {
-            vm.addLine(product: product)
+            vm.addLine(product: effectiveProduct)
         }
     }
     

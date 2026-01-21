@@ -22,6 +22,7 @@ struct RegisterView: View {
 
     // Printer state
     @StateObject private var printer = MockPrinterManager()
+    @StateObject private var starPrinter = StarPrinterManager()
     @State private var showReceiptPrompt = false
     @State private var pendingReceipt: CloseResult?
     
@@ -375,6 +376,60 @@ struct RegisterView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+            }
+
+            // Star Printer Test Buttons
+            if vm.currentShift != nil {
+                HStack(spacing: 8) {
+                    Button {
+                        Task {
+                            let testContent = StarReceiptContent(
+                                header: "TEST RECEIPT",
+                                lines: [
+                                    ReceiptLine(quantity: 2, itemName: "Miller Lite", price: "$4.00"),
+                                    ReceiptLine(quantity: 1, itemName: "Well Whiskey", price: "$6.00")
+                                ],
+                                subtotal: "$14.00",
+                                tax: "$0.00",
+                                total: "$14.00",
+                                footer: "Thank You!"
+                            )
+
+                            do {
+                                try await starPrinter.printReceipt(testContent)
+                            } catch {
+                                print("Print error: \(error)")
+                            }
+                        }
+                    } label: {
+                        Label("Test Printer", systemImage: "printer.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .foregroundStyle(.green)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        Task {
+                            do {
+                                try await starPrinter.openDrawer()
+                            } catch {
+                                print("Drawer error: \(error)")
+                            }
+                        }
+                    } label: {
+                        Label("Test Drawer", systemImage: "tray.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .foregroundStyle(.orange)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
                 .padding(.horizontal, 4)
             }
 

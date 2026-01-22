@@ -1,3 +1,16 @@
+/*
+ TEMPORARILY COMMENTED OUT - Star SDK Not Added Yet
+ 
+ This file requires StarIO10 framework which hasn't been added to the project yet.
+ Uncomment this file after:
+ 1. Downloading Star SDK
+ 2. Adding StarIO10.xcframework to Xcode
+ 3. Updating Info.plist with required permissions
+ 
+ For now, use MockPrinterManager for development and testing.
+ */
+
+/*
 import Foundation
 import StarIO10
 
@@ -148,3 +161,4 @@ struct ReceiptLine {
     let itemName: String
     let price: String
 }
+*/

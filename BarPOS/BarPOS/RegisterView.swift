@@ -22,9 +22,12 @@ struct RegisterView: View {
 
     // Printer state
     @StateObject private var printer = MockPrinterManager()
-    @StateObject private var starPrinter = StarPrinterManager()
+    // TEMPORARILY DISABLED - Uncomment after adding Star SDK
+    // @StateObject private var starPrinter = StarPrinterManager()
     @State private var showReceiptPrompt = false
     @State private var pendingReceipt: CloseResult?
+    @State private var showingSavedReceiptURL: URL?
+    @State private var showingShareSheet = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -154,13 +157,42 @@ struct RegisterView: View {
                 Text("Tab: \(receipt.tabName) • \(receipt.total.currencyString())")
             }
         }
+        
+        // MARK: Share sheet for saved receipt
+        .sheet(isPresented: $showingShareSheet) {
+            if let url = showingSavedReceiptURL {
+                ShareSheet(items: [url])
+            }
+        }
+        
+        // MARK: Alert showing receipt was saved
+        .alert("Receipt Saved", isPresented: Binding(
+            get: { showingSavedReceiptURL != nil },
+            set: { if !$0 { showingSavedReceiptURL = nil } }
+        )) {
+            Button("View in Files") {
+                if let url = showingSavedReceiptURL {
+                    showingShareSheet = true
+                }
+            }
+            Button("OK") {
+                showingSavedReceiptURL = nil
+            }
+        } message: {
+            Text("Receipt saved to Files app in Receipts folder")
+        }
     }
     
     // MARK: - Print Receipt Helper
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatCustomerReceipt(result, settings: settings)
         let receipt = ReceiptData(type: .customer(result), content: content, settings: settings)
-        _ = await printer.printReceipt(receipt)
+        let printResult = await printer.printReceipt(receipt)
+        
+        // If using virtual printer, show where receipt was saved
+        if printResult.wasSuccessful, let url = printer.lastSavedReceiptURL {
+            showingSavedReceiptURL = url
+        }
     }
     
     // MARK: - Register Content
@@ -379,7 +411,8 @@ struct RegisterView: View {
                 .padding(.horizontal, 4)
             }
 
-            // Star Printer Test Buttons
+            // TEMPORARILY DISABLED - Star Printer Test Buttons (requires Star SDK)
+            /*
             if vm.currentShift != nil {
                 HStack(spacing: 8) {
                     Button {
@@ -432,6 +465,7 @@ struct RegisterView: View {
                 }
                 .padding(.horizontal, 4)
             }
+            */
 
             if selectedCategory == .chips {
                 chipsGrid()

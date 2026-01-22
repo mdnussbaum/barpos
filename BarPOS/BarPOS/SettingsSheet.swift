@@ -69,6 +69,13 @@ struct SettingsSheet: View {
                     } label: {
                         Label("Receipt Customizer", systemImage: "doc.text")
                     }
+                    
+                    // NavigationLink {
+                    //     SavedReceiptsView()
+                    //         .environmentObject(vm)
+                    // } label: {
+                    //     Label("Saved Receipts", systemImage: "doc.text.fill")
+                    // }
                 }
                 
                 // MARK: Features

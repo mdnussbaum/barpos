@@ -56,6 +56,13 @@ struct AdminView: View {
                     } label: {
                         Label("Inventory", systemImage: "box.truck")
                     }
+                    
+                    NavigationLink {
+                        AuditLogView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Audit Log", systemImage: "doc.text.magnifyingglass")
+                    }
 
                     NavigationLink {
                         PendingCocktailsView()

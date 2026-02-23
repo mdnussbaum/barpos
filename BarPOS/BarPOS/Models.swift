@@ -1,5 +1,17 @@
 import Foundation
 
+// MARK: - Audit Log Entry
+struct AuditLogEntry: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var date: Date
+    var productID: UUID
+    var productName: String
+    var oldQuantity: Decimal
+    var newQuantity: Decimal
+    var variance: Decimal
+    var reason: String
+}
+
 // MARK: - ChipType
 public enum ChipType: String, Codable, Hashable, CaseIterable {
     case white, gray, black

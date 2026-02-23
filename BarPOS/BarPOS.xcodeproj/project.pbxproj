@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		915CF3902F1AD2B000C670EA /* HappyHourSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */; };
+		917DEDCA2F4CC4A500E97144 /* AuditLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917DEDC92F4CC4A500E97144 /* AuditLogView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		9128889D2ECD5DDA0055B448 /* BarPOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		912888A72ECD5DDA0055B448 /* BarPOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyHourSettingsView.swift; sourceTree = "<group>"; };
+		917DEDC92F4CC4A500E97144 /* AuditLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditLogView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +87,7 @@
 				912888AA2ECD5DDA0055B448 /* BarPOSUITests */,
 				9128888F2ECD5DD90055B448 /* Products */,
 				915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */,
+				917DEDC92F4CC4A500E97144 /* AuditLogView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -242,6 +245,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				917DEDCA2F4CC4A500E97144 /* AuditLogView.swift in Sources */,
 				915CF3902F1AD2B000C670EA /* HappyHourSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

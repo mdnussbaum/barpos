@@ -316,7 +316,17 @@ struct InventoryOverviewView: View {
 
         vm.products[index].stockQuantity = max(0, newCount)
 
-        // TODO: Save adjustment to audit log
+        // Save adjustment to audit log
+        let entry = AuditLogEntry(
+            date: Date(),
+            productID: product.id,
+            productName: product.name,
+            oldQuantity: oldStock,
+            newQuantity: newCount,
+            variance: variance,
+            reason: reason
+        )
+        vm.auditLog.insert(entry, at: 0) // Insert at beginning for descending order
 
         print("📝 Stock adjusted: \(product.name) | Old: \(oldStock.plainString()) → New: \(newCount.plainString()) (\(varianceStr)) | Reason: \(reason)")
 

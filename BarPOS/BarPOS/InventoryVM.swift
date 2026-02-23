@@ -90,6 +90,9 @@ final class InventoryVM: ObservableObject {
         .white: 3, .gray: 4, .black: 5
     ] { didSet { saveState() } }
     
+    // MARK: - Audit Log
+    @Published var auditLog: [AuditLogEntry] = [] { didSet { saveState() } }
+    
     // MARK: - Unsettled tabs helpers
     var unsettledTabs: [TabTicket] {
         tabs.values
@@ -819,6 +822,7 @@ final class InventoryVM: ObservableObject {
         var customCocktails: [UUID: [CustomCocktail]]
         var printerSettings: ReceiptSettings?
         var happyHourConfig: HappyHourConfig?
+        var auditLog: [AuditLogEntry]?
         var schemaVersion: Int?   // Added schemaVersion property
     }
     
@@ -843,6 +847,7 @@ final class InventoryVM: ObservableObject {
             customCocktails: customCocktails,
             printerSettings: printerSettings,
             happyHourConfig: happyHourConfig,
+            auditLog: auditLog,
             schemaVersion: 2
         )
         
@@ -876,6 +881,7 @@ final class InventoryVM: ObservableObject {
         customCocktails = s.customCocktails
         printerSettings = s.printerSettings ?? ReceiptSettings()
         happyHourConfig = s.happyHourConfig ?? HappyHourConfig()
+        auditLog = s.auditLog ?? []
 
         print("✅ State applied successfully")
     }
@@ -916,6 +922,7 @@ final class InventoryVM: ObservableObject {
             customCocktails: customCocktails,
             printerSettings: printerSettings,
             happyHourConfig: happyHourConfig,
+            auditLog: auditLog,
             schemaVersion: 2
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")

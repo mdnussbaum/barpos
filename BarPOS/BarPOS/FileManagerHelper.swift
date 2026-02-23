@@ -15,13 +15,19 @@ import Foundation
 
 struct FileManagerHelper {
     
-    // Get local Documents directory for backups
+    // Get iCloud ubiquity container directory for backups
         static var iCloudDocumentsURL: URL? {
-            guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            guard let iCloudURL = FileManager.default.url(forUbiquityContainerIdentifier: "iCloud.Me.BarPOS") else {
+                print("⚠️ iCloud not available")
                 return nil
             }
             
-            return documentsURL.appendingPathComponent("BarPOS Reports")
+            let documentsURL = iCloudURL.appendingPathComponent("Documents/BarPOS Reports")
+            
+            // Create directory if needed
+            try? FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+            
+            return documentsURL
         }
     // Save file to iCloud Drive
     static func saveToiCloud(fileURL: URL, filename: String) -> URL? {

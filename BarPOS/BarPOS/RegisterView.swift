@@ -7,7 +7,6 @@ struct RegisterView: View {
     // UI State
     @State private var cashGivenString: String = ""
     @FocusState private var cashGivenFocused: Bool
-    @State private var showingSummary = false
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
     @State private var showingShiftSummary = false
@@ -33,6 +32,10 @@ struct RegisterView: View {
 
     // Close tab sheet
     @State private var showingCloseTabSheet = false
+    // Snapshot of the tab captured at sheet-open time; prevents live vm.activeTab
+    // mutations from affecting the sheet mid-presentation and ensures cancel/swipe-
+    // dismiss leave the tab completely untouched.
+    @State private var closeTabSnapshot: TabTicket? = nil
 
     // On-screen clock
     @State private var currentTime: String = RegisterView.formattedTime()
@@ -120,13 +123,6 @@ struct RegisterView: View {
             EndShiftSheet()
                 .environmentObject(vm)
         }
-        .sheet(isPresented: $showingSummary) {
-            if let res = vm.lastCloseResult {
-                SummarySheet(result: res) { showingSummary = false }
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
-        }
         .sheet(isPresented: $showingShiftSummary) {
             if let s = vm.currentShift {
                 ShiftSummarySheet(shift: s) {
@@ -169,8 +165,14 @@ struct RegisterView: View {
             }
         }
         // MARK: Close tab sheet
-        .sheet(isPresented: $showingCloseTabSheet) {
-            if let tab = vm.activeTab {
+        // Uses a snapshot captured at open time so that swipe-to-dismiss or Cancel
+        // never mutates the active tab. Payment only processes when onClose fires
+        // (i.e. "Print Receipt" or "No Receipt" is explicitly tapped).
+        .sheet(isPresented: $showingCloseTabSheet, onDismiss: {
+            // Clear snapshot on any dismissal path (Cancel, swipe, or post-close).
+            closeTabSnapshot = nil
+        }) {
+            if let tab = closeTabSnapshot {
                 CloseTabSheet(
                     tab: tab,
                     payMethod: payMethod,
@@ -188,7 +190,6 @@ struct RegisterView: View {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
                             }
                             showingCloseTabSheet = false
-                            showingSummary = true
                         }
                     },
                     onCancel: {
@@ -197,6 +198,7 @@ struct RegisterView: View {
                 )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled(false)
             }
         }
         
@@ -729,6 +731,10 @@ struct RegisterView: View {
                 
                 // Right side: Close Tab button
                 Button {
+                    // Capture a snapshot of the current tab so the sheet never
+                    // reads from vm.activeTab live. This guarantees that Cancel
+                    // or swipe-to-dismiss cannot alter the active tab in any way.
+                    closeTabSnapshot = vm.activeTab
                     showingCloseTabSheet = true
                 } label: {
                     Text("Close Tab")

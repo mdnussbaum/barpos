@@ -32,6 +32,12 @@ struct EndShiftSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 120)
                                 .textFieldStyle(.roundedBorder)
+                                .toolbar {
+                                    ToolbarItemGroup(placement: .keyboard) {
+                                        Spacer()
+                                        Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                                    }
+                                }
                         }
                         Text("Type the physically counted cash total. We will compare it to opening + cash sales in the report.")
                             .font(.footnote)

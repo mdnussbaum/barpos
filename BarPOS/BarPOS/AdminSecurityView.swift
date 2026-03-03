@@ -7,6 +7,7 @@ struct AdminSecurityView: View {
     @State private var newPIN: String = ""
     @State private var confirmPIN: String = ""
     @State private var pinError: String = ""
+    @FocusState private var newPINFocused: Bool
 
     var body: some View {
         List {
@@ -15,6 +16,7 @@ struct AdminSecurityView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SecureField("New PIN (4–8 digits)", text: $newPIN)
                         .keyboardType(.numberPad)
+                        .focused($newPINFocused)
                     SecureField("Confirm PIN", text: $confirmPIN)
                         .keyboardType(.numberPad)
 
@@ -41,20 +43,36 @@ struct AdminSecurityView: View {
                     .font(.footnote)
             }
 
-            // MARK: - Future: PIN on Entry
+            // MARK: - Access Control Status
             Section {
-                // TODO: Add PIN-on-entry toggle here when implementing Admin PIN protection
-                Text("PIN protection for Admin section")
-                    .foregroundStyle(.secondary)
-                Text("Coming soon")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Label("Admin PIN is set", systemImage: "checkmark.shield.fill")
+                        .foregroundStyle(vm.managerPIN.isEmpty ? .red : .green)
+                    Spacer()
+                    Text(vm.managerPIN.isEmpty ? "Not set" : "Active")
+                        .font(.footnote)
+                        .foregroundStyle(vm.managerPIN.isEmpty ? .red : .secondary)
+                }
+
+                Stepper(
+                    "Auto-lock after \(vm.autoLockTimeout) min",
+                    value: $vm.autoLockTimeout,
+                    in: 1...15
+                )
             } header: {
                 Text("Access Control")
+            } footer: {
+                Text("Admin panel locks automatically after \(vm.autoLockTimeout) minute\(vm.autoLockTimeout == 1 ? "" : "s") of inactivity.")
+                    .font(.footnote)
             }
         }
         .navigationTitle("Security")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                newPINFocused = true
+            }
+        }
     }
 
     // MARK: - Actions

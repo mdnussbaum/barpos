@@ -1,5 +1,15 @@
 import Foundation
 
+// MARK: - Void Record (for deleted/voided line items)
+struct VoidRecord: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var date: Date
+    var bartenderName: String
+    var productName: String
+    var amount: Decimal
+    var tabName: String
+}
+
 // MARK: - Audit Log Entry
 struct AuditLogEntry: Identifiable, Codable, Hashable {
     var id: UUID = UUID()

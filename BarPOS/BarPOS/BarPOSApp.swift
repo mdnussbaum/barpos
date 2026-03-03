@@ -15,9 +15,18 @@ struct BarPOSApp: App {
         WindowGroup {
             AppShell()
                 .environmentObject(vm)
+                .preferredColorScheme(resolvedColorScheme)
                 .onAppear {
                     DemoSeeder.seed(into: vm)
                 }
+        }
+    }
+    
+    private var resolvedColorScheme: ColorScheme? {
+        switch vm.colorScheme {
+        case "light": return .light
+        case "dark":  return .dark
+        default:      return nil
         }
     }
 }

@@ -27,6 +27,7 @@ struct ChangePINSheet: View {
     @State private var confirmPIN: String = ""
     @State private var pinError: String = ""
     @State private var showSuccess: Bool = false
+    @FocusState private var currentPINFocused: Bool
     
     var body: some View {
         NavigationStack {
@@ -35,6 +36,7 @@ struct ChangePINSheet: View {
                     SecureField("Current PIN", text: $currentPIN)
                         .keyboardType(.numberPad)
                         .textContentType(.oneTimeCode)
+                        .focused($currentPINFocused)
                 }
                 
                 Section("New PIN") {
@@ -68,6 +70,11 @@ struct ChangePINSheet: View {
             }
             .navigationTitle("Change PIN")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    currentPINFocused = true
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }

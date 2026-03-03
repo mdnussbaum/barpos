@@ -41,6 +41,18 @@ extension InventoryVM {
     }
 
     func removeLine(lineID: UUID) {
+        // Capture info for void log before removing
+        if let ticket = activeTab,
+           let line = ticket.lines.first(where: { $0.id == lineID }) {
+            let record = VoidRecord(
+                date: Date(),
+                bartenderName: currentShift?.openedBy?.name ?? "Unknown",
+                productName: line.displayName,
+                amount: line.lineTotal,
+                tabName: ticket.name
+            )
+            voidLog.insert(record, at: 0)
+        }
         mutateActiveTicket { ticket in
             ticket.lines.removeAll { $0.id == lineID }
         }

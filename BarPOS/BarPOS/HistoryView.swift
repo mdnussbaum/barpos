@@ -18,6 +18,7 @@ struct HistoryView: View {
     @State private var showPIN = false
     @State private var pinText = ""
     @State private var pinError = ""
+    @FocusState private var pinFocused: Bool
 
     var body: some View {
         VStack {
@@ -151,6 +152,7 @@ struct HistoryView: View {
                     .keyboardType(.numberPad)
                     .padding(12)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .focused($pinFocused)
 
                 if !pinError.isEmpty {
                     Text(pinError).foregroundStyle(.red).font(.footnote)
@@ -172,6 +174,11 @@ struct HistoryView: View {
             }
             .padding()
             .presentationDetents([.medium])
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    pinFocused = true
+                }
+            }
         }
         // ✅ New ticket-details sheet
         .sheet(item: $presentingTicket) { res in

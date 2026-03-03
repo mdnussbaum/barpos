@@ -9,6 +9,13 @@ final class InventoryVM: ObservableObject {
     // MARK: - Admin lock / Settings
     @Published var isAdminUnlocked: Bool = false { didSet { saveState() } }
     @Published var managerPIN: String = "0420"   { didSet { saveState() } }
+    
+    // MARK: - Display
+    /// "system", "light", or "dark"
+    @Published var colorScheme: String = "system" { didSet { saveState() } }
+    
+    // MARK: - Auto-lock timeout (minutes, 1–15)
+    @Published var autoLockTimeout: Int = 5 { didSet { saveState() } }
 
     // MARK: - Printer Settings
     @Published var printerSettings: ReceiptSettings = ReceiptSettings() { didSet { saveState() } }
@@ -92,6 +99,9 @@ final class InventoryVM: ObservableObject {
     
     // MARK: - Audit Log
     @Published var auditLog: [AuditLogEntry] = [] { didSet { saveState() } }
+    
+    // MARK: - Void Log
+    @Published var voidLog: [VoidRecord] = [] { didSet { saveState() } }
     
     // MARK: - Unsettled tabs helpers
     var unsettledTabs: [TabTicket] {
@@ -823,6 +833,9 @@ final class InventoryVM: ObservableObject {
         var printerSettings: ReceiptSettings?
         var happyHourConfig: HappyHourConfig?
         var auditLog: [AuditLogEntry]?
+        var voidLog: [VoidRecord]?
+        var colorScheme: String?
+        var autoLockTimeout: Int?
         var schemaVersion: Int?   // Added schemaVersion property
     }
     
@@ -848,6 +861,9 @@ final class InventoryVM: ObservableObject {
             printerSettings: printerSettings,
             happyHourConfig: happyHourConfig,
             auditLog: auditLog,
+            voidLog: voidLog,
+            colorScheme: colorScheme,
+            autoLockTimeout: autoLockTimeout,
             schemaVersion: 2
         )
         
@@ -882,6 +898,9 @@ final class InventoryVM: ObservableObject {
         printerSettings = s.printerSettings ?? ReceiptSettings()
         happyHourConfig = s.happyHourConfig ?? HappyHourConfig()
         auditLog = s.auditLog ?? []
+        voidLog = s.voidLog ?? []
+        colorScheme = s.colorScheme ?? "system"
+        autoLockTimeout = s.autoLockTimeout ?? 5
 
         print("✅ State applied successfully")
     }
@@ -923,6 +942,9 @@ final class InventoryVM: ObservableObject {
             printerSettings: printerSettings,
             happyHourConfig: happyHourConfig,
             auditLog: auditLog,
+            voidLog: voidLog,
+            colorScheme: colorScheme,
+            autoLockTimeout: autoLockTimeout,
             schemaVersion: 2
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")

@@ -11,6 +11,7 @@ struct BeginShiftSheet: View {
     @State private var authenticatedBartender: Bartender? = nil
     @State private var showingPINSheet = false
     @State private var openingCashString: String = ""
+    @FocusState private var openingCashFocused: Bool
     
     private var hasCarryoverTabs: Bool {
         !carryoverTabs.isEmpty
@@ -67,6 +68,13 @@ struct BeginShiftSheet: View {
                     TextField("0.00", text: $openingCashString)
                         .keyboardType(.decimalPad)
                         .disabled(authenticatedBartender == nil)
+                        .focused($openingCashFocused)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("Done") { openingCashFocused = false }
+                            }
+                        }
                 }
             }
             .navigationTitle("Begin Shift")
@@ -80,6 +88,19 @@ struct BeginShiftSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Start") { startShift() }
                         .disabled(authenticatedBartender == nil)
+                }
+            }
+            .onAppear {
+                if authenticatedBartender != nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        openingCashFocused = true
+                    }
+                }
+            }
+            .onChange(of: authenticatedBartender) { _, newValue in
+                guard newValue != nil else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    openingCashFocused = true
                 }
             }
             .sheet(isPresented: $showingPINSheet) {

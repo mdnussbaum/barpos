@@ -27,6 +27,16 @@ struct AdminView: View {
                     }
                 }
                 
+                // MARK: - Payments
+                Section("Payments") {
+                    NavigationLink {
+                        AdminPaymentsView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Payments", systemImage: "creditcard")
+                    }
+                }
+
                 // MARK: - Operations
                 Section("Operations") {
                     NavigationLink {
@@ -69,6 +79,13 @@ struct AdminView: View {
                             .environmentObject(vm)
                     } label: {
                         Label("Pending Cocktails", systemImage: "clock.badge.checkmark")
+                    }
+
+                    NavigationLink {
+                        VoidLogView()
+                            .environmentObject(vm)
+                    } label: {
+                        Label("Void Log", systemImage: "trash.slash")
                     }
                 }
                 

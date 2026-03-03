@@ -25,6 +25,7 @@ struct BartenderPINSheet: View {
     @State private var selectedBartenderID: UUID? = nil
     @State private var pin: String = ""
     @State private var pinError: String = ""
+    @FocusState private var pinFocused: Bool
     
     private var activeBartenders: [Bartender] {
         vm.activeBartenders.filter { $0.pin != nil }
@@ -79,6 +80,7 @@ struct BartenderPINSheet: View {
                         SecureField("PIN", text: $pin)
                             .keyboardType(.numberPad)
                             .textContentType(.oneTimeCode)
+                            .focused($pinFocused)
                         
                         if !pinError.isEmpty {
                             Text(pinError)
@@ -97,6 +99,12 @@ struct BartenderPINSheet: View {
             }
             .navigationTitle("Bartender Login")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: selectedBartenderID) { _, newValue in
+                guard newValue != nil else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    pinFocused = true
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }

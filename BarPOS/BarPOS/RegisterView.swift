@@ -1,10 +1,12 @@
 import SwiftUI
+import Combine
 
 struct RegisterView: View {
     @EnvironmentObject var vm: InventoryVM
 
     // UI State
     @State private var cashGivenString: String = ""
+    @FocusState private var cashGivenFocused: Bool
     @State private var showingSummary = false
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
@@ -16,9 +18,31 @@ struct RegisterView: View {
     @State private var showingChangePINSheet = false
     @State private var showingBuildCocktail = false
 
+    // Tab name suggestion state
+    @FocusState private var tabNameFocused: Bool
+
     // Size variant picker state
     @State private var showingSizeVariantPicker = false
     @State private var selectedProduct: Product? = nil
+
+    // Per-shift low stock warning tracking
+    @State private var warnedLowStockIDs: Set<UUID> = []
+
+    // Product button scale animation state
+    @State private var tappedProductID: UUID? = nil
+
+    // Close tab confirmation
+    @State private var showingCloseTabConfirm = false
+
+    // On-screen clock
+    @State private var currentTime: String = RegisterView.formattedTime()
+    private let clockTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    private static func formattedTime() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: Date())
+    }
 
     // Printer state
     @StateObject private var printer = StarPrinterManager()
@@ -71,6 +95,14 @@ struct RegisterView: View {
         .onAppear {
             print("🔍 All bartenders: \(vm.bartenders.map { "\($0.name) - active: \($0.isActive)" })")
             print("🔍 Active only: \(vm.bartenders.filter { $0.isActive }.map { $0.name })")
+            currentTime = RegisterView.formattedTime()
+        }
+        .onReceive(clockTimer) { _ in
+            currentTime = RegisterView.formattedTime()
+        }
+        .onChange(of: vm.currentShift?.id) { _, _ in
+            // Reset low stock warnings when a new shift begins
+            warnedLowStockIDs = []
         }
         
         // MARK: Sheets
@@ -138,6 +170,38 @@ struct RegisterView: View {
                 }
             }
         }
+        // MARK: Close tab confirmation
+        .alert("Close Tab?", isPresented: $showingCloseTabConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Confirm") {
+                switch payMethod {
+                case .cash:
+                    guard let cash = Decimal(string: cashGivenString) else { return }
+                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
+                        pendingReceipt = result
+                        cashGivenString = ""
+                        cashGivenFocused = false
+                        Task { await printer.openCashDrawer() }
+                        showReceiptPrompt = true
+                    }
+                case .card:
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
+                        pendingReceipt = result
+                        showReceiptPrompt = true
+                    }
+                case .other:
+                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
+                        pendingReceipt = result
+                        showReceiptPrompt = true
+                    }
+                }
+            }
+        } message: {
+            if let tab = vm.activeTab {
+                Text("Close tab for \(tab.total.currencyString())?")
+            }
+        }
+
         .alert("Print customer copy?", isPresented: $showReceiptPrompt) {
             Button("Yes") {
                 Task {
@@ -254,19 +318,46 @@ struct RegisterView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 6) {
                         // Rename + trash (trash only deletes when EMPTY)
-                        HStack {
-                            TextField("Tab name", text: Binding(
-                                get: { vm.activeTab?.name ?? "" },
-                                set: { vm.renameActiveTab($0) }
-                            ))
-                            .textFieldStyle(.roundedBorder)
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack {
+                                TextField("Tab name", text: Binding(
+                                    get: { vm.activeTab?.name ?? "" },
+                                    set: { vm.renameActiveTab($0) }
+                                ))
+                                .textFieldStyle(.roundedBorder)
+                                .focused($tabNameFocused)
 
-                            Button(role: .destructive) {
-                                vm.deleteActiveTabIfEmpty()
-                            } label: {
-                                Image(systemName: "trash")
+                                Button(role: .destructive) {
+                                    vm.deleteActiveTabIfEmpty()
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .disabled(!vm.activeLines.isEmpty)
                             }
-                            .disabled(!vm.activeLines.isEmpty)
+
+                            // Tab name suggestion dropdown
+                            let currentName = vm.activeTab?.name ?? ""
+                            let suggestions = tabNameSuggestions(for: currentName)
+                            if tabNameFocused && !suggestions.isEmpty && !currentName.isEmpty {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(suggestions.prefix(5), id: \.self) { name in
+                                        Button {
+                                            vm.renameActiveTab(name)
+                                            tabNameFocused = false
+                                        } label: {
+                                            Text(name)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 8)
+                                        }
+                                        .buttonStyle(.plain)
+                                        Divider()
+                                    }
+                                }
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                .shadow(radius: 4)
+                                .zIndex(10)
+                            }
                         }
 
                         // New Tab
@@ -518,23 +609,12 @@ struct RegisterView: View {
                 spacing: 12
             ) {
                 ForEach(products) { p in
-                    Button { 
-                        handleProductTap(p)
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text(p.name)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                            Text(displayPrice(for: p))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 64)
-                        .padding(.vertical, 6)
-                        .background(Color(.tertiarySystemFill))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
+                    ProductGridButton(
+                        product: p,
+                        displayPrice: displayPrice(for: p),
+                        isLowStock: isLowStockWarning(p),
+                        onTap: { handleProductTap(p) }
+                    )
                 }
             }
             .padding(.horizontal, 4)
@@ -566,6 +646,11 @@ struct RegisterView: View {
     
     // Helper: Handle product tap (checks for variants)
     private func handleProductTap(_ product: Product) {
+        // Mark low-stock warning as shown for this shift
+        if let stock = product.stockQuantity, let par = product.parLevel, stock < par {
+            warnedLowStockIDs.insert(product.id)
+        }
+
         // Use effective price (HH if active, otherwise regular)
         var effectiveProduct = product
         if vm.isHappyHourActive(), let hhPrice = product.happyHourPrice {
@@ -631,12 +716,25 @@ struct RegisterView: View {
                             .font(.body)
                             .multilineTextAlignment(.center)
                             .frame(height: 36)
+                            .focused($cashGivenFocused)
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Done") { cashGivenFocused = false }
+                                }
+                            }
                         
-                        if let tendered = Decimal(string: cashGivenString), tendered >= vm.totalActive {
-                            let change = tendered - vm.totalActive
-                            Text("Change: \(change.currencyString())")
-                                .font(.caption)
-                                .foregroundStyle(.green)
+                        if let tendered = Decimal(string: cashGivenString), !cashGivenString.isEmpty {
+                            let diff = tendered - vm.totalActive
+                            if diff >= 0 {
+                                Text("Change: \(diff.currencyString())")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            } else {
+                                Text("Still owed: \((-diff).currencyString())")
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
                         }
                     }
                     
@@ -651,34 +749,7 @@ struct RegisterView: View {
                 
                 // Right side: Close Tab button
                 Button {
-                    switch payMethod {
-                    case .cash:
-                        guard let cash = Decimal(string: cashGivenString) else { return }
-                        if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                            pendingReceipt = result
-                            cashGivenString = ""
-                            
-                            // 1. Open drawer IMMEDIATELY for cash sales
-                            Task {
-                                await printer.openCashDrawer()
-                            }
-                            
-                            // 2. Then show receipt prompt
-                            showReceiptPrompt = true
-                        }
-                        
-                    case .card:
-                        if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                            pendingReceipt = result
-                            showReceiptPrompt = true
-                        }
-                        
-                    case .other:
-                        if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                            pendingReceipt = result
-                            showReceiptPrompt = true
-                        }
-                    }
+                    showingCloseTabConfirm = true
                 } label: {
                     Text("Close Tab")
                         .font(.body)
@@ -700,6 +771,19 @@ struct RegisterView: View {
             .frame(height: 120)
             .padding(8)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .onAppear {
+                if payMethod == .cash {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        cashGivenFocused = true
+                    }
+                }
+            }
+            .onChange(of: payMethod) { _, newMethod in
+                guard newMethod == .cash else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    cashGivenFocused = true
+                }
+            }
         }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
@@ -805,7 +889,7 @@ struct RegisterView: View {
                         Label("End Shift…", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 } label: {
-                    Text("On Shift – \(bartender.name) • \(elapsedString(since: shift.startedAt)) • \(vm.currentShiftGross.currencyString())")
+                    Text("On Shift – \(bartender.name) • \(elapsedString(since: shift.startedAt)) • \(vm.currentShiftGross.currencyString()) • \(currentTime)")
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -831,12 +915,71 @@ struct RegisterView: View {
         }
     }
     
+    // MARK: - Low stock check
+    private func isLowStockWarning(_ product: Product) -> Bool {
+        guard let stock = product.stockQuantity,
+              let par = product.parLevel,
+              stock < par else { return false }
+        return !warnedLowStockIDs.contains(product.id)
+    }
+
     // MARK: - Small helpers
+    private func tabNameSuggestions(for input: String) -> [String] {
+        guard !input.isEmpty else { return [] }
+        let allNames = vm.allClosedTabs.map { $0.tabName }
+        let unique = Array(Set(allNames)).sorted()
+        return unique.filter { $0.localizedCaseInsensitiveContains(input) && $0 != input }
+    }
+
     private func elapsedString(since start: Date) -> String {
         let secs = max(0, Int(Date().timeIntervalSince(start)))
         let h = secs / 3600
         let m = (secs % 3600) / 60
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
+    }
+
+    // MARK: - Product Grid Button (with animation + low stock badge)
+    struct ProductGridButton: View {
+        let product: Product
+        let displayPrice: String
+        let isLowStock: Bool
+        let onTap: () -> Void
+
+        @State private var scale: CGFloat = 1.0
+
+        var body: some View {
+            Button {
+                withAnimation(.easeInOut(duration: 0.075)) { scale = 1.15 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.075) {
+                    withAnimation(.easeInOut(duration: 0.075)) { scale = 1.0 }
+                }
+                onTap()
+            } label: {
+                ZStack(alignment: .topTrailing) {
+                    VStack(spacing: 6) {
+                        Text(product.name)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                        Text(displayPrice)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 64)
+                    .padding(.vertical, 6)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    if isLowStock {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 10, height: 10)
+                            .padding(6)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(scale)
+        }
     }
 
     // MARK: - Reorder sheet (drag-and-drop per bartender)

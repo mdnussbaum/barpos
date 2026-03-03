@@ -21,8 +21,7 @@ struct RegisterView: View {
     @State private var selectedProduct: Product? = nil
 
     // Printer state
-    @StateObject private var printer = MockPrinterManager()
-    @StateObject private var starPrinter = StarPrinterManager()
+    @StateObject private var printer = StarPrinterManager()
     @State private var showReceiptPrompt = false
     @State private var pendingReceipt: CloseResult?
     @State private var showingSavedReceiptURL: URL?
@@ -184,13 +183,11 @@ struct RegisterView: View {
     
     // MARK: - Print Receipt Helper
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
-        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: settings)
-        let receipt = ReceiptData(type: .customer(result), content: content, settings: settings)
-        let printResult = await printer.printReceipt(receipt)
-        
-        // If using virtual printer, show where receipt was saved
-        if printResult.wasSuccessful, let url = printer.lastSavedReceiptURL {
-            showingSavedReceiptURL = url
+        let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
+        do {
+            try await printer.printReceipt(content)
+        } catch {
+            print("❌ Print receipt error: \(error)")
         }
     }
     
@@ -427,7 +424,7 @@ struct RegisterView: View {
                             )
 
                             do {
-                                try await starPrinter.printReceipt(testContent)
+                                try await printer.printReceipt(testContent)
                             } catch {
                                 print("Print error: \(error)")
                             }
@@ -445,7 +442,7 @@ struct RegisterView: View {
                     Button {
                         Task {
                             do {
-                                try await starPrinter.openDrawer()
+                                try await printer.openDrawer()
                             } catch {
                                 print("Drawer error: \(error)")
                             }

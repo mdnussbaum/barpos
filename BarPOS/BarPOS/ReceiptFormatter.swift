@@ -176,10 +176,7 @@ struct ReceiptFormatter {
     }
 
     // MARK: - Star Printer Receipt Content
-    
-    // TEMPORARILY DISABLED - Needs Star SDK
-    // Uncomment this function after adding StarIO10 framework
-    /*
+
     static func formatReceiptContent(_ result: CloseResult, settings: ReceiptSettings) -> StarReceiptContent {
         let header = settings.headerText.isEmpty ? "RECEIPT" : settings.headerText
         let footer = settings.footerText.isEmpty ? "Thank You!" : settings.footerText
@@ -201,5 +198,4 @@ struct ReceiptFormatter {
             footer: footer
         )
     }
-    */
 }

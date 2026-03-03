@@ -1,26 +1,13 @@
-/*
- TEMPORARILY COMMENTED OUT - Star SDK Not Added Yet
- 
- This file requires StarIO10 framework which hasn't been added to the project yet.
- Uncomment this file after:
- 1. Downloading Star SDK
- 2. Adding StarIO10.xcframework to Xcode
- 3. Updating Info.plist with required permissions
- 
- For now, use MockPrinterManager for development and testing.
- */
-
-/*
 import Foundation
+import Combine
 import StarIO10
 
 @MainActor
 class StarPrinterManager: ObservableObject {
     @Published var isConnected: Bool = false
-    @Published var printerName: String = ""
+    @Published var printerName: String = "Star Printer"
 
     private var printer: StarPrinter?
-    private let interfaceType = InterfaceType.usb
 
     init() {
         Task {
@@ -28,24 +15,37 @@ class StarPrinterManager: ObservableObject {
         }
     }
 
-    // MARK: - Discovery
+    // MARK: - Discovery (delegate-based, bridged to async via continuation)
     func discoverPrinter() async {
-        let manager = StarDeviceDiscoveryManagerFactory.create(interfaceTypes: [interfaceType])
-
-        manager.discoveryTime = 10_000 // 10 seconds
-
         do {
-            try await manager.startDiscovery()
+            let manager = try StarDeviceDiscoveryManagerFactory.create(interfaceTypes: [.usb, .lan, .bluetooth])
+            let delegate = DiscoveryDelegate()
+            manager.delegate = delegate
+            manager.discoveryTime = 10_000 // 10 seconds
 
-            // Wait for discovery
-            try await Task.sleep(for: .seconds(3))
+            try manager.startDiscovery()
 
-            // Get first discovered printer
-            if let firstPrinter = manager.printers.first {
-                await connectToPrinter(firstPrinter)
+            // Wait up to 5 seconds for a printer to be found
+            let foundPrinter: StarPrinter? = await withTaskGroup(of: StarPrinter?.self) { group in
+                group.addTask {
+                    try? await Task.sleep(for: .seconds(5))
+                    return nil
+                }
+                group.addTask {
+                    await delegate.waitForPrinter()
+                }
+                for await result in group {
+                    group.cancelAll()
+                    return result
+                }
+                return nil
             }
 
             manager.stopDiscovery()
+
+            if let found = foundPrinter {
+                await connectToPrinter(found)
+            }
         } catch {
             print("❌ Discovery error: \(error)")
         }
@@ -53,89 +53,187 @@ class StarPrinterManager: ObservableObject {
 
     private func connectToPrinter(_ printerInfo: StarPrinter) async {
         printer = printerInfo
-        printerName = printerInfo.information?.model ?? "Star Printer"
+        printerName = printerInfo.information?.model.description ?? "Star Printer"
         isConnected = true
-
         print("✅ Connected to: \(printerName)")
     }
 
     // MARK: - Print Receipt
     func printReceipt(_ content: StarReceiptContent) async throws {
-        guard let printer = printer else {
-            throw PrinterError.notConnected
-        }
+        let p = try requirePrinter()
 
-        // Build Star commands
         let builder = StarXpandCommand.StarXpandCommandBuilder()
 
-        _ = builder.addDocument(StarXpandCommand.DocumentBuilder()
-            .addPrinter(StarXpandCommand.PrinterBuilder()
-                // Header
-                .actionPrintText(content.header + "\n")
-                .styleAlignment(.center)
-                .actionPrintText("─────────────────────────\n")
+        var printerBuilder = StarXpandCommand.PrinterBuilder()
+            .styleAlignment(.center)
+            .actionPrintText(content.header + "\n")
+            .actionPrintText("─────────────────────────\n")
+            .styleAlignment(.left)
 
-                // Lines
-                .styleAlignment(.left)
-                .also { printerBuilder in
-                    for line in content.lines {
-                        _ = printerBuilder.actionPrintText(
-                            "\(line.quantity)x \(line.itemName) $\(line.price)\n"
-                        )
-                    }
-                }
-
-                // Totals
-                .actionPrintText("─────────────────────────\n")
-                .actionPrintText("Subtotal: $\(content.subtotal)\n")
-                .actionPrintText("Tax: $\(content.tax)\n")
-                .styleBold(true)
-                .actionPrintText("TOTAL: $\(content.total)\n")
-                .styleBold(false)
-
-                // Footer
-                .actionPrintText("\n\(content.footer)\n")
-                .styleAlignment(.center)
-
-                // Cut
-                .actionCut(.partial)
+        for line in content.lines {
+            printerBuilder = printerBuilder.actionPrintText(
+                "\(line.quantity)x \(line.itemName)  \(line.price)\n"
             )
+        }
+
+        printerBuilder = printerBuilder
+            .actionPrintText("─────────────────────────\n")
+            .actionPrintText("Subtotal: \(content.subtotal)\n")
+            .actionPrintText("Tax:      \(content.tax)\n")
+            .styleBold(true)
+            .actionPrintText("TOTAL:    \(content.total)\n")
+            .styleBold(false)
+            .styleAlignment(.center)
+            .actionPrintText("\n\(content.footer)\n")
+            .actionCut(.partial)
+
+        _ = builder.addDocument(
+            StarXpandCommand.DocumentBuilder()
+                .addPrinter(printerBuilder)
         )
 
         let commands = builder.getCommands()
-
-        // Send to printer
-        try await printer.print(command: commands)
+        try await p.open()
+        try await p.print(command: commands)
+        await p.close()
 
         print("✅ Receipt printed")
     }
 
     // MARK: - Open Drawer
     func openDrawer() async throws {
-        guard let printer = printer else {
-            throw PrinterError.notConnected
-        }
-
-        // Drawer kick command: ESC p m t1 t2
-        let drawerKick = Data([0x1B, 0x70, 0x00, 0x19, 0x64])
+        let p = try requirePrinter()
 
         let builder = StarXpandCommand.StarXpandCommandBuilder()
-        _ = builder.addDocument(StarXpandCommand.DocumentBuilder()
-            .addPrinter(StarXpandCommand.PrinterBuilder()
-                .actionPrintRawData(drawerKick)
-            )
+        _ = builder.addDocument(
+            StarXpandCommand.DocumentBuilder()
+                .addDrawer(
+                    StarXpandCommand.DrawerBuilder()
+                        .actionOpen(StarXpandCommand.Drawer.OpenParameter())
+                )
         )
 
         let commands = builder.getCommands()
-        try await printer.print(command: commands)
+        try await p.open()
+        try await p.print(command: commands)
+        await p.close()
 
         print("✅ Drawer opened")
     }
 
     // MARK: - Print + Open Drawer
     func printReceiptAndOpenDrawer(_ content: StarReceiptContent) async throws {
-        try await printReceipt(content)
-        try await openDrawer()
+        let p = try requirePrinter()
+
+        // Build combined receipt + drawer command
+        let builder = StarXpandCommand.StarXpandCommandBuilder()
+
+        var printerBuilder = StarXpandCommand.PrinterBuilder()
+            .styleAlignment(.center)
+            .actionPrintText(content.header + "\n")
+            .actionPrintText("─────────────────────────\n")
+            .styleAlignment(.left)
+
+        for line in content.lines {
+            printerBuilder = printerBuilder.actionPrintText(
+                "\(line.quantity)x \(line.itemName)  \(line.price)\n"
+            )
+        }
+
+        printerBuilder = printerBuilder
+            .actionPrintText("─────────────────────────\n")
+            .actionPrintText("Subtotal: \(content.subtotal)\n")
+            .actionPrintText("Tax:      \(content.tax)\n")
+            .styleBold(true)
+            .actionPrintText("TOTAL:    \(content.total)\n")
+            .styleBold(false)
+            .styleAlignment(.center)
+            .actionPrintText("\n\(content.footer)\n")
+            .actionCut(.partial)
+
+        _ = builder.addDocument(
+            StarXpandCommand.DocumentBuilder()
+                .addPrinter(printerBuilder)
+                .addDrawer(
+                    StarXpandCommand.DrawerBuilder()
+                        .actionOpen(StarXpandCommand.Drawer.OpenParameter())
+                )
+        )
+
+        let commands = builder.getCommands()
+        try await p.open()
+        try await p.print(command: commands)
+        await p.close()
+    }
+
+    // MARK: - Convenience helpers (compatible with PrinterSettingsView)
+    func testPrint() async -> Bool {
+        let testContent = StarReceiptContent(
+            header: "TEST RECEIPT",
+            lines: [ReceiptLine(quantity: 1, itemName: "Test Item", price: "$0.00")],
+            subtotal: "$0.00",
+            tax:      "$0.00",
+            total:    "$0.00",
+            footer: "Printer is working!"
+        )
+        do {
+            try await printReceipt(testContent)
+            return true
+        } catch {
+            print("❌ Test print failed: \(error)")
+            return false
+        }
+    }
+
+    func openCashDrawer() async -> Bool {
+        do {
+            try await openDrawer()
+            return true
+        } catch {
+            print("❌ Cash drawer failed: \(error)")
+            return false
+        }
+    }
+
+    // MARK: - Private helpers
+
+    private func requirePrinter() throws -> StarPrinter {
+        guard let p = printer else { throw PrinterError.notConnected }
+        return p
+    }
+}
+
+// MARK: - Discovery Delegate (bridges callback to async)
+private final class DiscoveryDelegate: NSObject, StarDeviceDiscoveryManagerDelegate, @unchecked Sendable {
+    private var continuation: CheckedContinuation<StarPrinter, Never>?
+    private var foundPrinter: StarPrinter?
+    private let lock = NSLock()
+
+    func waitForPrinter() async -> StarPrinter {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if let already = foundPrinter {
+                lock.unlock()
+                continuation.resume(returning: already)
+            } else {
+                self.continuation = continuation
+                lock.unlock()
+            }
+        }
+    }
+
+    func manager(_ manager: StarDeviceDiscoveryManager, didFind printer: StarPrinter) {
+        lock.lock()
+        foundPrinter = printer
+        let cont = continuation
+        continuation = nil
+        lock.unlock()
+        cont?.resume(returning: printer)
+    }
+
+    func managerDidFinishDiscovery(_ manager: StarDeviceDiscoveryManager) {
+        // Discovery finished without finding a printer — resolve with a never-settling task
+        // The timeout task in discoverPrinter() will cancel this
     }
 }
 
@@ -161,4 +259,3 @@ struct ReceiptLine {
     let itemName: String
     let price: String
 }
-*/

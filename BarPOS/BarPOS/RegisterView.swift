@@ -22,8 +22,7 @@ struct RegisterView: View {
 
     // Printer state
     @StateObject private var printer = MockPrinterManager()
-    // TEMPORARILY DISABLED - Uncomment after adding Star SDK
-    // @StateObject private var starPrinter = StarPrinterManager()
+    @StateObject private var starPrinter = StarPrinterManager()
     @State private var showReceiptPrompt = false
     @State private var pendingReceipt: CloseResult?
     @State private var showingSavedReceiptURL: URL?
@@ -411,8 +410,6 @@ struct RegisterView: View {
                 .padding(.horizontal, 4)
             }
 
-            // TEMPORARILY DISABLED - Star Printer Test Buttons (requires Star SDK)
-            /*
             if vm.currentShift != nil {
                 HStack(spacing: 8) {
                     Button {
@@ -465,7 +462,6 @@ struct RegisterView: View {
                 }
                 .padding(.horizontal, 4)
             }
-            */
 
             if selectedCategory == .chips {
                 chipsGrid()

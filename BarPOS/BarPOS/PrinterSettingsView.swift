@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PrinterSettingsView: View {
     @EnvironmentObject var vm: InventoryVM
-    @StateObject private var printer: MockPrinterManager
+    @StateObject private var printer: StarPrinterManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var headerText: String = ""
@@ -15,7 +15,7 @@ struct PrinterSettingsView: View {
 
     init() {
         // Initialize printer with default settings
-        _printer = StateObject(wrappedValue: MockPrinterManager())
+        _printer = StateObject(wrappedValue: StarPrinterManager())
     }
 
     var body: some View {
@@ -39,7 +39,7 @@ struct PrinterSettingsView: View {
                     }
                 }
 
-                Text("Mock Printer (generates PDFs)")
+                Text("Star Printer (USB/Bluetooth)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -91,7 +91,7 @@ struct PrinterSettingsView: View {
             }
 
             Section {
-                Text("When hardware arrives, you'll be able to connect to real printers here. For now, receipts are saved as PDFs.")
+                Text("Connect a Star Micronics printer via USB. The printer will be discovered automatically on launch.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

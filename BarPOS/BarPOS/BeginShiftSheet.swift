@@ -77,6 +77,7 @@ struct BeginShiftSheet: View {
                         }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Begin Shift")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

@@ -66,8 +66,15 @@ struct AdminSecurityView: View {
                     .font(.footnote)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Security")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+            }
+        }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 newPINFocused = true

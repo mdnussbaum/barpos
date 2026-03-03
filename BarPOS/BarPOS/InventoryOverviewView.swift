@@ -369,6 +369,7 @@ struct StockAdjustmentSheet: View {
                         .font(.caption)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isAdding ? "Add Stock" : "Remove Stock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -386,6 +387,11 @@ struct StockAdjustmentSheet: View {
                         }
                     }
                     .disabled(Decimal(string: amount) == nil || Decimal(string: amount) ?? 0 <= 0)
+                }
+
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                 }
             }
         }
@@ -484,6 +490,7 @@ struct InventoryAdjustmentSheet: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Adjust Stock")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -502,6 +509,11 @@ struct InventoryAdjustmentSheet: View {
                         }
                     }
                     .disabled(newCount == nil)
+                }
+
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                 }
             }
             .onAppear {

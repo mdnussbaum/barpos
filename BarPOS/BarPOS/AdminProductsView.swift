@@ -264,10 +264,15 @@ struct AdminProductsView: View {
     }
     
     private func importCSV(from url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
         do {
             let csvData = try String(contentsOf: url, encoding: .utf8)
             let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: vm.products)
-            
             vm.products = newProducts
             importResult = result
             showingImportSheet = true
@@ -676,6 +681,7 @@ struct ProductEditSheet: View {
                 TextField("Supplier SKU/Code", text: $supplierSKU)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(name.isEmpty ? "New Product" : name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -688,6 +694,10 @@ struct ProductEditSheet: View {
                 }
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty ||
                          Decimal(string: priceString.replacingOccurrences(of: ",", with: ".")) == nil)
+            }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
             }
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
@@ -966,6 +976,7 @@ struct AddSizeVariantSheet: View {
                     Toggle("Set as Default", isOn: $isDefault)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Add Size Variant")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -977,6 +988,10 @@ struct AddSizeVariantSheet: View {
                         saveVariant()
                     }
                     .disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                 }
             }
         }
@@ -1042,6 +1057,7 @@ struct EditSizeVariantSheet: View {
                     Toggle("Set as Default", isOn: $isDefault)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Edit Size Variant")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1053,6 +1069,10 @@ struct EditSizeVariantSheet: View {
                         saveVariant()
                     }
                     .disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                 }
             }
             .onAppear {

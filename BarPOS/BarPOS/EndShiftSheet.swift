@@ -57,6 +57,7 @@ struct EndShiftSheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("End Shift")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

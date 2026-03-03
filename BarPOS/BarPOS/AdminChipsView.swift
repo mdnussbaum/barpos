@@ -74,8 +74,15 @@ struct AdminChipsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Chips")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+            }
+        }
         .onAppear {
             // Seed current prices into text fields
             whiteString = vm.price(for: .white).currencyEditingString()

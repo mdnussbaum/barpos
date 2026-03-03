@@ -154,7 +154,8 @@ struct CSVImporter {
         
         // Gun item
         if let gunStr = rowData["gun_item"], !gunStr.isEmpty {
-            product.isGunItem = (gunStr.lowercased() == "true" || gunStr == "1" || gunStr.lowercased() == "yes")
+            let v = gunStr.lowercased()
+            product.isGunItem = (v == "true" || v == "1" || v == "yes")
         }
         
         // Supplier
@@ -169,17 +170,20 @@ struct CSVImporter {
         
         // Hidden
         if let hiddenStr = rowData["hidden"], !hiddenStr.isEmpty {
-            product.isHidden = (hiddenStr.lowercased() == "true" || hiddenStr == "1" || hiddenStr.lowercased() == "yes")
+            let v = hiddenStr.lowercased()
+            product.isHidden = (v == "true" || v == "1" || v == "yes")
         }
         
         // 86'd
         if let is86dStr = rowData["86d"], !is86dStr.isEmpty {
-            product.is86d = (is86dStr.lowercased() == "true" || is86dStr == "1" || is86dStr.lowercased() == "yes")
+            let v = is86dStr.lowercased()
+            product.is86d = (v == "true" || v == "1" || v == "yes")
         }
 
         // Can be ingredient
         if let ingredientStr = rowData["can_be_ingredient"], !ingredientStr.isEmpty {
-            product.canBeIngredient = (ingredientStr.lowercased() == "true" || ingredientStr == "1" || ingredientStr.lowercased() == "yes")
+            let v = ingredientStr.lowercased()
+            product.canBeIngredient = (v == "true" || v == "1" || v == "yes")
         }
         
         // Size Variants

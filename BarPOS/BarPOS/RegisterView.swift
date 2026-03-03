@@ -31,8 +31,8 @@ struct RegisterView: View {
     // Product button scale animation state
     @State private var tappedProductID: UUID? = nil
 
-    // Close tab confirmation
-    @State private var showingCloseTabConfirm = false
+    // Close tab sheet
+    @State private var showingCloseTabSheet = false
 
     // On-screen clock
     @State private var currentTime: String = RegisterView.formattedTime()
@@ -46,8 +46,6 @@ struct RegisterView: View {
 
     // Printer state
     @StateObject private var printer = StarPrinterManager()
-    @State private var showReceiptPrompt = false
-    @State private var pendingReceipt: CloseResult?
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
     
@@ -170,53 +168,35 @@ struct RegisterView: View {
                 }
             }
         }
-        // MARK: Close tab confirmation
-        .alert("Close Tab?", isPresented: $showingCloseTabConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Confirm") {
-                switch payMethod {
-                case .cash:
-                    guard let cash = Decimal(string: cashGivenString) else { return }
-                    if let result = vm.closeActiveTab(cashTendered: cash, method: .cash) {
-                        pendingReceipt = result
-                        cashGivenString = ""
-                        cashGivenFocused = false
-                        Task { await printer.openCashDrawer() }
-                        showReceiptPrompt = true
-                    }
-                case .card:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .card) {
-                        pendingReceipt = result
-                        showReceiptPrompt = true
-                    }
-                case .other:
-                    if let result = vm.closeActiveTab(cashTendered: 0, method: .other) {
-                        pendingReceipt = result
-                        showReceiptPrompt = true
-                    }
-                }
-            }
-        } message: {
+        // MARK: Close tab sheet
+        .sheet(isPresented: $showingCloseTabSheet) {
             if let tab = vm.activeTab {
-                Text("Close tab for \(tab.total.currencyString())?")
-            }
-        }
-
-        .alert("Print customer copy?", isPresented: $showReceiptPrompt) {
-            Button("Yes") {
-                Task {
-                    if let receipt = pendingReceipt {
-                        await printReceipt(receipt, settings: vm.printerSettings)
+                CloseTabSheet(
+                    tab: tab,
+                    payMethod: payMethod,
+                    cashGiven: Decimal(string: cashGivenString) ?? 0,
+                    printer: printer,
+                    onClose: { printReceipt in
+                        let cash = payMethod == .cash ? (Decimal(string: cashGivenString) ?? 0) : 0
+                        if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
+                            if payMethod == .cash {
+                                cashGivenString = ""
+                                cashGivenFocused = false
+                                Task { await printer.openCashDrawer() }
+                            }
+                            if printReceipt {
+                                Task { await self.printReceipt(result, settings: vm.printerSettings) }
+                            }
+                            showingCloseTabSheet = false
+                            showingSummary = true
+                        }
+                    },
+                    onCancel: {
+                        showingCloseTabSheet = false
                     }
-                    showingSummary = true
-                }
-            }
-            Button("No") {
-                showingSummary = true
-            }
-        } message: {
-            if let receipt = pendingReceipt {
-                Text("Tab: \(receipt.tabName) • \(receipt.total.currencyString())")
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
         
@@ -749,7 +729,7 @@ struct RegisterView: View {
                 
                 // Right side: Close Tab button
                 Button {
-                    showingCloseTabConfirm = true
+                    showingCloseTabSheet = true
                 } label: {
                     Text("Close Tab")
                         .font(.body)
@@ -1029,6 +1009,143 @@ struct RegisterView: View {
                 return "Reorder \(c.displayName)"
             } else {
                 return "Reorder All"
+            }
+        }
+    }
+
+    // MARK: - Close Tab Sheet
+    struct CloseTabSheet: View {
+        let tab: TabTicket
+        let payMethod: PaymentMethod
+        let cashGiven: Decimal
+        let printer: StarPrinterManager
+        let onClose: (Bool) -> Void  // Bool = printReceipt
+        let onCancel: () -> Void
+
+        private var subtotal: Decimal { tab.subtotal }
+        private var total: Decimal { tab.total }
+        private var changeDue: Decimal {
+            guard payMethod == .cash else { return 0 }
+            return max(0, cashGiven - total)
+        }
+        private var payMethodLabel: String {
+            switch payMethod {
+            case .cash: return "Cash"
+            case .card: return "Card"
+            case .other: return "Other"
+            }
+        }
+
+        var body: some View {
+            NavigationStack {
+                List {
+                    // Tab header
+                    Section {
+                        HStack {
+                            Text("Tab")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(tab.name.isEmpty ? "Unnamed" : tab.name)
+                                .fontWeight(.semibold)
+                        }
+                        HStack {
+                            Text("Payment")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(payMethodLabel)
+                                .fontWeight(.semibold)
+                        }
+                    }
+
+                    // Itemized lines
+                    Section("Items") {
+                        ForEach(tab.lines) { line in
+                            HStack {
+                                Text(line.displayName)
+                                Spacer()
+                                Text("×\(line.qty)")
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 36, alignment: .trailing)
+                                Text(line.lineTotal.currencyString())
+                                    .frame(width: 72, alignment: .trailing)
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+
+                    // Totals
+                    Section {
+                        HStack {
+                            Text("Subtotal")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(subtotal.currencyString())
+                        }
+                        HStack {
+                            Text("Total")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Text(total.currencyString())
+                                .fontWeight(.semibold)
+                        }
+                        if payMethod == .cash {
+                            HStack {
+                                Text("Cash Tendered")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(cashGiven.currencyString())
+                            }
+                            HStack {
+                                Text("Change Due")
+                                    .foregroundStyle(changeDue > 0 ? .green : .secondary)
+                                Spacer()
+                                Text(changeDue.currencyString())
+                                    .foregroundStyle(changeDue > 0 ? .green : .primary)
+                                    .fontWeight(changeDue > 0 ? .semibold : .regular)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .navigationTitle("Close Tab")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", action: onCancel)
+                    }
+                }
+                .safeAreaInset(edge: .bottom) {
+                    HStack(spacing: 12) {
+                        Button {
+                            onClose(false)
+                        } label: {
+                            Text("No Receipt")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color(.secondarySystemBackground))
+                                .foregroundStyle(.primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            onClose(true)
+                        } label: {
+                            Label("Print Receipt", systemImage: "printer.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.blue)
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .background(.regularMaterial)
+                }
             }
         }
     }

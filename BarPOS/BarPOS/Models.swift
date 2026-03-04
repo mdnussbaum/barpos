@@ -227,6 +227,7 @@ struct Product: Identifiable, Codable, Hashable {
     var supplierSKU: String? = nil
     var caseSize: Int? = nil  // How many bottles per case (or pints per keg when unit == .keg)
     var kegSizeOz: Int? = nil // Total oz in keg (set when unit == .keg; drives costPerServing)
+    var costIsPerServing: Bool = false // When true, cost field already represents cost per serving (e.g. per pint); skip unit conversion
     
     // Status
     var is86d: Bool = false
@@ -332,11 +333,17 @@ struct Product: Identifiable, Codable, Hashable {
     
     var costPerServing: Decimal? {
         guard let cost = cost,
-              let servingSize = servingSize,
+              cost.isFinite else { return nil }
+
+        // Cost is already entered as cost-per-serving (e.g. admin entered cost per pint for a keg)
+        if costIsPerServing {
+            return cost
+        }
+
+        guard let servingSize = servingSize,
               servingSize > 0,
-              cost.isFinite,
               servingSize.isFinite else { return nil }
-        
+
         // If serving unit matches stock unit, it's simple
         if servingUnit == nil || servingUnit == unit {
             return cost / servingSize

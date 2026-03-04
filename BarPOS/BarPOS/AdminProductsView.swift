@@ -397,7 +397,17 @@ struct ProductEditSheet: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
-                
+
+                if draft.unit == .keg {
+                    Toggle("Cost is per serving (per pint)", isOn: $draft.costIsPerServing)
+
+                    Text(draft.costIsPerServing
+                         ? "Cost entered as cost per pint — used directly for margin and suggested price calculations."
+                         : "Cost entered as cost per keg — divided by keg size and serving size to calculate cost per pint.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if let margin = draft.profitMargin {
                     HStack {
                         Text("Profit Margin")

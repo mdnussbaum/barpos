@@ -282,8 +282,13 @@ final class InventoryVM: ObservableObject {
         let servingUnit = variant != nil ? UnitOfMeasure.oz : (products[index].servingUnit ?? products[index].unit)
         
         if servingUnit != products[index].unit {
-            // Need conversion (e.g., oz → liter)
-            if let conversionFactor = getConversionFactor(from: servingUnit, to: products[index].unit) {
+            // Special case: oz → keg uses the product's kegSizeOz
+            if servingUnit == .oz && products[index].unit == .keg,
+               let kegOz = products[index].kegSizeOz, kegOz > 0 {
+                amountToDeduct = servingsToDeduct / Decimal(kegOz)
+                print("🍺 Keg deduction: \(servingsToDeduct) oz ÷ \(kegOz) oz/keg = \(amountToDeduct) kegs")
+            } else if let conversionFactor = getConversionFactor(from: servingUnit, to: products[index].unit) {
+                // Need conversion (e.g., oz → liter)
                 amountToDeduct = servingsToDeduct * conversionFactor
                 print("🔄 Converting \(servingsToDeduct) \(servingUnit.displayName) × \(conversionFactor) = \(amountToDeduct) \(products[index].unit.displayName)")
             } else {

@@ -399,11 +399,7 @@ struct ProductEditSheet: View {
                 }
 
                 if draft.unit == .keg {
-                    Toggle("Cost is per serving (per pint)", isOn: $draft.costIsPerServing)
-
-                    Text(draft.costIsPerServing
-                         ? "Cost entered as cost per pint — used directly for margin and suggested price calculations."
-                         : "Cost entered as cost per keg — divided by keg size and serving size to calculate cost per pint.")
+                    Text("Cost entered as cost per keg — divided by keg size and serving size to calculate cost per pint.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -643,16 +639,23 @@ struct ProductEditSheet: View {
             
             // MARK: - Size Variants
             Section("Size Variants") {
-                Toggle("Enable Size Variants", isOn: $hasVariants)
-                    .onChange(of: hasVariants) { _, newValue in
-                        if !newValue {
-                            variants.removeAll()
+                if draft.unit == .keg {
+                    // Keg products always have size variants (Short/Tall pours)
+                    Text("Keg products always use size variants. Edit the pour sizes and prices below.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Toggle("Enable Size Variants", isOn: $hasVariants)
+                        .onChange(of: hasVariants) { _, newValue in
+                            if !newValue {
+                                variants.removeAll()
+                            }
                         }
-                    }
-                
-                Text("Allow customers to choose different sizes (e.g., Short vs Tall for draft beer)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    
+                    Text("Allow customers to choose different sizes (e.g., Short vs Tall for draft beer)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 
                 if hasVariants {
                     if variants.isEmpty {
@@ -775,17 +778,39 @@ struct ProductEditSheet: View {
         supplierSKU = draft.supplierSKU ?? ""
         caseSizeString = draft.caseSize.map { "\($0)" } ?? ""
         
-        // Load keg size from saved kegSizeOz
-        if draft.unit == .keg, let oz = draft.kegSizeOz {
-            selectedKegSize = KegSize.allCases.first { $0.totalOz == oz } ?? .halfBarrel
+        // Load keg size from saved kegSizeOz, or auto-set from caseSize
+        if draft.unit == .keg {
+            if let oz = draft.kegSizeOz {
+                selectedKegSize = KegSize.allCases.first { $0.totalOz == oz } ?? .halfBarrel
+            } else {
+                // Auto-detect keg size from caseSize (gallons per keg)
+                let autoSize: KegSize
+                if let cs = draft.caseSize {
+                    if cs <= 41 { autoSize = .sixthBarrel }
+                    else if cs <= 66 { autoSize = .quarterBarrel }
+                    else { autoSize = .halfBarrel }
+                } else {
+                    autoSize = .halfBarrel
+                }
+                selectedKegSize = autoSize
+                // Write back immediately so conversion factor is set
+                draft.kegSizeOz = autoSize.totalOz
+                draft.servingUnit = .oz
+            }
         } else {
             selectedKegSize = .halfBarrel
         }
 
-        // Load size variants
+        // Load size variants — for kegs, auto-populate Short/Tall defaults if none set
         if let sizeVariants = draft.sizeVariants, !sizeVariants.isEmpty {
             hasVariants = true
             variants = sizeVariants
+        } else if draft.unit == .keg {
+            hasVariants = true
+            variants = [
+                SizeVariant(name: "Short", sizeOz: 16, price: draft.price, isDefault: true),
+                SizeVariant(name: "Tall", sizeOz: 22, price: draft.price, isDefault: false)
+            ]
         } else {
             hasVariants = false
             variants = []
@@ -863,8 +888,8 @@ struct ProductEditSheet: View {
             draft.kegSizeOz = nil
         }
 
-        // Save size variants
-        if hasVariants && !variants.isEmpty {
+        // Save size variants — kegs always save their variants
+        if (draft.unit == .keg || hasVariants) && !variants.isEmpty {
             draft.sizeVariants = variants
         } else {
             draft.sizeVariants = nil

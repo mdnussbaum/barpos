@@ -339,6 +339,9 @@ struct ProductEditSheet: View {
     @State private var casesString: String = ""
     @State private var extraBottlesString: String = ""
     
+    // Keg size state
+    @State private var selectedKegSize: KegSize = .halfBarrel
+
     // Size variants state
     @State private var hasVariants: Bool = false
     @State private var variants: [SizeVariant] = []
@@ -476,6 +479,23 @@ struct ProductEditSheet: View {
                     }
                     
                     Text("Automatically sets stock unit to 'bottle' and converts to oz for serving calculations")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                // Keg size picker
+                if draft.unit == .keg {
+                    Picker("Keg Size", selection: $selectedKegSize) {
+                        ForEach(KegSize.allCases) { size in
+                            Text(size.displayName).tag(size)
+                        }
+                    }
+                    .onChange(of: selectedKegSize) { _, newSize in
+                        draft.kegSizeOz = newSize.totalOz
+                        // Set serving unit to oz so costPerServing conversion works
+                        draft.servingUnit = .oz
+                    }
+
+                    Text("Sets the total oz in this keg for suggested price and cost-per-serving calculations")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -745,6 +765,13 @@ struct ProductEditSheet: View {
         supplierSKU = draft.supplierSKU ?? ""
         caseSizeString = draft.caseSize.map { "\($0)" } ?? ""
         
+        // Load keg size from saved kegSizeOz
+        if draft.unit == .keg, let oz = draft.kegSizeOz {
+            selectedKegSize = KegSize.allCases.first { $0.totalOz == oz } ?? .halfBarrel
+        } else {
+            selectedKegSize = .halfBarrel
+        }
+
         // Load size variants
         if let sizeVariants = draft.sizeVariants, !sizeVariants.isEmpty {
             hasVariants = true
@@ -817,7 +844,15 @@ struct ProductEditSheet: View {
         draft.supplier = supplier.isEmpty ? nil : supplier
         draft.supplierSKU = supplierSKU.isEmpty ? nil : supplierSKU
         draft.caseSize = Int(caseSizeString)
-        
+
+        // Save keg size oz for conversion factor
+        if draft.unit == .keg {
+            draft.kegSizeOz = selectedKegSize.totalOz
+            draft.servingUnit = .oz
+        } else {
+            draft.kegSizeOz = nil
+        }
+
         // Save size variants
         if hasVariants && !variants.isEmpty {
             draft.sizeVariants = variants

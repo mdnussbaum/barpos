@@ -129,6 +129,32 @@ enum BottleSize: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Keg Size Helper
+enum KegSize: String, CaseIterable, Identifiable {
+    case sixthBarrel  = "sixthBarrel"   // 1/6 barrel: 661 oz
+    case quarterBarrel = "quarterBarrel" // 1/4 barrel: 992 oz
+    case halfBarrel   = "halfBarrel"    // 1/2 barrel: 1984 oz
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .sixthBarrel:   return "1/6 Barrel (661 oz)"
+        case .quarterBarrel: return "1/4 Barrel (992 oz)"
+        case .halfBarrel:    return "1/2 Barrel (1984 oz)"
+        }
+    }
+
+    /// Total fluid ounces in this keg size
+    var totalOz: Int {
+        switch self {
+        case .sixthBarrel:   return 661
+        case .quarterBarrel: return 992
+        case .halfBarrel:    return 1984
+        }
+    }
+}
+
 // MARK: - Bartender
 struct Bartender: Identifiable, Codable, Hashable {
     let id: UUID
@@ -199,7 +225,8 @@ struct Product: Identifiable, Codable, Hashable {
     // Supplier info
     var supplier: String? = nil
     var supplierSKU: String? = nil
-    var caseSize: Int? = nil  // How many bottles per case
+    var caseSize: Int? = nil  // How many bottles per case (or pints per keg when unit == .keg)
+    var kegSizeOz: Int? = nil // Total oz in keg (set when unit == .keg; drives costPerServing)
     
     // Status
     var is86d: Bool = false
@@ -266,14 +293,36 @@ struct Product: Identifiable, Codable, Hashable {
         return ((price - suggested) / suggested) * 100
     }
     var stockDisplayString: String? {
-            guard let stock = stockQuantity, let size = caseSize, size > 0 else {
-                return stockQuantity?.plainString()
+            guard let stock = stockQuantity else { return nil }
+
+            // Keg display: show whole kegs + remaining pints when pintsPerKeg is configured
+            if unit == .keg, let pintsPerKeg = caseSize, pintsPerKeg > 0 {
+                let kegSizeOzValue = kegSizeOz ?? 1984
+                let totalOz = (stock as NSDecimalNumber).doubleValue * Double(kegSizeOzValue)
+                let ozPerPint = 16.0
+                let totalPints = Int(totalOz / ozPerPint)
+                let wholeKegs = Int((stock as NSDecimalNumber).doubleValue)
+                let remainderOz = totalOz - Double(wholeKegs) * Double(kegSizeOzValue)
+                let remainderPints = Int(remainderOz / ozPerPint)
+
+                if wholeKegs == 0 {
+                    return "\(remainderPints) pints remaining"
+                } else if remainderPints == 0 {
+                    return "\(wholeKegs) keg\(wholeKegs == 1 ? "" : "s")"
+                } else {
+                    return "\(wholeKegs) keg\(wholeKegs == 1 ? "" : "s") (\(remainderPints) pints remaining)"
+                }
             }
-            
+
+            // Case/bottle display
+            guard let size = caseSize, size > 0 else {
+                return stock.plainString()
+            }
+
             let stockInt = (stock as NSDecimalNumber).intValue
             let cases = stockInt / size
             let bottles = stockInt % size
-            
+
             if bottles == 0 {
                 return "\(cases) case\(cases == 1 ? "" : "s")"
             } else {
@@ -325,7 +374,10 @@ struct Product: Identifiable, Codable, Hashable {
             case (.liter, .oz): return 33.814
             case (.fifth, .oz): return 25.36     // 750ml bottle
             case (.bottle, .oz): return 12       // Standard 12oz beer bottle
-            case (.keg, .oz): return 1984        // Half barrel keg
+            case (.keg, .oz):
+                // Use the admin-selected keg size if available; fall back to half barrel
+                if let oz = kegSizeOz { return Decimal(oz) }
+                return 1984  // Default: half barrel
             default: return nil
             }
         }

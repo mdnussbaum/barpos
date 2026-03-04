@@ -67,6 +67,7 @@ struct AdminSecurityView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationTitle("Security")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -111,6 +111,7 @@ struct BeginShiftSheet: View {
                 .environmentObject(vm)
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     private func startShift() {

@@ -169,6 +169,7 @@ struct AdminProductsView: View {
                     showingEditor = false
                 }
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showingDefaultOrderSheet) {

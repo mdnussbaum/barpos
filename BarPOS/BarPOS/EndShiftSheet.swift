@@ -120,6 +120,7 @@ struct EndShiftSheet: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 

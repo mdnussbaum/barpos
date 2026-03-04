@@ -75,6 +75,7 @@ struct AdminChipsView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationTitle("Chips")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

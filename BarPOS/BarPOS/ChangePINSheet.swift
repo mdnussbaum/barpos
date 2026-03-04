@@ -68,6 +68,7 @@ struct ChangePINSheet: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Change PIN")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -87,6 +88,7 @@ struct ChangePINSheet: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     private func changePIN() {

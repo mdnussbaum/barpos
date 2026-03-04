@@ -158,7 +158,7 @@ struct AdminProductsView: View {
         }
         .sheet(isPresented: $showingEditor) {
             NavigationStack {
-                ProductEditSheet(draft: $draft) { result in
+                ProductEditSheet(draft: $draft, pricingRules: vm.pricingRules) { result in
                     switch result {
                     case .save(let product):
                         if isNew { vm.addProduct(product) } else { vm.updateProduct(product) }
@@ -324,6 +324,7 @@ struct AdminProductsView: View {
 // MARK: - Edit Sheet
 struct ProductEditSheet: View {
     @Binding var draft: Product
+    var pricingRules: PricingRules = PricingRules()
     var onComplete: (Result) -> Void
 
     @State private var name: String = ""
@@ -414,7 +415,7 @@ struct ProductEditSheet: View {
                 }
             }
             // MARK: - Pricing Analysis
-            if let suggested = draft.suggestedPrice {
+            if let suggested = draft.suggestedPrice(using: pricingRules) {
                 Section("Pricing Analysis") {
                     HStack {
                         Text("Suggested Price")
@@ -423,7 +424,7 @@ struct ProductEditSheet: View {
                             .foregroundStyle(.blue)
                     }
                     
-                    if let variance = draft.priceVariance {
+                    if let variance = draft.priceVariance(using: pricingRules) {
                         HStack {
                             Text("Price Difference")
                             Spacer()
@@ -432,7 +433,7 @@ struct ProductEditSheet: View {
                         }
                     }
                     
-                    if let variancePercent = draft.priceVariancePercent {
+                    if let variancePercent = draft.priceVariancePercent(using: pricingRules) {
                         HStack {
                             Text("vs. Suggested")
                             Spacer()
@@ -780,6 +781,7 @@ struct ProductEditSheet: View {
         
         // Load keg size from saved kegSizeOz, or auto-set from caseSize
         if draft.unit == .keg {
+            print("🍺 [loadValues] keg product '\(draft.name)' — kegSizeOz=\(draft.kegSizeOz.map { "\($0)" } ?? "nil"), sizeVariants=\(draft.sizeVariants.map { "\($0.count) variants: \($0.map { "\($0.name) \($0.sizeOz)oz $\($0.price)" }.joined(separator: ", "))" } ?? "nil")")
             if let oz = draft.kegSizeOz {
                 selectedKegSize = KegSize.allCases.first { $0.totalOz == oz } ?? .halfBarrel
             } else {
@@ -893,6 +895,10 @@ struct ProductEditSheet: View {
             draft.sizeVariants = variants
         } else {
             draft.sizeVariants = nil
+        }
+
+        if draft.unit == .keg {
+            print("🍺 [saveProduct] '\(draft.name)' — selectedKegSize=\(selectedKegSize.rawValue), kegSizeOz=\(draft.kegSizeOz.map { "\($0)" } ?? "nil"), servingUnit=\(draft.servingUnit.map { $0.rawValue } ?? "nil"), sizeVariants=\(draft.sizeVariants.map { "\($0.count) variants: \($0.map { "\($0.name) \($0.sizeOz)oz $\($0.price) default=\($0.isDefault)" }.joined(separator: ", "))" } ?? "nil")")
         }
         
         onComplete(.save(draft))

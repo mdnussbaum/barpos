@@ -243,55 +243,47 @@ struct Product: Identifiable, Codable, Hashable {
 
     // Computed properties
     var profitMargin: Decimal? {
-        guard let cost = cost,
-              cost > 0,
-              price > 0,
-              cost.isFinite,
-              price.isFinite else { return nil }
-        
-        // If we have a cost per serving, use that for margin calculation
-        if let costPerServ = costPerServing {
-            return ((price - costPerServ) / costPerServ) * 100
-        }
-        
-        // Otherwise use whole-unit cost
-        return ((price - cost) / cost) * 100
-    }
-    var suggestedPrice: Decimal? {
-        guard let costPerServ = costPerServing,
-              costPerServ > 0 else { return nil }
-        
-        // Markup varies by tier
-        let markup: Decimal = {
-            switch tier {
-            case .well: return 6.0      // Higher markup on well
-            case .call: return 5.5      // Standard markup
-            case .premium: return 5.0   // Lower markup (premium already expensive)
-            case .none: return 5.5      // Default
-            }
-        }()
-        
-        let calculatedPrice = costPerServ * markup
-        
-        // Round to nearest $0.50
-        let halfDollars = ((calculatedPrice as NSDecimalNumber).doubleValue / 0.5).rounded()
-        return Decimal(halfDollars * 0.5)
+        guard let costPerServ = costPerServing, costPerServ > 0, price > 0 else { return nil }
+        return ((price - costPerServ) / costPerServ) * 100
     }
 
-    var priceVariance: Decimal? {
-        guard let suggested = suggestedPrice else { return nil }
-        
-        // How much over/under suggested price
+    func suggestedPrice(using rules: PricingRules = PricingRules()) -> Decimal? {
+        guard let cost = cost, cost > 0 else { return nil }
+        let increment = (rules.priceRoundingIncrement as NSDecimalNumber).doubleValue
+        let costRatio = rules.costRatio(for: category, unit: unit)
+
+        // Keg: subtract deposit, divide by total oz, multiply by serving size
+        if unit == .keg, let kegOz = kegSizeOz, let servSize = servingSize, kegOz > 0, servSize > 0 {
+            let adjustedCost = cost - rules.kegDepositAmount
+            let costPerPint = (adjustedCost / Decimal(kegOz)) * servSize
+            let suggested = costPerPint / costRatio
+            let increments = ((suggested as NSDecimalNumber).doubleValue / increment).rounded(.up)
+            return Decimal(increments * increment)
+        }
+
+        // All others: use costPerServing
+        guard let costPerServ = costPerServing, costPerServ > 0 else { return nil }
+        let suggested = costPerServ / costRatio
+        let increments = ((suggested as NSDecimalNumber).doubleValue / increment).rounded(.up)
+        return Decimal(increments * increment)
+    }
+
+    /// Convenience accessor using hardcoded defaults (for callers that haven't adopted PricingRules yet)
+    var suggestedPrice: Decimal? { suggestedPrice() }
+
+    func priceVariance(using rules: PricingRules = PricingRules()) -> Decimal? {
+        guard let suggested = suggestedPrice(using: rules) else { return nil }
         return price - suggested
     }
 
-    var priceVariancePercent: Decimal? {
-        guard let suggested = suggestedPrice,
-              suggested > 0 else { return nil }
-        
-        // Percentage over/under
+    var priceVariance: Decimal? { priceVariance() }
+
+    func priceVariancePercent(using rules: PricingRules = PricingRules()) -> Decimal? {
+        guard let suggested = suggestedPrice(using: rules), suggested > 0 else { return nil }
         return ((price - suggested) / suggested) * 100
     }
+
+    var priceVariancePercent: Decimal? { priceVariancePercent() }
     var stockDisplayString: String? {
             guard let stock = stockQuantity else { return nil }
 
@@ -331,26 +323,48 @@ struct Product: Identifiable, Codable, Hashable {
         }
     
     var costPerServing: Decimal? {
-        guard let cost = cost,
-              cost.isFinite else { return nil }
+        print("🍺 [costPerServing] '\(name)' — cost=\(cost.map { "\($0)" } ?? "nil"), servingSize=\(servingSize.map { "\($0)" } ?? "nil"), servingUnit=\(servingUnit.map { $0.rawValue } ?? "nil"), unit=\(unit.rawValue), kegSizeOz=\(kegSizeOz.map { "\($0)" } ?? "nil")")
+
+        guard let cost = cost, cost.isFinite else {
+            print("🍺 [costPerServing] → nil (cost is nil or not finite)")
+            return nil
+        }
 
         guard let servingSize = servingSize,
               servingSize > 0,
-              servingSize.isFinite else { return nil }
+              servingSize.isFinite else {
+            print("🍺 [costPerServing] → nil (servingSize is nil, zero, or not finite: \(servingSize.map { "\($0)" } ?? "nil"))")
+            return nil
+        }
+
+        // Keg: (cost ÷ kegSizeOz) × servingSize  e.g. $159.77 ÷ 1984oz × 16oz = $1.29/pint
+        if unit == .keg {
+            let totalOz = Decimal(kegSizeOz ?? 1984)
+            let result = (cost / totalOz) * servingSize
+            print("🍺 [costPerServing] → \(result) (keg path: cost \(cost) ÷ \(totalOz)oz × servingSize \(servingSize)oz)")
+            return result
+        }
 
         // If serving unit matches stock unit, it's simple
         if servingUnit == nil || servingUnit == unit {
-            return cost / servingSize
+            let result = cost / servingSize
+            print("🍺 [costPerServing] → \(result) (same unit path: cost \(cost) ÷ servingSize \(servingSize))")
+            return result
         }
-        
+
         // Convert: cost per stock unit → cost per serving unit → cost per serving
-        guard let conversionFactor = getConversionFactor(from: unit, to: servingUnit ?? unit) else { return nil }
-        
+        guard let conversionFactor = getConversionFactor(from: unit, to: servingUnit ?? unit) else {
+            print("🍺 [costPerServing] → nil (no conversion factor from \(unit.rawValue) to \(servingUnit?.rawValue ?? unit.rawValue))")
+            return nil
+        }
+
         // Cost per serving unit
         let costPerServingUnit = cost / conversionFactor
-        
+
         // Cost per individual serving
-        return costPerServingUnit / servingSize
+        let result = costPerServingUnit / servingSize
+        print("🍺 [costPerServing] → \(result) (conversion path: cost \(cost) ÷ factor \(conversionFactor) = \(costPerServingUnit) per \(servingUnit?.rawValue ?? unit.rawValue), ÷ servingSize \(servingSize))")
+        return result
     }
         
         private func convertedCostPerServing(baseCost: Decimal) -> Decimal? {
@@ -375,9 +389,14 @@ struct Product: Identifiable, Codable, Hashable {
             case (.liter, .oz): return 33.814
             case (.fifth, .oz): return 25.36     // 750ml bottle
             case (.bottle, .oz): return 12       // Standard 12oz beer bottle
+            case (.case_, .bottle): return Decimal(caseSize ?? 24)  // bottles per case
             case (.keg, .oz):
                 // Use the admin-selected keg size if available; fall back to half barrel
-                if let oz = kegSizeOz { return Decimal(oz) }
+                if let oz = kegSizeOz {
+                    print("🍺 [getConversionFactor] keg→oz using kegSizeOz=\(oz)")
+                    return Decimal(oz)
+                }
+                print("🍺 [getConversionFactor] keg→oz kegSizeOz is nil, using default 1984")
                 return 1984  // Default: half barrel
             default: return nil
             }
@@ -401,6 +420,76 @@ struct Product: Identifiable, Codable, Hashable {
             return stock < par
         }
     }
+
+// MARK: - Pricing Rules
+struct PricingRules: Codable, Equatable {
+    var defaultLiquorServingSizeOz: Decimal = 1.125
+    var defaultBeerServingSizeOz: Decimal = 1.0
+    var kegDepositAmount: Decimal = 30.0
+    var liquorTargetCostRatio: Decimal = 0.33
+    var beerTargetCostRatio: Decimal = 0.33
+    var kegTargetCostRatio: Decimal = 0.25
+    var priceRoundingIncrement: Decimal = 0.50
+
+    // Convenience: pick the right ratio based on category and unit
+    func costRatio(for category: ProductCategory, unit: UnitOfMeasure) -> Decimal {
+        if unit == .keg { return kegTargetCostRatio }
+        switch category {
+        case .beer: return beerTargetCostRatio
+        default:    return liquorTargetCostRatio
+        }
+    }
+
+    // Migration: load old single-ratio saves
+    enum CodingKeys: String, CodingKey {
+        case defaultLiquorServingSizeOz, defaultBeerServingSizeOz, kegDepositAmount
+        case liquorTargetCostRatio, beerTargetCostRatio, kegTargetCostRatio
+        case priceRoundingIncrement
+        case targetCostRatio  // legacy key
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        defaultLiquorServingSizeOz = try c.decodeIfPresent(Decimal.self, forKey: .defaultLiquorServingSizeOz) ?? 1.125
+        defaultBeerServingSizeOz   = try c.decodeIfPresent(Decimal.self, forKey: .defaultBeerServingSizeOz)   ?? 1.0
+        kegDepositAmount           = try c.decodeIfPresent(Decimal.self, forKey: .kegDepositAmount)           ?? 30.0
+        priceRoundingIncrement     = try c.decodeIfPresent(Decimal.self, forKey: .priceRoundingIncrement)     ?? 0.50
+        // Migrate old single targetCostRatio to per-category fields
+        let legacy = try c.decodeIfPresent(Decimal.self, forKey: .targetCostRatio)
+        liquorTargetCostRatio = try c.decodeIfPresent(Decimal.self, forKey: .liquorTargetCostRatio) ?? legacy ?? 0.33
+        beerTargetCostRatio   = try c.decodeIfPresent(Decimal.self, forKey: .beerTargetCostRatio)   ?? legacy ?? 0.33
+        kegTargetCostRatio    = try c.decodeIfPresent(Decimal.self, forKey: .kegTargetCostRatio)    ?? 0.25
+    }
+
+    init(
+        defaultLiquorServingSizeOz: Decimal = 1.125,
+        defaultBeerServingSizeOz: Decimal = 1.0,
+        kegDepositAmount: Decimal = 30.0,
+        liquorTargetCostRatio: Decimal = 0.33,
+        beerTargetCostRatio: Decimal = 0.33,
+        kegTargetCostRatio: Decimal = 0.25,
+        priceRoundingIncrement: Decimal = 0.50
+    ) {
+        self.defaultLiquorServingSizeOz = defaultLiquorServingSizeOz
+        self.defaultBeerServingSizeOz = defaultBeerServingSizeOz
+        self.kegDepositAmount = kegDepositAmount
+        self.liquorTargetCostRatio = liquorTargetCostRatio
+        self.beerTargetCostRatio = beerTargetCostRatio
+        self.kegTargetCostRatio = kegTargetCostRatio
+        self.priceRoundingIncrement = priceRoundingIncrement
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(defaultLiquorServingSizeOz, forKey: .defaultLiquorServingSizeOz)
+        try c.encode(defaultBeerServingSizeOz,   forKey: .defaultBeerServingSizeOz)
+        try c.encode(kegDepositAmount,           forKey: .kegDepositAmount)
+        try c.encode(liquorTargetCostRatio,      forKey: .liquorTargetCostRatio)
+        try c.encode(beerTargetCostRatio,        forKey: .beerTargetCostRatio)
+        try c.encode(kegTargetCostRatio,         forKey: .kegTargetCostRatio)
+        try c.encode(priceRoundingIncrement,     forKey: .priceRoundingIncrement)
+    }
+}
 
 // MARK: - Happy Hour Configuration
 struct HappyHourConfig: Codable {

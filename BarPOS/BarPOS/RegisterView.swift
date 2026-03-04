@@ -21,7 +21,6 @@ struct RegisterView: View {
     @FocusState private var tabNameFocused: Bool
 
     // Size variant picker state
-    @State private var showingSizeVariantPicker = false
     @State private var selectedProduct: Product? = nil
 
     // Per-shift low stock warning tracking
@@ -156,12 +155,10 @@ struct RegisterView: View {
             BuildCocktailSheet()
                 .environmentObject(vm)
         }
-        .sheet(isPresented: $showingSizeVariantPicker) {
-            if let product = selectedProduct {
-                SizeVariantPicker(product: product) { variant in
-                    addLineItem(product: product, variant: variant)
-                    showingSizeVariantPicker = false
-                }
+        .sheet(item: $selectedProduct) { product in
+            SizeVariantPicker(product: product) { variant in
+                addLineItem(product: product, variant: variant)
+                selectedProduct = nil
             }
         }
         // MARK: Close tab sheet
@@ -641,7 +638,6 @@ struct RegisterView: View {
         
         if let variants = effectiveProduct.sizeVariants, !variants.isEmpty {
             selectedProduct = effectiveProduct
-            showingSizeVariantPicker = true
         } else {
             vm.addLine(product: effectiveProduct)
         }

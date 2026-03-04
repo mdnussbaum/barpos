@@ -53,6 +53,9 @@ final class InventoryVM: ObservableObject {
     
     // Happy Hour Configuration
     @Published var happyHourConfig: HappyHourConfig = HappyHourConfig() { didSet { saveState() } }
+
+    // MARK: - Pricing Rules
+    @Published var pricingRules: PricingRules = PricingRules() { didSet { saveState() } }
     
     // Categories to show in the picker
     var availableCategories: [ProductCategory] {
@@ -841,6 +844,7 @@ final class InventoryVM: ObservableObject {
         var voidLog: [VoidRecord]?
         var colorScheme: String?
         var autoLockTimeout: Int?
+        var pricingRules: PricingRules?
         var schemaVersion: Int?   // Added schemaVersion property
     }
     
@@ -869,6 +873,7 @@ final class InventoryVM: ObservableObject {
             voidLog: voidLog,
             colorScheme: colorScheme,
             autoLockTimeout: autoLockTimeout,
+            pricingRules: pricingRules,
             schemaVersion: 2
         )
         
@@ -906,6 +911,18 @@ final class InventoryVM: ObservableObject {
         voidLog = s.voidLog ?? []
         colorScheme = s.colorScheme ?? "system"
         autoLockTimeout = s.autoLockTimeout ?? 5
+        pricingRules = s.pricingRules ?? PricingRules()
+
+        // Migration: liquor products with the old hardcoded 1.5oz pour → configured default
+        let targetPour = pricingRules.defaultLiquorServingSizeOz
+        products = products.map { p in
+            guard p.category == .liquor,
+                  let size = p.servingSize,
+                  size == 1.5 else { return p }
+            var updated = p
+            updated.servingSize = targetPour
+            return updated
+        }
 
         print("✅ State applied successfully")
     }
@@ -950,6 +967,7 @@ final class InventoryVM: ObservableObject {
             voidLog: voidLog,
             colorScheme: colorScheme,
             autoLockTimeout: autoLockTimeout,
+            pricingRules: pricingRules,
             schemaVersion: 2
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")

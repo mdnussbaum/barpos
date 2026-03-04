@@ -87,6 +87,13 @@ struct AdminView: View {
                         } label: {
                             Label("Products", systemImage: "shippingbox")
                         }
+
+                        NavigationLink {
+                            PricingRulesView()
+                                .environmentObject(vm)
+                        } label: {
+                            Label("Pricing Rules", systemImage: "dollarsign.circle")
+                        }
                     }
 
                     Section("Payments") {

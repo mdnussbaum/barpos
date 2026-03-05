@@ -8,10 +8,7 @@ struct EndShiftSheet: View {
     @State private var showUnsettledAlert = false
     @State private var unsettledDetail = ""
 
-    // Printer & report options
-    @StateObject private var printer = MockPrinterManager()
-    @State private var showReportOptions = false
-    @State private var settledReport: ShiftReport?
+
     
     var body: some View {
         NavigationStack {
@@ -81,8 +78,7 @@ struct EndShiftSheet: View {
 
                         // Settle shift
                         if vm.settleShift(closingCash: counted) {
-                            settledReport = vm.lastShiftReport
-                            showReportOptions = true
+                            dismiss()
                         }
                     }
                     .disabled(vm.currentShift == nil)
@@ -96,28 +92,18 @@ struct EndShiftSheet: View {
                     vm.closeAllUnsettledTabs()
                     if let counted = Decimal(string: closingCashString) {
                         _ = vm.settleShift(closingCash: counted)
-                        settledReport = vm.lastShiftReport
-                        showReportOptions = true
+                        dismiss()
                     }
                 }
                 Button("Carry Over to Next Shift") {
                     if let counted = Decimal(string: closingCashString) {
                         vm.settleShiftWithCarryOver(closingCash: counted)
-                        settledReport = vm.lastShiftReport
-                        showReportOptions = true
+                        dismiss()
                     }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("You have open tabs with items:\n\n\(unsettledDetail)\n\nWhat would you like to do?")
-            }
-            .sheet(isPresented: $showReportOptions) {
-                if let report = settledReport {
-                    ReportOptionsSheet(report: report, printer: printer) {
-                        dismiss()
-                    }
-                    .environmentObject(vm)
-                }
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)

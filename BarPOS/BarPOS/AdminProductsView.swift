@@ -474,8 +474,12 @@ struct ProductEditSheet: View {
                             return BottleSize.liter // default
                         },
                         set: { (newSize: BottleSize) in
-                            // When changed, update the unit to "bottle" and servingSize to oz equivalent
-                            draft.unit = .bottle
+                            // When changed, update the unit to match the bottle size and servingSize to oz equivalent
+                            switch newSize {
+                            case .fifth:  draft.unit = .fifth
+                            case .liter:  draft.unit = .liter
+                            case .handle: draft.unit = .bottle  // No dedicated handle unit; keep as bottle
+                            }
                             draft.servingSize = newSize.ozEquivalent
                             draft.servingUnit = .oz
                         }
@@ -485,7 +489,7 @@ struct ProductEditSheet: View {
                         }
                     }
                     
-                    Text("Automatically sets stock unit to 'bottle' and converts to oz for serving calculations")
+                    Text("Automatically sets stock unit to match bottle size and converts to oz for serving calculations")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

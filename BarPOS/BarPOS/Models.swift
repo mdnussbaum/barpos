@@ -249,6 +249,7 @@ struct Product: Identifiable, Codable, Hashable {
 
     func suggestedPrice(using rules: PricingRules = PricingRules()) -> Decimal? {
         guard let cost = cost, cost > 0 else { return nil }
+        print("[suggestedPrice] product=\(name) category=\(category) liquorTargetCostRatio=\(rules.liquorTargetCostRatio)")
         let increment = (rules.priceRoundingIncrement as NSDecimalNumber).doubleValue
         let costRatio = rules.costRatio(for: category, unit: unit)
 
@@ -292,7 +293,7 @@ struct Product: Identifiable, Codable, Hashable {
                 let kegSizeOzValue = kegSizeOz ?? 1984
                 let totalOz = (stock as NSDecimalNumber).doubleValue * Double(kegSizeOzValue)
                 let ozPerPint = 16.0
-                let totalPints = Int(totalOz / ozPerPint)
+                _ = Int(totalOz / ozPerPint)
                 let wholeKegs = Int((stock as NSDecimalNumber).doubleValue)
                 let remainderOz = totalOz - Double(wholeKegs) * Double(kegSizeOzValue)
                 let remainderPints = Int(remainderOz / ozPerPint)

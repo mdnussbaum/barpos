@@ -9,7 +9,6 @@ struct RegisterView: View {
     @FocusState private var cashGivenFocused: Bool
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
-    @State private var showingShiftSummary = false
     @State private var payMethod: PaymentMethod = .cash
     @State private var showingReorderSheet = false
     @State private var selectedCategory: ProductCategory? = nil
@@ -122,15 +121,6 @@ struct RegisterView: View {
             EndShiftSheet()
                 .environmentObject(vm)
         }
-        .sheet(isPresented: $showingShiftSummary) {
-            if let s = vm.currentShift {
-                ShiftSummarySheet(shift: s) {
-                    showingShiftSummary = false
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-        }
         .sheet(
             isPresented: Binding(
                 get: { vm.lastShiftReport != nil },
@@ -154,12 +144,6 @@ struct RegisterView: View {
         .sheet(isPresented: $showingBuildCocktail) {
             BuildCocktailSheet()
                 .environmentObject(vm)
-        }
-        .sheet(item: $selectedProduct) { product in
-            SizeVariantPicker(product: product) { variant in
-                addLineItem(product: product, variant: variant)
-                selectedProduct = nil
-            }
         }
         // MARK: Close tab sheet
         // Uses a snapshot captured at open time so that swipe-to-dismiss or Cancel
@@ -212,7 +196,7 @@ struct RegisterView: View {
             set: { if !$0 { showingSavedReceiptURL = nil } }
         )) {
             Button("View in Files") {
-                if let url = showingSavedReceiptURL {
+                if showingSavedReceiptURL != nil {
                     showingShareSheet = true
                 }
             }
@@ -274,157 +258,145 @@ struct RegisterView: View {
     
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Tab strip - fixed at top
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(vm.tabIDsForUI, id: \.self) { id in
-                            Button { vm.selectTab(id: id) } label: {
-                                Text(vm.tabDisplayName(id: id))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
-                                    .clipShape(Capsule())
-                            }
+        VStack(spacing: 0) {
+            // Tab strip - fixed at top
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(vm.tabIDsForUI, id: \.self) { id in
+                        Button { vm.selectTab(id: id) } label: {
+                            Text(vm.tabDisplayName(id: id))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
+                                .clipShape(Capsule())
                         }
                     }
-                    .padding(.vertical, 2)
                 }
-                .padding(.horizontal, 6)
-                .frame(height: 40)
-
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        // Rename + trash (trash only deletes when EMPTY)
-                        VStack(alignment: .leading, spacing: 0) {
-                            HStack {
-                                TextField("Tab name", text: Binding(
-                                    get: { vm.activeTab?.name ?? "" },
-                                    set: { vm.renameActiveTab($0) }
-                                ))
-                                .textFieldStyle(.roundedBorder)
-                                .focused($tabNameFocused)
-
-                                Button(role: .destructive) {
-                                    vm.deleteActiveTabIfEmpty()
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .disabled(!vm.activeLines.isEmpty)
-                            }
-
-                            // Tab name suggestion dropdown
-                            let currentName = vm.activeTab?.name ?? ""
-                            let suggestions = tabNameSuggestions(for: currentName)
-                            if tabNameFocused && !suggestions.isEmpty && !currentName.isEmpty {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    ForEach(suggestions.prefix(5), id: \.self) { name in
-                                        Button {
-                                            vm.renameActiveTab(name)
-                                            tabNameFocused = false
-                                        } label: {
-                                            Text(name)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 8)
-                                        }
-                                        .buttonStyle(.plain)
-                                        Divider()
-                                    }
-                                }
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                .shadow(radius: 4)
-                                .zIndex(10)
-                            }
-                        }
-
-                        // New Tab
-                        Button { vm.createNewTab() } label: {
-                            Label("New Tab", systemImage: "plus.circle.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(.bottom, 6)
-
-                        // Current ticket lines
-                        if vm.activeLines.isEmpty {
-                            Text("No items yet")
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            List {
-                                ForEach(vm.activeLines) { line in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(line.displayName)
-                                            Text("@ \(line.unitPrice.currencyString())")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-
-                                        // quantity badge
-                                        Text("×\(line.qty)")
-                                            .font(.headline)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color(.tertiarySystemFill))
-                                            .clipShape(Capsule())
-
-                                        // MINUS only
-                                        Button {
-                                            vm.decrementLine(lineID: line.id)
-                                        } label: {
-                                            Image(systemName: "minus.circle.fill")
-                                                .imageScale(.large)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .padding(.leading, 4)
-                                        .accessibilityLabel("Decrease \(line.product.name)")
-                                    }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button {
-                                            vm.decrementLine(lineID: line.id)
-                                        } label: {
-                                            Label("Decrease", systemImage: "minus.circle")
-                                        }
-
-                                        Button(role: .destructive) {
-                                            vm.removeLine(lineID: line.id)
-                                        } label: {
-                                            Label("Remove", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                            }
-                            .listStyle(.plain)
-                            .frame(minHeight: 200)
-                        }
-
-                    }
-                    .padding(.bottom, 8)
-                }
-                .frame(height: safeScrollHeight(for: geo.size.height))
-                // Totals + Chips - anchored at bottom as one unit
-                VStack(spacing: 4) {
-                    totalsCard
-                    chipActionsSection
-                }
-                .padding(.horizontal, 6)
-                .padding(.bottom, 12)
+                .padding(.vertical, 2)
             }
-        }
-    }
+            .padding(.horizontal, 6)
+            .frame(height: 40)
 
-    private func safeScrollHeight(for containerHeight: CGFloat) -> CGFloat {
-        // Guard against non-finite container heights during transient layout passes
-        guard containerHeight.isFinite && !containerHeight.isNaN else { return 200 }
-        // Subtract the fixed heights used above this ScrollView: tab strip (40) and bottom section (~260)
-        let raw = containerHeight - 40 - 260
-        // Clamp to a reasonable minimum
-        let clamped = max(200, raw)
-        // Ensure the return is finite
-        return clamped.isFinite ? clamped : 200
+            // Tab name field + New Tab button - fixed height controls
+            VStack(alignment: .leading, spacing: 6) {
+                // Rename + trash (trash only deletes when EMPTY)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        TextField("Tab name", text: Binding(
+                            get: { vm.activeTab?.name ?? "" },
+                            set: { vm.renameActiveTab($0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .focused($tabNameFocused)
+
+                        Button(role: .destructive) {
+                            vm.deleteActiveTabIfEmpty()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .disabled(!vm.activeLines.isEmpty)
+                    }
+
+                    // Tab name suggestion dropdown
+                    let currentName = vm.activeTab?.name ?? ""
+                    let suggestions = tabNameSuggestions(for: currentName)
+                    if tabNameFocused && !suggestions.isEmpty && !currentName.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(suggestions.prefix(5), id: \.self) { name in
+                                Button {
+                                    vm.renameActiveTab(name)
+                                    tabNameFocused = false
+                                } label: {
+                                    Text(name)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                }
+                                .buttonStyle(.plain)
+                                Divider()
+                            }
+                        }
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .shadow(radius: 4)
+                        .zIndex(10)
+                    }
+                }
+
+                // New Tab
+                Button { vm.createNewTab() } label: {
+                    Label("New Tab", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 6)
+
+            // Order lines - fills all available space between controls and totals
+            if vm.activeLines.isEmpty {
+                Text("No items yet")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+            } else {
+                List {
+                    ForEach(vm.activeLines) { line in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(line.displayName)
+                                Text("@ \(line.unitPrice.currencyString())")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+
+                            // quantity badge
+                            Text("×\(line.qty)")
+                                .font(.headline)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(.tertiarySystemFill))
+                                .clipShape(Capsule())
+
+                            // MINUS only
+                            Button {
+                                vm.decrementLine(lineID: line.id)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .imageScale(.large)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 4)
+                            .accessibilityLabel("Decrease \(line.product.name)")
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                vm.decrementLine(lineID: line.id)
+                            } label: {
+                                Label("Decrease", systemImage: "minus.circle")
+                            }
+
+                            Button(role: .destructive) {
+                                vm.removeLine(lineID: line.id)
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            // Totals + Chips - anchored at bottom as one unit
+            VStack(spacing: 4) {
+                totalsCard
+                chipActionsSection
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 12)
+        }
+        .frame(maxHeight: .infinity)
     }
     
     // MARK: - Right column (category + products OR chips)
@@ -550,6 +522,14 @@ struct RegisterView: View {
                         )
                     }
                 )
+            }
+        }
+        // Size variant picker lives here so it has its own dedicated sheet host,
+        // separate from the root GeometryReader which already chains 7+ other sheets.
+        .sheet(item: $selectedProduct) { product in
+            SizeVariantPicker(product: product) { variant in
+                addLineItem(product: product, variant: variant)
+                selectedProduct = nil
             }
         }
     }
@@ -851,12 +831,6 @@ struct RegisterView: View {
             if let shift = vm.currentShift, let bartender = shift.openedBy {
                 // On shift
                 Menu {
-                    Button {
-                        showingShiftSummary = true
-                    } label: {
-                        Label("Shift Summary", systemImage: "list.bullet.rectangle")
-                    }
-                    
                     Button {
                         showingChangePINSheet = true
                     } label: {

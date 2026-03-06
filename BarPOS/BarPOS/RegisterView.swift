@@ -30,10 +30,6 @@ struct RegisterView: View {
 
     // Close tab sheet
     @State private var showingCloseTabSheet = false
-    // Snapshot of the tab captured at sheet-open time; prevents live vm.activeTab
-    // mutations from affecting the sheet mid-presentation and ensures cancel/swipe-
-    // dismiss leave the tab completely untouched.
-    @State private var closeTabSnapshot: TabTicket? = nil
 
     // On-screen clock
     @State private var currentTime: String = RegisterView.formattedTime()
@@ -146,14 +142,10 @@ struct RegisterView: View {
                 .environmentObject(vm)
         }
         // MARK: Close tab sheet
-        // Uses a snapshot captured at open time so that swipe-to-dismiss or Cancel
-        // never mutates the active tab. Payment only processes when onClose fires
-        // (i.e. "Print Receipt" or "No Receipt" is explicitly tapped).
-        .sheet(isPresented: $showingCloseTabSheet, onDismiss: {
-            // Clear snapshot on any dismissal path (Cancel, swipe, or post-close).
-            closeTabSnapshot = nil
-        }) {
-            if let tab = closeTabSnapshot {
+        // Reads vm.activeTab live via the @EnvironmentObject reference so the
+        // sheet always sees the correct tab regardless of SwiftUI render timing.
+        .sheet(isPresented: $showingCloseTabSheet) {
+            if let tab = vm.activeTab {
                 CloseTabSheet(
                     tab: tab,
                     payMethod: payMethod,
@@ -180,6 +172,10 @@ struct RegisterView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .interactiveDismissDisabled(false)
+            } else {
+                Text("No active tab")
+                    .foregroundStyle(.secondary)
+                    .padding()
             }
         }
         
@@ -211,8 +207,13 @@ struct RegisterView: View {
     // MARK: - Print Receipt Helper
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
+        if !printer.isConnected {
+            print("⚠️ Printer not connected — attempting discovery before print...")
+            await printer.discoverPrinter()
+        }
         do {
             try await printer.printReceipt(content)
+            print("✅ Receipt printed successfully")
         } catch {
             print("❌ Print receipt error: \(error)")
         }
@@ -707,10 +708,6 @@ struct RegisterView: View {
                 
                 // Right side: Close Tab button
                 Button {
-                    // Capture a snapshot of the current tab so the sheet never
-                    // reads from vm.activeTab live. This guarantees that Cancel
-                    // or swipe-to-dismiss cannot alter the active tab in any way.
-                    closeTabSnapshot = vm.activeTab
                     showingCloseTabSheet = true
                 } label: {
                     Text("Close Tab")

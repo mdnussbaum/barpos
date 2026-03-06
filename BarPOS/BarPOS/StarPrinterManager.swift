@@ -18,17 +18,17 @@ class StarPrinterManager: ObservableObject {
     // MARK: - Discovery (delegate-based, bridged to async via continuation)
     func discoverPrinter() async {
         do {
-            let manager = try StarDeviceDiscoveryManagerFactory.create(interfaceTypes: [.usb, .lan, .bluetooth])
+            let manager = try StarDeviceDiscoveryManagerFactory.create(interfaceTypes: [.usb])
             let delegate = DiscoveryDelegate()
             manager.delegate = delegate
             manager.discoveryTime = 10_000 // 10 seconds
 
             try manager.startDiscovery()
 
-            // Wait up to 5 seconds for a printer to be found
+            // Wait up to 12 seconds for a printer to be found
             let foundPrinter: StarPrinter? = await withTaskGroup(of: StarPrinter?.self) { group in
                 group.addTask {
-                    try? await Task.sleep(for: .seconds(5))
+                    try? await Task.sleep(for: .seconds(12))
                     return nil
                 }
                 group.addTask {
@@ -42,6 +42,7 @@ class StarPrinterManager: ObservableObject {
             }
 
             manager.stopDiscovery()
+            print("🔍 Discovery finished — printer found: \(foundPrinter != nil)")
 
             if let found = foundPrinter {
                 await connectToPrinter(found)
@@ -56,6 +57,8 @@ class StarPrinterManager: ObservableObject {
         printerName = printerInfo.information?.model.description ?? "Star Printer"
         isConnected = true
         print("✅ Connected to: \(printerName)")
+        print("🔌 Interface: \(printerInfo.connectionSettings.interfaceType)")
+        print("📍 Identifier: \(printerInfo.connectionSettings.identifier)")
     }
 
     // MARK: - Print Receipt

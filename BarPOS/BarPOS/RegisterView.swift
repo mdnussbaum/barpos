@@ -259,143 +259,161 @@ struct RegisterView: View {
     
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
-        VStack(spacing: 0) {
-            // Tab strip - fixed at top
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(vm.tabIDsForUI, id: \.self) { id in
-                        Button { vm.selectTab(id: id) } label: {
-                            Text(vm.tabDisplayName(id: id))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background((id == vm.activeTabID) ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-            .padding(.horizontal, 6)
-            .frame(height: 40)
-
-            // Tab name field + New Tab button - fixed height controls
-            VStack(alignment: .leading, spacing: 6) {
-                // Rename + trash (trash only deletes when EMPTY)
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        TextField("Tab name", text: Binding(
-                            get: { vm.activeTab?.name ?? "" },
-                            set: { vm.renameActiveTab($0) }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .focused($tabNameFocused)
-
-                        Button(role: .destructive) {
-                            vm.deleteActiveTabIfEmpty()
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .disabled(!vm.activeLines.isEmpty)
-                    }
-
-                    // Tab name suggestion dropdown
-                    let currentName = vm.activeTab?.name ?? ""
-                    let suggestions = tabNameSuggestions(for: currentName)
-                    if tabNameFocused && !suggestions.isEmpty && !currentName.isEmpty {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(suggestions.prefix(5), id: \.self) { name in
-                                Button {
-                                    vm.renameActiveTab(name)
-                                    tabNameFocused = false
-                                } label: {
-                                    Text(name)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 8)
-                                }
-                                .buttonStyle(.plain)
-                                Divider()
-                            }
-                        }
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                        .shadow(radius: 4)
-                        .zIndex(10)
-                    }
-                }
-
-                // New Tab
-                Button { vm.createNewTab() } label: {
-                    Label("New Tab", systemImage: "plus.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 6)
-
-            // Order lines - fills all available space between controls and totals
-            if vm.activeLines.isEmpty {
-                Text("No items yet")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-            } else {
-                List {
-                    ForEach(vm.activeLines) { line in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(line.displayName)
-                                Text("@ \(line.unitPrice.currencyString())")
+        HStack(alignment: .top, spacing: 0) {
+            // Vertical tab strip
+            VStack(spacing: 0) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 6) {
+                        ForEach(vm.tabIDsForUI, id: \.self) { id in
+                            Button { vm.selectTab(id: id) } label: {
+                                Text(vm.tabDisplayName(id: id))
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background((id == vm.activeTabID) ? Color.blue.opacity(0.25) : Color(.tertiarySystemFill))
+                                    .clipShape(Capsule())
                             }
-                            Spacer()
-
-                            // quantity badge
-                            Text("×\(line.qty)")
-                                .font(.headline)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(.tertiarySystemFill))
-                                .clipShape(Capsule())
-
-                            // MINUS only
-                            Button {
-                                vm.decrementLine(lineID: line.id)
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .imageScale(.large)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.leading, 4)
-                            .accessibilityLabel("Decrease \(line.product.name)")
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button {
-                                vm.decrementLine(lineID: line.id)
-                            } label: {
-                                Label("Decrease", systemImage: "minus.circle")
-                            }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 6)
+                }
+
+                // New Tab (+) button pinned at bottom of strip
+                Button { vm.createNewTab() } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 8)
+            }
+            .frame(width: 80)
+            .frame(maxHeight: .infinity)
+
+            Divider()
+
+            // Right side: rename field + order lines + totals
+            VStack(spacing: 0) {
+                // Tab name field + trash
+                VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            TextField("Tab name", text: Binding(
+                                get: { vm.activeTab?.name ?? "" },
+                                set: { vm.renameActiveTab($0) }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .focused($tabNameFocused)
 
                             Button(role: .destructive) {
-                                vm.removeLine(lineID: line.id)
+                                vm.deleteActiveTabIfEmpty()
                             } label: {
-                                Label("Remove", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
+                            .disabled(!vm.activeLines.isEmpty)
+                        }
+
+                        // Tab name suggestion dropdown
+                        let currentName = vm.activeTab?.name ?? ""
+                        let suggestions = tabNameSuggestions(for: currentName)
+                        if tabNameFocused && !suggestions.isEmpty && !currentName.isEmpty {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(suggestions.prefix(5), id: \.self) { name in
+                                    Button {
+                                        vm.renameActiveTab(name)
+                                        tabNameFocused = false
+                                    } label: {
+                                        Text(name)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 8)
+                                    }
+                                    .buttonStyle(.plain)
+                                    Divider()
+                                }
+                            }
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                            .shadow(radius: 4)
+                            .zIndex(10)
                         }
                     }
                 }
-                .listStyle(.plain)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
 
-            // Totals + Chips - anchored at bottom as one unit
-            VStack(spacing: 4) {
-                totalsCard
-                chipActionsSection
+                // Order lines - fills all available space between controls and totals
+                if vm.activeLines.isEmpty {
+                    Text("No items yet")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                } else {
+                    List {
+                        ForEach(vm.activeLines) { line in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(line.displayName)
+                                    Text("@ \(line.unitPrice.currencyString())")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+
+                                // quantity badge
+                                Text("×\(line.qty)")
+                                    .font(.headline)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(Capsule())
+
+                                // MINUS only
+                                Button {
+                                    vm.decrementLine(lineID: line.id)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .imageScale(.large)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.leading, 4)
+                                .accessibilityLabel("Decrease \(line.product.name)")
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button {
+                                    vm.decrementLine(lineID: line.id)
+                                } label: {
+                                    Label("Decrease", systemImage: "minus.circle")
+                                }
+
+                                Button(role: .destructive) {
+                                    vm.removeLine(lineID: line.id)
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+                // Totals + Chips - anchored at bottom as one unit
+                VStack(spacing: 4) {
+                    totalsCard
+                    chipActionsSection
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 12)
             }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 12)
+            .frame(maxHeight: .infinity)
         }
         .frame(maxHeight: .infinity)
     }

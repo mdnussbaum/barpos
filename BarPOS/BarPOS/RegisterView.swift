@@ -580,6 +580,7 @@ struct RegisterView: View {
             }
         }
         .pickerStyle(.segmented)
+        .controlSize(.large)
     }
     
     // Reusable grid for a given product list
@@ -658,15 +659,16 @@ struct RegisterView: View {
                 spacing: 12
             ) {
                 ForEach(ChipType.allCases, id: \.self) { chip in
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Text(chip.displayName)
+                            .font(.headline)
                             .multilineTextAlignment(.center)
                         Text(vm.price(for: chip).currencyString())
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 80)
-                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, minHeight: 64)
+                    .padding(.vertical, 8)
                     .background(Color(.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .onTapGesture { vm.addChipSold(chip) }
@@ -930,16 +932,17 @@ struct RegisterView: View {
                 onTap()
             } label: {
                 ZStack(alignment: .topTrailing) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Text(product.name)
+                            .font(.headline)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                         Text(displayPrice)
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 80)
-                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, minHeight: 64)
+                    .padding(.vertical, 8)
                     .background(Color(.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 

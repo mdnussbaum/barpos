@@ -246,13 +246,13 @@ struct RegisterView: View {
             .padding(.top, 2)
 
             // Main 1/3 : 2/3 layout
-            HStack(alignment: .top, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
                 leftColumn
                     .frame(maxWidth: .infinity)
                 rightColumn
                     .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 8)
         }
         .navigationBarHidden(true)
     }
@@ -271,7 +271,7 @@ struct RegisterView: View {
                                     .lineLimit(2)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 6)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 12)
                                     .frame(maxWidth: .infinity)
                                     .background((id == vm.activeTabID) ? Color.blue.opacity(0.25) : Color(.tertiarySystemFill))
                                     .clipShape(Capsule())
@@ -284,10 +284,10 @@ struct RegisterView: View {
 
                 // New Tab (+) button pinned at bottom of strip
                 Button { vm.createNewTab() } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
+                    Label("New", systemImage: "plus")
+                        .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 14)
                         .background(Color.blue.opacity(0.15))
                         .clipShape(Capsule())
                 }
@@ -381,9 +381,9 @@ struct RegisterView: View {
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
                                         .imageScale(.large)
+                                        .frame(minWidth: 44, minHeight: 44)
                                 }
                                 .buttonStyle(.plain)
-                                .padding(.leading, 4)
                                 .accessibilityLabel("Decrease \(line.product.name)")
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -784,9 +784,9 @@ struct RegisterView: View {
     
     // MARK: - Chip Actions Section
     private var chipActionsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // Sell row
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text("Sell")
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -795,7 +795,7 @@ struct RegisterView: View {
                 chipButton(type: .gray, action: .sell)
                 chipButton(type: .black, action: .sell)
             }
-            
+
             // Redeem row
             HStack(spacing: 8) {
                 Text("Redeem")
@@ -807,7 +807,7 @@ struct RegisterView: View {
                 chipButton(type: .black, action: .redeem)
             }
         }
-        .padding(6)
+        .padding(10)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
     

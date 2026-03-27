@@ -253,7 +253,9 @@ struct RegisterView: View {
                     .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 8)
+            .frame(maxHeight: .infinity)
         }
+        .frame(maxHeight: .infinity)
         .navigationBarHidden(true)
     }
     

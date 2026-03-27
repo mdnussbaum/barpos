@@ -42,7 +42,7 @@ struct RegisterView: View {
     }
 
     // Printer state
-    @StateObject private var printer = StarPrinterManager()
+    @StateObject private var printer = EpsonPrinterManager()
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
     
@@ -206,16 +206,17 @@ struct RegisterView: View {
     
     // MARK: - Print Receipt Helper
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
-        let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
+        let content = ReceiptFormatter.formatCustomerReceipt(result, settings: settings)
+        let receipt = ReceiptData(type: .customer(result), content: content, settings: settings)
         if !printer.isConnected {
             print("⚠️ Printer not connected — attempting discovery before print...")
             await printer.discoverPrinter()
         }
-        do {
-            try await printer.printReceipt(content)
+        let printResult = await printer.printReceipt(receipt)
+        if printResult.wasSuccessful {
             print("✅ Receipt printed successfully")
-        } catch {
-            print("❌ Print receipt error: \(error)")
+        } else {
+            print("❌ Print receipt failed")
         }
     }
     
@@ -475,23 +476,7 @@ struct RegisterView: View {
                 HStack(spacing: 8) {
                     Button {
                         Task {
-                            let testContent = StarReceiptContent(
-                                header: "TEST RECEIPT",
-                                lines: [
-                                    ReceiptLine(quantity: 2, itemName: "Miller Lite", price: "$4.00"),
-                                    ReceiptLine(quantity: 1, itemName: "Well Whiskey", price: "$6.00")
-                                ],
-                                subtotal: "$14.00",
-                                tax: "$0.00",
-                                total: "$14.00",
-                                footer: "Thank You!"
-                            )
-
-                            do {
-                                try await printer.printReceipt(testContent)
-                            } catch {
-                                print("Print error: \(error)")
-                            }
+                            _ = await printer.testPrint()
                         }
                     } label: {
                         Label("Test Printer", systemImage: "printer.fill")
@@ -1015,7 +1000,7 @@ struct RegisterView: View {
         let tab: TabTicket
         let payMethod: PaymentMethod
         let cashGiven: Decimal
-        let printer: StarPrinterManager
+        let printer: EpsonPrinterManager
         let onClose: (Bool) -> Void  // Bool = printReceipt
         let onCancel: () -> Void
 

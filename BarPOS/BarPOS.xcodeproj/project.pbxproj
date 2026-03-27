@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		91417FAF2F57550700065CC6 /* StarIO10 in Frameworks */ = {isa = PBXBuildFile; productRef = 91417FAE2F57550700065CC6 /* StarIO10 */; };
+		91E500012F85000000000001 /* libepos2.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91E500002F85000000000000 /* libepos2.xcframework */; };
+		91E500022F85000000000002 /* libepos2.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 91E500002F85000000000000 /* libepos2.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		915CF3902F1AD2B000C670EA /* HappyHourSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */; };
 		917DEDCA2F4CC4A500E97144 /* AuditLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917DEDC92F4CC4A500E97144 /* AuditLogView.swift */; };
 /* End PBXBuildFile section */
@@ -33,6 +34,7 @@
 		9128888E2ECD5DD90055B448 /* BarPOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarPOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9128889D2ECD5DDA0055B448 /* BarPOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		912888A72ECD5DDA0055B448 /* BarPOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		91E500002F85000000000000 /* libepos2.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = libepos2.xcframework; path = Frameworks/libepos2.xcframework; sourceTree = "<group>"; };
 		915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HappyHourSettingsView.swift; sourceTree = "<group>"; };
 		917DEDC92F4CC4A500E97144 /* AuditLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditLogView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -73,7 +75,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91417FAF2F57550700065CC6 /* StarIO10 in Frameworks */,
+				91E500012F85000000000001 /* libepos2.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +99,7 @@
 		912888852ECD5DD90055B448 = {
 			isa = PBXGroup;
 			children = (
+				91E500002F85000000000000 /* libepos2.xcframework */,
 				912888902ECD5DD90055B448 /* BarPOS */,
 				912888A02ECD5DDA0055B448 /* BarPOSTests */,
 				912888AA2ECD5DDA0055B448 /* BarPOSUITests */,
@@ -126,6 +129,7 @@
 				9128888A2ECD5DD90055B448 /* Sources */,
 				9128888B2ECD5DD90055B448 /* Frameworks */,
 				9128888C2ECD5DD90055B448 /* Resources */,
+				91E500032F85000000000003 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -136,7 +140,6 @@
 			);
 			name = BarPOS;
 			packageProductDependencies = (
-				91417FAE2F57550700065CC6 /* StarIO10 */,
 			);
 			productName = BarPOS;
 			productReference = 9128888E2ECD5DD90055B448 /* BarPOS.app */;
@@ -221,7 +224,6 @@
 			mainGroup = 912888852ECD5DD90055B448;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9128888F2ECD5DD90055B448 /* Products */;
@@ -234,6 +236,20 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		91E500032F85000000000003 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				91E500022F85000000000002 /* libepos2.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		9128888C2ECD5DD90055B448 /* Resources */ = {
@@ -432,6 +448,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YYPFZCT64;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BarPOS/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -467,6 +487,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6YYPFZCT64;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BarPOS/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -617,24 +641,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/star-micronics/StarXpand-SDK-iOS";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.10.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		91417FAE2F57550700065CC6 /* StarIO10 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */;
-			productName = StarIO10;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 912888862ECD5DD90055B448 /* Project object */;
 }

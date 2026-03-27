@@ -175,27 +175,4 @@ struct ReceiptFormatter {
         return label + String(repeating: " ", count: spaces) + value
     }
 
-    // MARK: - Star Printer Receipt Content
-
-    static func formatReceiptContent(_ result: CloseResult, settings: ReceiptSettings) -> StarReceiptContent {
-        let header = settings.headerText.isEmpty ? "RECEIPT" : settings.headerText
-        let footer = settings.footerText.isEmpty ? "Thank You!" : settings.footerText
-
-        let lines = result.lines.map { line in
-            ReceiptLine(
-                quantity: line.qty,
-                itemName: line.productName,
-                price: line.unitPrice.currencyString()
-            )
-        }
-
-        return StarReceiptContent(
-            header: header,
-            lines: lines,
-            subtotal: result.subtotal.currencyString(),
-            tax: (result.total - result.subtotal).currencyString(),
-            total: result.total.currencyString(),
-            footer: footer
-        )
-    }
 }

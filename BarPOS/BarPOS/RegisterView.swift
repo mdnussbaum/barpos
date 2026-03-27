@@ -264,6 +264,19 @@ struct RegisterView: View {
         HStack(alignment: .top, spacing: 0) {
             // Vertical tab strip
             VStack(spacing: 0) {
+                // New Tab (+) button pinned at top of strip
+                Button { vm.createNewTab() } label: {
+                    Label("New", systemImage: "plus")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.blue.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal, 6)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 6) {
                         ForEach(vm.tabIDsForUI, id: \.self) { id in
@@ -283,18 +296,6 @@ struct RegisterView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 6)
                 }
-
-                // New Tab (+) button pinned at bottom of strip
-                Button { vm.createNewTab() } label: {
-                    Label("New", systemImage: "plus")
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.blue.opacity(0.15))
-                        .clipShape(Capsule())
-                }
-                .padding(.horizontal, 6)
-                .padding(.bottom, 8)
             }
             .frame(width: 80)
             .frame(maxHeight: .infinity)
@@ -664,8 +665,8 @@ struct RegisterView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+                    .padding(.vertical, 10)
                     .background(Color(.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .onTapGesture { vm.addChipSold(chip) }
@@ -937,8 +938,8 @@ struct RegisterView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, minHeight: 80)
+                    .padding(.vertical, 10)
                     .background(Color(.tertiarySystemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 

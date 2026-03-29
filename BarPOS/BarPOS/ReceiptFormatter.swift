@@ -175,9 +175,9 @@ struct ReceiptFormatter {
         return label + String(repeating: " ", count: spaces) + value
     }
 
-    // MARK: - Star Printer Receipt Content
+    // MARK: - Epson Printer Receipt Content
 
-    static func formatReceiptContent(_ result: CloseResult, settings: ReceiptSettings) -> StarReceiptContent {
+    static func formatReceiptContent(_ result: CloseResult, settings: ReceiptSettings) -> EpsonReceiptContent {
         let header = settings.headerText.isEmpty ? "RECEIPT" : settings.headerText
         let footer = settings.footerText.isEmpty ? "Thank You!" : settings.footerText
 
@@ -189,7 +189,7 @@ struct ReceiptFormatter {
             )
         }
 
-        return StarReceiptContent(
+        return EpsonReceiptContent(
             header: header,
             lines: lines,
             subtotal: result.subtotal.currencyString(),

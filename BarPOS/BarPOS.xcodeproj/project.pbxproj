@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		91417FAF2F57550700065CC6 /* StarIO10 in Frameworks */ = {isa = PBXBuildFile; productRef = 91417FAE2F57550700065CC6 /* StarIO10 */; };
 		915CF3902F1AD2B000C670EA /* HappyHourSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */; };
 		917DEDCA2F4CC4A500E97144 /* AuditLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917DEDC92F4CC4A500E97144 /* AuditLogView.swift */; };
 /* End PBXBuildFile section */
@@ -73,7 +72,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91417FAF2F57550700065CC6 /* StarIO10 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,7 +134,6 @@
 			);
 			name = BarPOS;
 			packageProductDependencies = (
-				91417FAE2F57550700065CC6 /* StarIO10 */,
 			);
 			productName = BarPOS;
 			productReference = 9128888E2ECD5DD90055B448 /* BarPOS.app */;
@@ -221,7 +218,6 @@
 			mainGroup = 912888852ECD5DD90055B448;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9128888F2ECD5DD90055B448 /* Products */;
@@ -451,6 +447,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "BarPOS/BarPOS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -486,6 +483,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "BarPOS/BarPOS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -617,24 +615,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/star-micronics/StarXpand-SDK-iOS";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.10.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		91417FAE2F57550700065CC6 /* StarIO10 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 91417FAD2F57550700065CC6 /* XCRemoteSwiftPackageReference "StarXpand-SDK-iOS" */;
-			productName = StarIO10;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 912888862ECD5DD90055B448 /* Project object */;
 }

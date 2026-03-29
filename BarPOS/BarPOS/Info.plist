@@ -2,9 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UISupportedExternalAccessoryProtocols</key>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>BarPOS needs local network access to discover and connect to your Epson receipt printer.</string>
+	<key>NSBonjourServices</key>
 	<array>
-		<string>jp.star-m.starpro</string>
+		<string>_epson._tcp</string>
+		<string>_epson-fax._tcp</string>
 	</array>
 </dict>
 </plist>

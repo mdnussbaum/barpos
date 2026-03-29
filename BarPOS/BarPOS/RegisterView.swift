@@ -42,7 +42,7 @@ struct RegisterView: View {
     }
 
     // Printer state
-    @StateObject private var printer = StarPrinterManager()
+    @StateObject private var printer = EpsonPrinterManager()
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
     
@@ -475,7 +475,7 @@ struct RegisterView: View {
                 HStack(spacing: 8) {
                     Button {
                         Task {
-                            let testContent = StarReceiptContent(
+                            let testContent = EpsonReceiptContent(
                                 header: "TEST RECEIPT",
                                 lines: [
                                     ReceiptLine(quantity: 2, itemName: "Miller Lite", price: "$4.00"),
@@ -1015,7 +1015,7 @@ struct RegisterView: View {
         let tab: TabTicket
         let payMethod: PaymentMethod
         let cashGiven: Decimal
-        let printer: StarPrinterManager
+        let printer: EpsonPrinterManager
         let onClose: (Bool) -> Void  // Bool = printReceipt
         let onCancel: () -> Void
 

@@ -7,7 +7,7 @@ class EpsonPrinterManager: ObservableObject {
     @Published var printerName: String = "Epson TM-M30II"
     @Published var printerIP: String = ""
 
-    private var printer: Epos2Printer?
+    private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
 
     init() {
@@ -16,7 +16,7 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     deinit {
-        disconnectPrinter()
+        printer?.disconnect()
         printer?.clearCommandBuffer()
         printer = nil
     }
@@ -112,11 +112,11 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("─────────────────────────\n")
         printer.addText("Subtotal: \(content.subtotal)\n")
         printer.addText("Tax:      \(content.tax)\n")
-        printer.addTextStyle(Int(EPOS2_FALSE), ul: Int(EPOS2_FALSE),
-                             em: Int(EPOS2_TRUE), color: EPOS2_PARAM_DEFAULT)
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
+                             em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
         printer.addText("TOTAL:    \(content.total)\n")
-        printer.addTextStyle(Int(EPOS2_FALSE), ul: Int(EPOS2_FALSE),
-                             em: Int(EPOS2_FALSE), color: EPOS2_PARAM_DEFAULT)
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
+                             em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("\n\(content.footer)\n")
         printer.addCut(EPOS2_CUT_FEED.rawValue)
@@ -176,11 +176,11 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("─────────────────────────\n")
         printer.addText("Subtotal: \(content.subtotal)\n")
         printer.addText("Tax:      \(content.tax)\n")
-        printer.addTextStyle(Int(EPOS2_FALSE), ul: Int(EPOS2_FALSE),
-                             em: Int(EPOS2_TRUE), color: EPOS2_PARAM_DEFAULT)
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
+                             em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
         printer.addText("TOTAL:    \(content.total)\n")
-        printer.addTextStyle(Int(EPOS2_FALSE), ul: Int(EPOS2_FALSE),
-                             em: Int(EPOS2_FALSE), color: EPOS2_PARAM_DEFAULT)
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
+                             em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("\n\(content.footer)\n")
         printer.addCut(EPOS2_CUT_FEED.rawValue)
@@ -248,7 +248,7 @@ private class DiscoveryDelegate: NSObject, Epos2DiscoveryDelegate {
         results.append((name: name, target: target))
     }
 
-    func finalize() {
+    override func finalize() {
         guard !completed else { return }
         completed = true
         onComplete(results)

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PrinterSettingsView: View {
     @EnvironmentObject var vm: InventoryVM
-    @StateObject private var printer: StarPrinterManager
+    @StateObject private var printer: EpsonPrinterManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var headerText: String = ""
@@ -15,7 +15,7 @@ struct PrinterSettingsView: View {
 
     init() {
         // Initialize printer with default settings
-        _printer = StateObject(wrappedValue: StarPrinterManager())
+        _printer = StateObject(wrappedValue: EpsonPrinterManager())
     }
 
     var body: some View {
@@ -39,7 +39,7 @@ struct PrinterSettingsView: View {
                     }
                 }
 
-                Text("Star Printer (USB/Bluetooth)")
+                Text("Epson TM-M30II (WiFi)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -91,7 +91,7 @@ struct PrinterSettingsView: View {
             }
 
             Section {
-                Text("Connect a Star Micronics printer via USB. The printer will be discovered automatically on launch.")
+                Text("Connect an Epson TM-M30II printer via WiFi. The printer will be discovered automatically on the local network.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

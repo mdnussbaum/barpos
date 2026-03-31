@@ -39,7 +39,7 @@ struct PrinterSettingsView: View {
                     }
                 }
 
-                Text("Epson TM-M30II (WiFi)")
+                Text("Epson TM-M30II (Ethernet)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -91,7 +91,7 @@ struct PrinterSettingsView: View {
             }
 
             Section {
-                Text("Connect an Epson TM-M30II printer via WiFi. The printer will be discovered automatically on the local network.")
+                Text("Connect an Epson TM-M30II printer via Ethernet. The printer will be discovered automatically on the local network.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

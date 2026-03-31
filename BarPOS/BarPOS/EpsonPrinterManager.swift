@@ -50,7 +50,7 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func discoverAndConnect() async {
-        print("Starting Epson WiFi printer discovery...")
+        print("Starting Epson network printer discovery...")
         let found = await discoverPrinters(timeout: 8)
         if let first = found.first {
             print("Found: \(first.name) at \(first.target)")

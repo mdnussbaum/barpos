@@ -15,7 +15,7 @@ class EpsonPrinterManager: ObservableObject {
 
     init() {
         printer = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue,
-                               lang: EPOS2_MODEL_ANK.rawValue)
+                               lang: EPOS2_MODEL_MULTILINGUAL.rawValue)
     }
 
     deinit {
@@ -117,14 +117,14 @@ class EpsonPrinterManager: ObservableObject {
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText(content.header + "\n")
-        printer.addText("─────────────────────────\n")
+        printer.addText("-------------------------\n")
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
 
         for line in content.lines {
             printer.addText("\(line.quantity)x \(line.itemName)  \(line.price)\n")
         }
 
-        printer.addText("─────────────────────────\n")
+        printer.addText("-------------------------\n")
         printer.addText("Subtotal: \(content.subtotal)\n")
         printer.addText("Tax:      \(content.tax)\n")
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
@@ -134,6 +134,7 @@ class EpsonPrinterManager: ObservableObject {
                              em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("\n\(content.footer)\n")
+        printer.addFeedLine(4)
         printer.addCut(EPOS2_CUT_FEED.rawValue)
 
         let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
@@ -177,14 +178,14 @@ class EpsonPrinterManager: ObservableObject {
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText(content.header + "\n")
-        printer.addText("─────────────────────────\n")
+        printer.addText("-------------------------\n")
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
 
         for line in content.lines {
             printer.addText("\(line.quantity)x \(line.itemName)  \(line.price)\n")
         }
 
-        printer.addText("─────────────────────────\n")
+        printer.addText("-------------------------\n")
         printer.addText("Subtotal: \(content.subtotal)\n")
         printer.addText("Tax:      \(content.tax)\n")
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
@@ -194,6 +195,7 @@ class EpsonPrinterManager: ObservableObject {
                              em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("\n\(content.footer)\n")
+        printer.addFeedLine(4)
         printer.addCut(EPOS2_CUT_FEED.rawValue)
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
 

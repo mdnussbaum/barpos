@@ -229,11 +229,15 @@ struct ShiftReportSheet: View {
     }
     
     private func generateAndPrint() {
-        // TODO: Implement receipt printer integration
-        print("🖨️ Print receipt")
-        
-        // For now, just generate and share
-        generateAndSharePDF()
+        let content = ReceiptFormatter.formatShiftReport(report, settings: vm.printerSettings)
+        Task {
+            do {
+                try await EpsonPrinterManager.shared.printShiftReport(content)
+                print("✅ Shift report printed on Epson")
+            } catch {
+                print("❌ Shift report print failed: \(error)")
+            }
+        }
     }
 }
 

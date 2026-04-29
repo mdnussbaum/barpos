@@ -158,11 +158,14 @@ struct RegisterView: View {
                                 cashGivenString = ""
                                 cashGivenFocused = false
                             }
-                            if payMethod == .cash && vm.printerSettings.autoOpenDrawer {
-                                Task { await printer.openCashDrawer() }
-                            }
-                            if printReceiptRequested || vm.printerSettings.autoPrintReceipts {
+                            let shouldPrint = printReceiptRequested || vm.printerSettings.autoPrintReceipts
+                            let shouldOpenDrawer = payMethod == .cash && vm.printerSettings.autoOpenDrawer
+                            if shouldPrint && shouldOpenDrawer {
+                                Task { await self.printReceiptAndOpenDrawer(result, settings: vm.printerSettings) }
+                            } else if shouldPrint {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
+                            } else if shouldOpenDrawer {
+                                Task { await printer.openCashDrawer() }
                             }
                             showingCloseTabSheet = false
                         }
@@ -206,7 +209,18 @@ struct RegisterView: View {
         }
     }
     
-    // MARK: - Print Receipt Helper
+    // MARK: - Print Helpers
+
+    private func printReceiptAndOpenDrawer(_ result: CloseResult, settings: ReceiptSettings) async {
+        let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
+        do {
+            try await printer.printReceiptAndOpenDrawer(content)
+            print("✅ Receipt printed + drawer opened")
+        } catch {
+            print("❌ Print+drawer error: \(error)")
+        }
+    }
+
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
         if !printer.isConnected {

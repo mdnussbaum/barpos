@@ -206,6 +206,33 @@ class EpsonPrinterManager: ObservableObject {
         print("Receipt printed + drawer opened")
     }
 
+    // MARK: - Print Shift Report
+
+    func printShiftReport(_ content: ReceiptContent) async throws {
+        guard let printer = printer else { throw PrinterError.notConnected }
+        await ensureConnected()
+        guard isConnected else { throw PrinterError.notConnected }
+
+        printer.clearCommandBuffer()
+        printer.addTextLang(EPOS2_LANG_EN.rawValue)
+        printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
+
+        for line in content.body {
+            printer.addText(line + "\n")
+        }
+
+        printer.addCut(EPOS2_CUT_FEED.rawValue)
+
+        let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
+        printer.clearCommandBuffer()
+
+        if sendResult != EPOS2_SUCCESS.rawValue {
+            print("Print sendData failed: \(sendResult)")
+            throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
+        }
+        print("Shift report printed on Epson")
+    }
+
     // MARK: - Convenience helpers
 
     func testPrint() async -> Bool {

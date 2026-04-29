@@ -9,6 +9,7 @@ class EpsonPrinterManager: ObservableObject {
 
     private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
+    private var isDiscovering = false
 
     init() {
         printer = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue,
@@ -24,6 +25,10 @@ class EpsonPrinterManager: ObservableObject {
     // MARK: - Discovery (WiFi / LAN)
 
     func discoverPrinters(timeout: Int = 10) async -> [(name: String, target: String)] {
+        guard !isDiscovering else { return [] }
+        isDiscovering = true
+        defer { isDiscovering = false }
+
         return await withCheckedContinuation { continuation in
             let delegate = DiscoveryDelegate { results in
                 continuation.resume(returning: results)
@@ -53,10 +58,15 @@ class EpsonPrinterManager: ObservableObject {
         print("Starting Epson network printer discovery...")
         let found = await discoverPrinters(timeout: 8)
         if let first = found.first {
+            let target = first.target.contains(":") && !first.target.contains(".")
+                ? "TCP:192.168.1.76"
+                : first.target
             print("Found: \(first.name) at \(first.target)")
-            await connectPrinter(target: first.target)
+            print("Connecting to: \(target)")
+            await connectPrinter(target: target)
         } else {
             print("No Epson printers found on network")
+            await connectPrinter(target: "TCP:192.168.1.76")
         }
     }
 

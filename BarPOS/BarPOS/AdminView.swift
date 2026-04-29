@@ -156,6 +156,15 @@ struct AdminView: View {
                         }
                     }
 
+                    Section("Hardware") {
+                        NavigationLink {
+                            PrinterSettingsView()
+                                .environmentObject(vm)
+                        } label: {
+                            Label("Printer", systemImage: "printer.fill")
+                        }
+                    }
+
                     Section("Staff") {
                         NavigationLink {
                             AdminStaffView()

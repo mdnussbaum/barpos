@@ -3,6 +3,7 @@ import Combine
 
 @MainActor
 class EpsonPrinterManager: ObservableObject {
+    static let shared = EpsonPrinterManager()
     @Published var isConnected: Bool = false
     @Published var printerName: String = "Epson TM-M30II"
     @Published var printerIP: String = ""
@@ -10,6 +11,7 @@ class EpsonPrinterManager: ObservableObject {
     private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
     private var isDiscovering = false
+    private let knownIP = "192.168.1.76"
 
     init() {
         printer = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue,
@@ -55,18 +57,19 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func discoverAndConnect() async {
+        // Always try known IP first — fast and reliable
+        print("Connecting to known printer IP...")
+        await connectPrinter(target: "TCP:\(knownIP)")
+        if isConnected { return }
+        // Fallback to discovery
         print("Starting Epson network printer discovery...")
         let found = await discoverPrinters(timeout: 8)
         if let first = found.first {
-            let target = first.target.contains(":") && !first.target.contains(".")
-                ? "TCP:192.168.1.76"
-                : first.target
-            print("Found: \(first.name) at \(first.target)")
-            print("Connecting to: \(target)")
+            let target = first.target.contains(".") ? first.target : "TCP:\(knownIP)"
+            print("Found: \(first.name) at \(target)")
             await connectPrinter(target: target)
         } else {
             print("No Epson printers found on network")
-            await connectPrinter(target: "TCP:192.168.1.76")
         }
     }
 
@@ -98,15 +101,17 @@ class EpsonPrinterManager: ObservableObject {
         print("Epson printer disconnected")
     }
 
+    func ensureConnected() async {
+        guard !isConnected else { return }
+        await connectPrinter(target: "TCP:\(knownIP)")
+    }
+
     // MARK: - Print Receipt
 
     func printReceipt(_ content: EpsonReceiptContent) async throws {
         guard let printer = printer else { throw PrinterError.notConnected }
-        if !isConnected {
-            print("Not connected — attempting discovery...")
-            await discoverAndConnect()
-            guard isConnected else { throw PrinterError.notConnected }
-        }
+        await ensureConnected()
+        guard isConnected else { throw PrinterError.notConnected }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
@@ -145,10 +150,8 @@ class EpsonPrinterManager: ObservableObject {
 
     func openDrawer() async throws {
         guard let printer = printer else { throw PrinterError.notConnected }
-        if !isConnected {
-            await discoverAndConnect()
-            guard isConnected else { throw PrinterError.notConnected }
-        }
+        await ensureConnected()
+        guard isConnected else { throw PrinterError.notConnected }
 
         printer.clearCommandBuffer()
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
@@ -167,10 +170,8 @@ class EpsonPrinterManager: ObservableObject {
 
     func printReceiptAndOpenDrawer(_ content: EpsonReceiptContent) async throws {
         guard let printer = printer else { throw PrinterError.notConnected }
-        if !isConnected {
-            await discoverAndConnect()
-            guard isConnected else { throw PrinterError.notConnected }
-        }
+        await ensureConnected()
+        guard isConnected else { throw PrinterError.notConnected }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)

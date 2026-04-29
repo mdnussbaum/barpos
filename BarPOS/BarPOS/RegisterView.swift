@@ -42,7 +42,7 @@ struct RegisterView: View {
     }
 
     // Printer state
-    @StateObject private var printer = EpsonPrinterManager()
+    @ObservedObject private var printer = EpsonPrinterManager.shared
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
     
@@ -151,15 +151,17 @@ struct RegisterView: View {
                     payMethod: payMethod,
                     cashGiven: Decimal(string: cashGivenString) ?? 0,
                     printer: printer,
-                    onClose: { printReceipt in
+                    onClose: { printReceiptRequested in
                         let cash = payMethod == .cash ? (Decimal(string: cashGivenString) ?? 0) : 0
                         if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
                             if payMethod == .cash {
                                 cashGivenString = ""
                                 cashGivenFocused = false
+                            }
+                            if payMethod == .cash && vm.printerSettings.autoOpenDrawer {
                                 Task { await printer.openCashDrawer() }
                             }
-                            if printReceipt {
+                            if printReceiptRequested || vm.printerSettings.autoPrintReceipts {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
                             }
                             showingCloseTabSheet = false

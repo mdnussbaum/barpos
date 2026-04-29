@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PrinterSettingsView: View {
     @EnvironmentObject var vm: InventoryVM
-    @StateObject private var printer: EpsonPrinterManager
+    @ObservedObject private var printer = EpsonPrinterManager.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var headerText: String = ""
@@ -12,11 +12,6 @@ struct PrinterSettingsView: View {
     @State private var showingTestResult = false
     @State private var testResultMessage = ""
     @State private var showingPINPrompt = false
-
-    init() {
-        // Initialize printer with default settings
-        _printer = StateObject(wrappedValue: EpsonPrinterManager())
-    }
 
     var body: some View {
         Form {

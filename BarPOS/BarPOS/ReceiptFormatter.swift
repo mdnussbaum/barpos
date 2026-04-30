@@ -195,7 +195,12 @@ struct ReceiptFormatter {
             subtotal: result.subtotal.currencyString(),
             tax: (result.total - result.subtotal).currencyString(),
             total: result.total.currencyString(),
-            footer: footer
+            footer: footer,
+            bartenderName: result.bartenderName,
+            tabName: result.tabName,
+            paymentMethod: result.paymentMethod.rawValue.capitalized,
+            cashTendered: result.cashTendered > 0 ? result.cashTendered.currencyString() : "",
+            changeDue: result.changeDue.currencyString()
         )
     }
 }

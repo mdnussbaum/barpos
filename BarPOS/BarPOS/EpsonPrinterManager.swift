@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Combine
 
 @MainActor
@@ -15,7 +16,7 @@ class EpsonPrinterManager: ObservableObject {
 
     init() {
         printer = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue,
-                               lang: EPOS2_MODEL_MULTILINGUAL.rawValue)
+                               lang: EPOS2_MODEL_ANK.rawValue)
     }
 
     deinit {
@@ -106,6 +107,42 @@ class EpsonPrinterManager: ObservableObject {
         await connectPrinter(target: "TCP:\(knownIP)")
     }
 
+    // MARK: - Logo Helper
+
+    private func addLogoToBuffer() {
+        guard let printer = printer else { return }
+        guard let image = UIImage(named: "receipt_logo") else {
+            print("⚠️ Receipt logo not found")
+            return
+        }
+        // Scale to 300px wide for 80mm paper — keeps it crisp without being huge
+        let targetWidth: CGFloat = 300
+        let scale = targetWidth / image.size.width
+        let targetSize = CGSize(width: targetWidth, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaledImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
+        printer.addImage(scaledImage, x: 0, y: 0,
+                         width: Int(targetWidth),
+                         height: Int(targetSize.height),
+                         color: EPOS2_COLOR_1.rawValue,
+                         mode: EPOS2_MONO.rawValue,
+                         halftone: EPOS2_HALFTONE_THRESHOLD.rawValue,
+                         brightness: 1.0,
+                         compress: EPOS2_COMPRESS_AUTO.rawValue)
+        printer.addFeedLine(1)
+    }
+
+    // MARK: - Layout Helper
+
+    private func padLine(_ label: String, _ value: String) -> String {
+        let width = 32
+        let spaces = max(1, width - label.count - value.count)
+        return "\(label)\(String(repeating: " ", count: spaces))\(value)\n"
+    }
+
     // MARK: - Print Receipt
 
     func printReceipt(_ content: EpsonReceiptContent) async throws {
@@ -115,25 +152,68 @@ class EpsonPrinterManager: ObservableObject {
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
+
+        // --- LOGO ---
+        addLogoToBuffer()
+
+        // --- HEADER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
-        printer.addText(content.header + "\n")
-        printer.addText("-------------------------\n")
+        printer.addTextSize(2, height: 2)
+        printer.addText("PARMA CAFE\n")
+        printer.addTextSize(1, height: 1)
+        printer.addText("5780 Ridge Rd., Parma, OH 44129\n")
+        printer.addFeedLine(1)
+
+        // --- SEPARATOR ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
+        printer.addText("================================\n")
 
+        // --- DATE / BARTENDER ---
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
+        printer.addText("Date:   \(dateFormatter.string(from: Date()))\n")
+        printer.addText("Server: \(content.bartenderName ?? "Staff")\n")
+        printer.addText("Tab:    \(content.tabName)\n")
+        printer.addText("================================\n")
+        printer.addFeedLine(1)
+
+        // --- ITEMS ---
+        printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         for line in content.lines {
-            printer.addText("\(line.quantity)x \(line.itemName)  \(line.price)\n")
+            let qty = "\(line.quantity)x"
+            let price = line.price
+            let maxNameWidth = 32 - qty.count - price.count - 2
+            let name = String(line.itemName.prefix(maxNameWidth))
+            let spaces = max(1, 32 - qty.count - name.count - price.count)
+            printer.addText("\(qty) \(name)\(String(repeating: " ", count: spaces))\(price)\n")
         }
+        printer.addFeedLine(1)
 
-        printer.addText("-------------------------\n")
-        printer.addText("Subtotal: \(content.subtotal)\n")
-        printer.addText("Tax:      \(content.tax)\n")
-        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
-                             em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
-        printer.addText("TOTAL:    \(content.total)\n")
-        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
-                             em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
+        // --- TOTALS ---
+        printer.addText("--------------------------------\n")
+        printer.addText(padLine("Subtotal:", content.subtotal))
+        printer.addText(padLine("Tax:", content.tax))
+        printer.addText("================================\n")
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
+        printer.addText(padLine("TOTAL:", content.total))
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
+        printer.addFeedLine(1)
+
+        // --- PAYMENT ---
+        printer.addText(padLine("Payment:", content.paymentMethod))
+        if content.cashTendered != "$0.00" && content.cashTendered != "" {
+            printer.addText(padLine("Cash Tendered:", content.cashTendered))
+            printer.addText(padLine("Change Due:", content.changeDue))
+        }
+        printer.addFeedLine(1)
+
+        // --- FOOTER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
-        printer.addText("\n\(content.footer)\n")
+        printer.addText("--------------------------------\n")
+        printer.addText("We thank you for your patronage\n")
+        printer.addText("and look forward to serving\n")
+        printer.addText("you again soon!\n")
+        printer.addText("================================\n")
         printer.addFeedLine(4)
         printer.addCut(EPOS2_CUT_FEED.rawValue)
 
@@ -176,25 +256,68 @@ class EpsonPrinterManager: ObservableObject {
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
+
+        // --- LOGO ---
+        addLogoToBuffer()
+
+        // --- HEADER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
-        printer.addText(content.header + "\n")
-        printer.addText("-------------------------\n")
+        printer.addTextSize(2, height: 2)
+        printer.addText("PARMA CAFE\n")
+        printer.addTextSize(1, height: 1)
+        printer.addText("5780 Ridge Rd., Parma, OH 44129\n")
+        printer.addFeedLine(1)
+
+        // --- SEPARATOR ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
+        printer.addText("================================\n")
 
+        // --- DATE / BARTENDER ---
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
+        printer.addText("Date:   \(dateFormatter.string(from: Date()))\n")
+        printer.addText("Server: \(content.bartenderName ?? "Staff")\n")
+        printer.addText("Tab:    \(content.tabName)\n")
+        printer.addText("================================\n")
+        printer.addFeedLine(1)
+
+        // --- ITEMS ---
+        printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         for line in content.lines {
-            printer.addText("\(line.quantity)x \(line.itemName)  \(line.price)\n")
+            let qty = "\(line.quantity)x"
+            let price = line.price
+            let maxNameWidth = 32 - qty.count - price.count - 2
+            let name = String(line.itemName.prefix(maxNameWidth))
+            let spaces = max(1, 32 - qty.count - name.count - price.count)
+            printer.addText("\(qty) \(name)\(String(repeating: " ", count: spaces))\(price)\n")
         }
+        printer.addFeedLine(1)
 
-        printer.addText("-------------------------\n")
-        printer.addText("Subtotal: \(content.subtotal)\n")
-        printer.addText("Tax:      \(content.tax)\n")
-        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
-                             em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
-        printer.addText("TOTAL:    \(content.total)\n")
-        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE,
-                             em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
+        // --- TOTALS ---
+        printer.addText("--------------------------------\n")
+        printer.addText(padLine("Subtotal:", content.subtotal))
+        printer.addText(padLine("Tax:", content.tax))
+        printer.addText("================================\n")
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
+        printer.addText(padLine("TOTAL:", content.total))
+        printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
+        printer.addFeedLine(1)
+
+        // --- PAYMENT ---
+        printer.addText(padLine("Payment:", content.paymentMethod))
+        if content.cashTendered != "$0.00" && content.cashTendered != "" {
+            printer.addText(padLine("Cash Tendered:", content.cashTendered))
+            printer.addText(padLine("Change Due:", content.changeDue))
+        }
+        printer.addFeedLine(1)
+
+        // --- FOOTER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
-        printer.addText("\n\(content.footer)\n")
+        printer.addText("--------------------------------\n")
+        printer.addText("We thank you for your patronage\n")
+        printer.addText("and look forward to serving\n")
+        printer.addText("you again soon!\n")
+        printer.addText("================================\n")
         printer.addFeedLine(4)
         printer.addCut(EPOS2_CUT_FEED.rawValue)
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
@@ -240,9 +363,14 @@ class EpsonPrinterManager: ObservableObject {
     func testPrint() async -> Bool {
         let testContent = EpsonReceiptContent(
             header: "TEST RECEIPT",
-            lines: [ReceiptLine(quantity: 1, itemName: "Test Item", price: "$0.00")],
-            subtotal: "$0.00", tax: "$0.00", total: "$0.00",
-            footer: "Printer is working!"
+            lines: [ReceiptLine(quantity: 1, itemName: "Test Item", price: "$5.00")],
+            subtotal: "$5.00", tax: "$0.00", total: "$5.00",
+            footer: "Printer is working!",
+            bartenderName: "Staff",
+            tabName: "Test Tab",
+            paymentMethod: "Cash",
+            cashTendered: "$10.00",
+            changeDue: "$5.00"
         )
         do {
             try await printReceipt(testContent)
@@ -312,6 +440,11 @@ struct EpsonReceiptContent {
     let tax: String
     let total: String
     let footer: String
+    let bartenderName: String?
+    let tabName: String
+    let paymentMethod: String
+    let cashTendered: String
+    let changeDue: String
 }
 
 struct ReceiptLine {

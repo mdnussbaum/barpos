@@ -5,4 +5,4 @@
 //  Epson ePOS SDK (Objective-C) bridge for Swift
 //
 
-#import "ePOS2.h"
+#import <libepos2/ePOS2.h>

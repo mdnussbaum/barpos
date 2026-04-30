@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		912888C12ECD5DDA0055B448 /* libepos2.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 912888C02ECD5DDA0055B448 /* libepos2.xcframework */; settings = {ATTRIBUTES = (Required, ); }; };
+		912888C22ECD5DDA0055B448 /* libepos2.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 912888C02ECD5DDA0055B448 /* libepos2.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		915CF3902F1AD2B000C670EA /* HappyHourSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */; };
 		917DEDCA2F4CC4A500E97144 /* AuditLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917DEDC92F4CC4A500E97144 /* AuditLogView.swift */; };
 /* End PBXBuildFile section */
@@ -29,6 +31,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		912888C02ECD5DDA0055B448 /* libepos2.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = libepos2.xcframework; sourceTree = "<group>"; };
 		9128888E2ECD5DD90055B448 /* BarPOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarPOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9128889D2ECD5DDA0055B448 /* BarPOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		912888A72ECD5DDA0055B448 /* BarPOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarPOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,6 +75,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				912888C12ECD5DDA0055B448 /* libepos2.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +95,20 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		912888C32ECD5DDA0055B448 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				912888C22ECD5DDA0055B448 /* libepos2.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXGroup section */
 		912888852ECD5DD90055B448 = {
 			isa = PBXGroup;
@@ -99,6 +117,7 @@
 				912888A02ECD5DDA0055B448 /* BarPOSTests */,
 				912888AA2ECD5DDA0055B448 /* BarPOSUITests */,
 				9128888F2ECD5DD90055B448 /* Products */,
+				912888C02ECD5DDA0055B448 /* libepos2.xcframework */,
 				915CF38F2F1AD2B000C670EA /* HappyHourSettingsView.swift */,
 				917DEDC92F4CC4A500E97144 /* AuditLogView.swift */,
 			);
@@ -124,6 +143,7 @@
 				9128888A2ECD5DD90055B448 /* Sources */,
 				9128888B2ECD5DD90055B448 /* Frameworks */,
 				9128888C2ECD5DD90055B448 /* Resources */,
+				912888C32ECD5DDA0055B448 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);

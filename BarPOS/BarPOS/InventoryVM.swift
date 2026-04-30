@@ -146,12 +146,15 @@ final class InventoryVM: ObservableObject {
         loadState()
         ChipType.applyOverrides(chipPriceOverrides)
         ensureDefaultBartenders()
-        
+
         print("🟢 InventoryVM initialized")
         print("🟢 Products loaded: \(products.count)")
         print("🟢 ProductOrderByBartender: \(productOrderByBartender)")
     }
-    
+
+    private var saveCancellable: AnyCancellable?
+    private var pendingSave = false
+
     func setChipPrice(_ type: ChipType, to newValue: Decimal) {
         chipPriceOverrides[type] = newValue
     }
@@ -246,12 +249,12 @@ final class InventoryVM: ObservableObject {
         closedTabs.insert(result, at: 0)
         allClosedTabs.insert(result, at: 0)
         recordCloseIntoShift(result)
-        
+
         tabs.removeValue(forKey: activeID)
         if tabs.isEmpty { createNewTab() } else { activeTabID = tabs.keys.first }
-        
+
         lastCloseResult = result
-        saveState()
+        flushSave()
         return result
     }
 
@@ -369,7 +372,6 @@ final class InventoryVM: ObservableObject {
                 return sortWithOrder(filtered, order: defaults)
             }
             
-            print("🟡 Using displayOrder fallback for category: \(category?.displayName ?? "All")")
             return filtered.sorted {
                 if $0.displayOrder != $1.displayOrder { return $0.displayOrder < $1.displayOrder }
                 return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
@@ -388,7 +390,6 @@ final class InventoryVM: ObservableObject {
             return sortWithOrder(filtered, order: defaults)
         }
         
-        print("🟡 Using displayOrder fallback")
         return filtered.sorted {
             if $0.displayOrder != $1.displayOrder { return $0.displayOrder < $1.displayOrder }
             return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
@@ -553,11 +554,11 @@ final class InventoryVM: ObservableObject {
             nextTabSequence = 1
             tabs.removeAll()
             activeTabID = nil
-            
-            saveState()
+
+            flushSave()
             return true
         }
-        
+
         // MARK: - Carry Over & Close All
     // Close all tabs with items (don't carry over)
         func closeAllUnsettledTabs() {
@@ -628,8 +629,8 @@ final class InventoryVM: ObservableObject {
                             nextTabSequence = 1
                             activeTabID = nil
                         }
-                        
-                        saveState()
+
+                        flushSave()
                         return true
                     }
     // MARK: - Chips by type
@@ -851,6 +852,18 @@ final class InventoryVM: ObservableObject {
     private var stateURL: URL { Persistence.fileURL("state.json") }
     
     func saveState() {
+        pendingSave = true
+        saveCancellable?.cancel()
+        saveCancellable = Just(())
+            .delay(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.flushSave()
+            }
+    }
+
+    func flushSave() {
+        guard pendingSave else { return }
+        pendingSave = false
         let snapshot = PersistedState(
             products: products,
             managerPIN: managerPIN,
@@ -876,10 +889,8 @@ final class InventoryVM: ObservableObject {
             pricingRules: pricingRules,
             schemaVersion: 2
         )
-        
         do {
             try Persistence.saveJSON(snapshot, to: stateURL)
-            print("✅ State saved successfully")
         } catch {
             print("⚠️ saveState error:", error)
         }

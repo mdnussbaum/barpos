@@ -144,6 +144,12 @@ struct RegisterView: View {
         // MARK: Close tab sheet
         // Reads vm.activeTab live via the @EnvironmentObject reference so the
         // sheet always sees the correct tab regardless of SwiftUI render timing.
+        .onChange(of: showingCloseTabSheet) { _, isShowing in
+            if !isShowing {
+                cashGivenFocused = false
+                tabNameFocused = false
+            }
+        }
         .sheet(isPresented: $showingCloseTabSheet) {
             if let tab = vm.activeTab {
                 CloseTabSheet(
@@ -270,6 +276,14 @@ struct RegisterView: View {
             }
             .padding(.horizontal, 8)
             .frame(maxHeight: .infinity)
+            .background(
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        cashGivenFocused = false
+                        tabNameFocused = false
+                    }
+            )
         }
         .frame(maxHeight: .infinity)
         .navigationBarHidden(true)
@@ -330,6 +344,8 @@ struct RegisterView: View {
                             ))
                             .textFieldStyle(.roundedBorder)
                             .focused($tabNameFocused)
+                            .submitLabel(.done)
+                            .onSubmit { tabNameFocused = false }
 
                             Button(role: .destructive) {
                                 vm.deleteActiveTabIfEmpty()

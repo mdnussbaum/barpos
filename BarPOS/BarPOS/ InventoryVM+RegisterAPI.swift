@@ -14,7 +14,7 @@ extension InventoryVM {
         tabs[id] = ticket
         activeTabID = id
         nextTabSequence += 1
-        saveState()
+        flushSave()
     }
 
     func selectTab(id: UUID) { activeTabID = id }

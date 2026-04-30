@@ -2,6 +2,9 @@ import Foundation
 import UIKit
 import Combine
 
+#if canImport(ePOS2)
+import ePOS2
+
 @MainActor
 class EpsonPrinterManager: ObservableObject {
     static let shared = EpsonPrinterManager()
@@ -25,8 +28,6 @@ class EpsonPrinterManager: ObservableObject {
         printer = nil
     }
 
-    // MARK: - Discovery (WiFi / LAN)
-
     func discoverPrinters(timeout: Int = 10) async -> [(name: String, target: String)] {
         guard !isDiscovering else { return [] }
         isDiscovering = true
@@ -41,7 +42,7 @@ class EpsonPrinterManager: ObservableObject {
 
             let filter = Epos2FilterOption()
             filter.deviceType = EPOS2_TYPE_PRINTER.rawValue
-            filter.portType   = EPOS2_PORTTYPE_TCP.rawValue
+            filter.portType = EPOS2_PORTTYPE_TCP.rawValue
 
             let result = Epos2Discovery.start(filter, delegate: delegate)
             if result != EPOS2_SUCCESS.rawValue {
@@ -58,11 +59,10 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func discoverAndConnect() async {
-        // Always try known IP first — fast and reliable
         print("Connecting to known printer IP...")
         await connectPrinter(target: "TCP:\(knownIP)")
         if isConnected { return }
-        // Fallback to discovery
+
         print("Starting Epson network printer discovery...")
         let found = await discoverPrinters(timeout: 8)
         if let first = found.first {
@@ -74,10 +74,8 @@ class EpsonPrinterManager: ObservableObject {
         }
     }
 
-    // MARK: - Connect / Disconnect
-
     func connectPrinter(target: String) async {
-        guard let printer = printer else { return }
+        guard let printer else { return }
         self.target = target
         let result = printer.connect(target, timeout: Int(EPOS2_PARAM_DEFAULT))
         if result == EPOS2_SUCCESS.rawValue {
@@ -87,13 +85,12 @@ class EpsonPrinterManager: ObservableObject {
             print("Connected to Epson printer at \(target)")
         } else {
             isConnected = false
-            print("Epson connect failed — code: \(result)")
+            print("Epson connect failed - code: \(result)")
         }
     }
 
     func connectManual(ip: String) async {
-        let target = "TCP:\(ip)"
-        await connectPrinter(target: target)
+        await connectPrinter(target: "TCP:\(ip)")
     }
 
     func disconnectPrinter() {
@@ -107,15 +104,13 @@ class EpsonPrinterManager: ObservableObject {
         await connectPrinter(target: "TCP:\(knownIP)")
     }
 
-    // MARK: - Logo Helper
-
     private func addLogoToBuffer() {
-        guard let printer = printer else { return }
+        guard let printer else { return }
         guard let image = UIImage(named: "receipt_logo") else {
-            print("⚠️ Receipt logo not found")
+            print("Receipt logo not found")
             return
         }
-        // Scale to 300px wide for 80mm paper — keeps it crisp without being huge
+
         let targetWidth: CGFloat = 300
         let scale = targetWidth / image.size.width
         let targetSize = CGSize(width: targetWidth, height: image.size.height * scale)
@@ -123,6 +118,7 @@ class EpsonPrinterManager: ObservableObject {
         let scaledImage = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
+
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addImage(scaledImage, x: 0, y: 0,
                          width: Int(targetWidth),
@@ -135,28 +131,22 @@ class EpsonPrinterManager: ObservableObject {
         printer.addFeedLine(1)
     }
 
-    // MARK: - Layout Helper
-
     private func padLine(_ label: String, _ value: String) -> String {
         let width = 32
         let spaces = max(1, width - label.count - value.count)
         return "\(label)\(String(repeating: " ", count: spaces))\(value)\n"
     }
 
-    // MARK: - Print Receipt
-
     func printReceipt(_ content: EpsonReceiptContent) async throws {
-        guard let printer = printer else { throw PrinterError.notConnected }
+        guard let printer else { throw PrinterError.notConnected }
         await ensureConnected()
         guard isConnected else { throw PrinterError.notConnected }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
 
-        // --- LOGO ---
         addLogoToBuffer()
 
-        // --- HEADER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addTextSize(2, height: 2)
         printer.addText("PARMA CAFE\n")
@@ -164,11 +154,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("5780 Ridge Rd., Parma, OH 44129\n")
         printer.addFeedLine(1)
 
-        // --- SEPARATOR ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         printer.addText("================================\n")
 
-        // --- DATE / BARTENDER ---
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
         printer.addText("Date:   \(dateFormatter.string(from: Date()))\n")
@@ -177,7 +165,6 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("================================\n")
         printer.addFeedLine(1)
 
-        // --- ITEMS ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         for line in content.lines {
             let qty = "\(line.quantity)x"
@@ -189,7 +176,6 @@ class EpsonPrinterManager: ObservableObject {
         }
         printer.addFeedLine(1)
 
-        // --- TOTALS ---
         printer.addText("--------------------------------\n")
         printer.addText(padLine("Subtotal:", content.subtotal))
         printer.addText(padLine("Tax:", content.tax))
@@ -199,15 +185,13 @@ class EpsonPrinterManager: ObservableObject {
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addFeedLine(1)
 
-        // --- PAYMENT ---
         printer.addText(padLine("Payment:", content.paymentMethod))
-        if content.cashTendered != "$0.00" && content.cashTendered != "" {
+        if content.cashTendered != "$0.00" && !content.cashTendered.isEmpty {
             printer.addText(padLine("Cash Tendered:", content.cashTendered))
             printer.addText(padLine("Change Due:", content.changeDue))
         }
         printer.addFeedLine(1)
 
-        // --- FOOTER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("--------------------------------\n")
         printer.addText("We thank you for your patronage\n")
@@ -224,13 +208,12 @@ class EpsonPrinterManager: ObservableObject {
             print("Print sendData failed: \(sendResult)")
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
+
         print("Receipt printed on Epson")
     }
 
-    // MARK: - Open Cash Drawer
-
     func openDrawer() async throws {
-        guard let printer = printer else { throw PrinterError.notConnected }
+        guard let printer else { throw PrinterError.notConnected }
         await ensureConnected()
         guard isConnected else { throw PrinterError.notConnected }
 
@@ -244,23 +227,20 @@ class EpsonPrinterManager: ObservableObject {
             print("Drawer kick failed: \(sendResult)")
             throw PrinterError.drawerFailed(NSError(domain: "EpsonDrawer", code: Int(sendResult)))
         }
+
         print("Cash drawer opened")
     }
 
-    // MARK: - Print + Open Drawer combined
-
     func printReceiptAndOpenDrawer(_ content: EpsonReceiptContent) async throws {
-        guard let printer = printer else { throw PrinterError.notConnected }
+        guard let printer else { throw PrinterError.notConnected }
         await ensureConnected()
         guard isConnected else { throw PrinterError.notConnected }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
 
-        // --- LOGO ---
         addLogoToBuffer()
 
-        // --- HEADER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addTextSize(2, height: 2)
         printer.addText("PARMA CAFE\n")
@@ -268,11 +248,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("5780 Ridge Rd., Parma, OH 44129\n")
         printer.addFeedLine(1)
 
-        // --- SEPARATOR ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         printer.addText("================================\n")
 
-        // --- DATE / BARTENDER ---
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MMM dd, yyyy  h:mm a"
         printer.addText("Date:   \(dateFormatter.string(from: Date()))\n")
@@ -281,7 +259,6 @@ class EpsonPrinterManager: ObservableObject {
         printer.addText("================================\n")
         printer.addFeedLine(1)
 
-        // --- ITEMS ---
         printer.addTextAlign(EPOS2_ALIGN_LEFT.rawValue)
         for line in content.lines {
             let qty = "\(line.quantity)x"
@@ -293,7 +270,6 @@ class EpsonPrinterManager: ObservableObject {
         }
         printer.addFeedLine(1)
 
-        // --- TOTALS ---
         printer.addText("--------------------------------\n")
         printer.addText(padLine("Subtotal:", content.subtotal))
         printer.addText(padLine("Tax:", content.tax))
@@ -303,15 +279,13 @@ class EpsonPrinterManager: ObservableObject {
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_FALSE, color: EPOS2_PARAM_DEFAULT)
         printer.addFeedLine(1)
 
-        // --- PAYMENT ---
         printer.addText(padLine("Payment:", content.paymentMethod))
-        if content.cashTendered != "$0.00" && content.cashTendered != "" {
+        if content.cashTendered != "$0.00" && !content.cashTendered.isEmpty {
             printer.addText(padLine("Cash Tendered:", content.cashTendered))
             printer.addText(padLine("Change Due:", content.changeDue))
         }
         printer.addFeedLine(1)
 
-        // --- FOOTER ---
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
         printer.addText("--------------------------------\n")
         printer.addText("We thank you for your patronage\n")
@@ -328,13 +302,12 @@ class EpsonPrinterManager: ObservableObject {
         if sendResult != EPOS2_SUCCESS.rawValue {
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
+
         print("Receipt printed + drawer opened")
     }
 
-    // MARK: - Print Shift Report
-
     func printShiftReport(_ content: ReceiptContent) async throws {
-        guard let printer = printer else { throw PrinterError.notConnected }
+        guard let printer else { throw PrinterError.notConnected }
         await ensureConnected()
         guard isConnected else { throw PrinterError.notConnected }
 
@@ -355,16 +328,17 @@ class EpsonPrinterManager: ObservableObject {
             print("Print sendData failed: \(sendResult)")
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
+
         print("Shift report printed on Epson")
     }
-
-    // MARK: - Convenience helpers
 
     func testPrint() async -> Bool {
         let testContent = EpsonReceiptContent(
             header: "TEST RECEIPT",
             lines: [ReceiptLine(quantity: 1, itemName: "Test Item", price: "$5.00")],
-            subtotal: "$5.00", tax: "$0.00", total: "$5.00",
+            subtotal: "$5.00",
+            tax: "$0.00",
+            total: "$5.00",
             footer: "Printer is working!",
             bartenderName: "Staff",
             tabName: "Test Tab",
@@ -372,6 +346,7 @@ class EpsonPrinterManager: ObservableObject {
             cashTendered: "$10.00",
             changeDue: "$5.00"
         )
+
         do {
             try await printReceipt(testContent)
             return true
@@ -391,13 +366,10 @@ class EpsonPrinterManager: ObservableObject {
         }
     }
 
-    /// Alias so callers using the old Star discovery API still compile
     func discoverPrinter() async {
         await discoverAndConnect()
     }
 }
-
-// MARK: - Discovery Delegate
 
 private class DiscoveryDelegate: NSObject, Epos2DiscoveryDelegate {
     private var results: [(name: String, target: String)] = []
@@ -423,15 +395,80 @@ private class DiscoveryDelegate: NSObject, Epos2DiscoveryDelegate {
     }
 }
 
-// MARK: - Errors
+#else
+
+@MainActor
+class EpsonPrinterManager: ObservableObject {
+    static let shared = EpsonPrinterManager()
+    @Published var isConnected: Bool = false
+    @Published var printerName: String = "Epson SDK Missing"
+    @Published var printerIP: String = ""
+
+    private let unavailableError = PrinterError.sdkUnavailable
+
+    func discoverPrinters(timeout: Int = 10) async -> [(name: String, target: String)] {
+        _ = timeout
+        return []
+    }
+
+    func discoverAndConnect() async {
+        isConnected = false
+    }
+
+    func connectPrinter(target: String) async {
+        _ = target
+        isConnected = false
+    }
+
+    func connectManual(ip: String) async {
+        _ = ip
+        isConnected = false
+    }
+
+    func disconnectPrinter() {
+        isConnected = false
+    }
+
+    func ensureConnected() async {}
+
+    func printReceipt(_ content: EpsonReceiptContent) async throws {
+        _ = content
+        throw unavailableError
+    }
+
+    func openDrawer() async throws {
+        throw unavailableError
+    }
+
+    func printReceiptAndOpenDrawer(_ content: EpsonReceiptContent) async throws {
+        _ = content
+        throw unavailableError
+    }
+
+    func printShiftReport(_ content: ReceiptContent) async throws {
+        _ = content
+        throw unavailableError
+    }
+
+    func testPrint() async -> Bool {
+        false
+    }
+
+    func openCashDrawer() async -> Bool {
+        false
+    }
+
+    func discoverPrinter() async {}
+}
+
+#endif
 
 enum PrinterError: Error {
     case notConnected
     case printFailed(Error)
     case drawerFailed(Error)
+    case sdkUnavailable
 }
-
-// MARK: - Receipt Content Model
 
 struct EpsonReceiptContent {
     let header: String

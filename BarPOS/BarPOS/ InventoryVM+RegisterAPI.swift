@@ -47,10 +47,7 @@ extension InventoryVM {
     func mutateActiveTicket(_ mutate: (inout TabTicket) -> Void) {
         guard let id = activeTabID, var ticket = tabs[id] else { return }
         mutate(&ticket)
-        // Reassign via a full copy to guarantee @Published fires objectWillChange
-        // (subscript mutation alone can be missed by SwiftUI's diffing on dicts)
-        var updated = tabs
-        updated[id] = ticket
-        tabs = updated
+        tabs[id] = ticket
+        objectWillChange.send()
     }
 }

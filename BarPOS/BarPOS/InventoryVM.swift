@@ -40,7 +40,6 @@ final class InventoryVM: ObservableObject {
     // Per-bartender ordering map (per-category support)
     @Published var productOrderByBartender: [UUID: [String: [UUID]]] = [:] {
         didSet {
-            print("🔵 productOrderByBartender changed: \(productOrderByBartender)")
             saveState()
         }
     }
@@ -368,7 +367,6 @@ final class InventoryVM: ObservableObject {
         guard let bartender = currentShift?.openedBy else {
             let defaults = defaultProductOrder(category: category)
             if !defaults.isEmpty {
-                print("🟡 Using admin default order for category: \(category?.displayName ?? "All")")
                 return sortWithOrder(filtered, order: defaults)
             }
             
@@ -380,13 +378,11 @@ final class InventoryVM: ObservableObject {
 
         let key = category?.rawValue ?? "all"
         if let customOrder = productOrderByBartender[bartender.id]?[key], !customOrder.isEmpty {
-            print("🟢 Using \(bartender.name)'s custom order")
             return sortWithOrder(filtered, order: customOrder)
         }
-        
+
         let defaults = defaultProductOrder(category: category)
         if !defaults.isEmpty {
-            print("🟡 Using admin default order")
             return sortWithOrder(filtered, order: defaults)
         }
         
@@ -501,10 +497,10 @@ final class InventoryVM: ObservableObject {
                 ensureAtLeastOneTab()
             }
             // If there ARE carryover tabs, keep them and don't reset nextTabSequence
-            
-            saveState()
+
+            flushSave()
         }
-    
+
     @discardableResult
         func settleShift(closingCash: Decimal?) -> Bool {
             guard var s = currentShift else { return false }

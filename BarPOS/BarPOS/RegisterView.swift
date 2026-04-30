@@ -25,6 +25,8 @@ struct RegisterView: View {
     // Per-shift low stock warning tracking
     @State private var warnedLowStockIDs: Set<UUID> = []
 
+    @State private var cachedVisibleProducts: [Product] = []
+
     // Product button scale animation state
     @State private var tappedProductID: UUID? = nil
 
@@ -586,12 +588,17 @@ struct RegisterView: View {
                 selectedProduct = nil
             }
         }
+        .onAppear { refreshVisibleProducts() }
+        .onChange(of: selectedCategory) { _, _ in refreshVisibleProducts() }
+        .onChange(of: vm.products) { _, _ in refreshVisibleProducts() }
+        .onChange(of: vm.currentShift?.openedBy?.id) { _, _ in refreshVisibleProducts() }
     }
     
-    // Products shown based on selectedCategory (uses per-bartender order)
-    private var visibleProducts: [Product] {
+    private var visibleProducts: [Product] { cachedVisibleProducts }
+
+    private func refreshVisibleProducts() {
         let regularProducts = vm.sortedProductsForCurrentBartender(category: selectedCategory)
-        let customCocktails = vm.currentBartenderCocktails().map { cocktail in
+        let cocktails = vm.currentBartenderCocktails().map { cocktail in
             Product(
                 id: cocktail.id,
                 name: cocktail.name + " ⭐",
@@ -599,8 +606,7 @@ struct RegisterView: View {
                 price: cocktail.basePrice
             )
         }
-        let allProducts = customCocktails + regularProducts
-        return allProducts
+        cachedVisibleProducts = cocktails + regularProducts
     }
     
     // Compact segmented picker for categories (nil = All)

@@ -6,7 +6,6 @@ struct RegisterView: View {
 
     // UI State
     @State private var cashGivenString: String = ""
-    @FocusState private var cashGivenFocused: Bool
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
     @State private var payMethod: PaymentMethod = .cash
@@ -148,7 +147,6 @@ struct RegisterView: View {
         // sheet always sees the correct tab regardless of SwiftUI render timing.
         .onChange(of: showingCloseTabSheet) { _, isShowing in
             if !isShowing {
-                cashGivenFocused = false
                 tabNameFocused = false
             }
         }
@@ -164,7 +162,6 @@ struct RegisterView: View {
                         if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
                             if payMethod == .cash {
                                 cashGivenString = ""
-                                cashGivenFocused = false
                             }
                             let shouldPrint = printReceiptRequested || vm.printerSettings.autoPrintReceipts
                             let shouldOpenDrawer = payMethod == .cash && vm.printerSettings.autoOpenDrawer
@@ -282,7 +279,6 @@ struct RegisterView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        cashGivenFocused = false
                         tabNameFocused = false
                     }
             )
@@ -735,89 +731,60 @@ struct RegisterView: View {
     }
     
     // MARK: - Totals + Checkout (Quick Actions)
-        private var totalsCard: some View {
-            HStack(spacing: 8) {
-                // Left side: Total + Cash entry
-                VStack(spacing: 4) {
+    private var totalsCard: some View {
+        VStack(spacing: 8) {
+            if payMethod == .cash {
+                CashNumpadView(
+                    cashGivenString: $cashGivenString,
+                    total: vm.totalActive
+                )
+            } else {
+                // Card/Other — just show total
+                HStack {
+                    Text("Total")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
                     Text(vm.totalActive.currencyString())
                         .font(.system(size: 22, weight: .bold))
-                    
-                    if payMethod == .cash {
-                        TextField("Cash", text: $cashGivenString)
-                            .keyboardType(.decimalPad)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .frame(height: 36)
-                            .focused($cashGivenFocused)
-                            .toolbar {
-                                ToolbarItemGroup(placement: .keyboard) {
-                                    Spacer()
-                                    Button("Done") { cashGivenFocused = false }
-                                }
-                            }
-                        
-                        if let tendered = Decimal(string: cashGivenString), !cashGivenString.isEmpty {
-                            let diff = tendered - vm.totalActive
-                            if diff >= 0 {
-                                Text("Change: \(diff.currencyString())")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-                            } else {
-                                Text("Still owed: \((-diff).currencyString())")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                    }
-                    
-                    HStack(spacing: 4) {
-                        paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
-                        paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
-                        paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
-                    }
-                    .frame(height: 36)
                 }
-                .frame(maxWidth: .infinity)
-                
-                // Right side: Close Tab button
-                Button {
-                    showingCloseTabSheet = true
-                } label: {
-                    Text("Close Tab")
-                        .font(.body)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled({
-                    if vm.activeLines.isEmpty { return true }
-                    if payMethod == .cash {
-                        // Allow closing if total is $0 or negative (chip redemptions)
-                        if vm.totalActive <= 0 { return false }
-                        let tendered = Decimal(string: cashGivenString) ?? 0
-                        return tendered < vm.totalActive
-                    }
-                    return false
-                }())
+                .padding(10)
+                .background(Color(.secondarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .frame(height: 120)
-            .padding(8)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .onAppear {
+
+            // Payment method selector
+            HStack(spacing: 4) {
+                paymentButton(method: .cash, icon: "dollarsign.circle.fill", label: "Cash")
+                paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
+                paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
+            }
+            .frame(height: 36)
+
+            // Close Tab button
+            Button {
+                showingCloseTabSheet = true
+            } label: {
+                Text("Close Tab")
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled({
+                if vm.activeLines.isEmpty { return true }
                 if payMethod == .cash {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        cashGivenFocused = true
-                    }
+                    if vm.totalActive <= 0 { return false }
+                    let tendered = Decimal(string: cashGivenString) ?? 0
+                    return tendered < vm.totalActive
                 }
-            }
-            .onChange(of: payMethod) { _, newMethod in
-                guard newMethod == .cash else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    cashGivenFocused = true
-                }
-            }
+                return false
+            }())
         }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
         Button {

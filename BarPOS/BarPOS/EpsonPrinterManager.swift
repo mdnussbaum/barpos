@@ -18,8 +18,17 @@ class EpsonPrinterManager: ObservableObject {
     private let knownIP = "192.168.1.76"
 
     init() {
-        printer = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue,
-                               lang: EPOS2_MODEL_ANK.rawValue)
+        print("🖨️ EpsonPrinterManager init started")
+        let p = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue, lang: EPOS2_MODEL_MULTILINGUAL.rawValue)
+        print("🖨️ Epos2Printer created: \(p != nil ? "SUCCESS" : "NIL - SDK MISSING")")
+        guard let p = p else {
+            print("❌ Fatal: Epos2Printer returned nil — SDK not loaded")
+            return
+        }
+        self.printer = p
+        print("🖨️ Printer assigned successfully")
+        Task { await discoverAndConnect() }
+        print("🖨️ Discovery task started")
     }
 
     deinit {

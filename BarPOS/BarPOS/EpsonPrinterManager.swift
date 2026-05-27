@@ -2,8 +2,8 @@ import Foundation
 import UIKit
 import Combine
 
-#if canImport(ePOS2)
-import ePOS2
+#if EPSON_SDK_AVAILABLE
+import libepos2
 
 @MainActor
 class EpsonPrinterManager: ObservableObject {

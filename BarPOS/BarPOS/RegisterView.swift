@@ -481,65 +481,6 @@ struct RegisterView: View {
         ProductCategory.allCases.filter { $0 != .chips }
     }
 
-    private var printerTestButtons: some View {
-        HStack(spacing: 8) {
-            Button {
-                Task {
-                    let testLines: [ReceiptLine] = [
-                        ReceiptLine(quantity: 2, itemName: "Miller Lite", price: "$4.00"),
-                        ReceiptLine(quantity: 1, itemName: "Well Whiskey", price: "$6.00")
-                    ]
-                    let testContent = EpsonReceiptContent(
-                        header: "TEST RECEIPT",
-                        lines: testLines,
-                        subtotal: "$14.00",
-                        tax: "$0.00",
-                        total: "$14.00",
-                        footer: "Thank You!",
-                        bartenderName: nil,
-                        tabName: "Test Tab",
-                        paymentMethod: "Cash",
-                        cashTendered: "$20.00",
-                        changeDue: "$6.00"
-                    )
-                    do {
-                        try await printerManager.printReceipt(testContent)
-                    } catch {
-                        print("Print error: \(error)")
-                        showPrinterWarning()
-                    }
-                }
-            } label: {
-                Label("Test Printer", systemImage: "printer.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.green.opacity(0.1))
-                    .foregroundStyle(.green)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                Task {
-                    do {
-                        try await printerManager.openDrawer()
-                    } catch {
-                        print("Drawer error: \(error)")
-                        showPrinterWarning()
-                    }
-                }
-            } label: {
-                Label("Test Drawer", systemImage: "tray.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.orange.opacity(0.1))
-                    .foregroundStyle(.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 4)
-    }
 
     // MARK: - Right column (category + products OR chips)
     private var rightColumn: some View {
@@ -589,10 +530,6 @@ struct RegisterView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 4)
-            }
-
-            if vm.currentShift != nil {
-                printerTestButtons
             }
 
             if selectedCategory == .chips {

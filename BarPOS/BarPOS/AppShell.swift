@@ -84,7 +84,6 @@ struct AppShell: View {
             .navigationTitle(section == .admin ? section.title : "")
         }
         .onAppear {
-            vm.loadState()
             vm.ensureAtLeastOneTab()
         }
         .onChange(of: vm.isAdminUnlocked) { _, isUnlocked in

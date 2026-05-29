@@ -80,11 +80,12 @@ struct CashNumpadView: View {
                             } label: {
                                 Text(key)
                                     .font(.system(size: 20, weight: .medium))
-                                    .frame(maxWidth: .infinity, minHeight: 48)
+                                    .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color(.tertiarySystemFill))
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
                         }
                     }
                 }

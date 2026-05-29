@@ -11,6 +11,8 @@ class EpsonPrinterManager: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var printerName: String = "Epson TM-M30II"
     @Published var printerIP: String = ""
+    @Published var lastStatusMessage: String = "Printer not checked"
+    @Published var lastErrorMessage: String? = nil
 
     private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
@@ -19,16 +21,16 @@ class EpsonPrinterManager: ObservableObject {
 
     init() {
         print("🖨️ EpsonPrinterManager init started")
-        let p = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue, lang: EPOS2_MODEL_MULTILINGUAL.rawValue)
+        let p = Epos2Printer(printerSeries: EPOS2_TM_M30II.rawValue, lang: EPOS2_MODEL_ANK.rawValue)
         print("🖨️ Epos2Printer created: \(p != nil ? "SUCCESS" : "NIL - SDK MISSING")")
         guard let p = p else {
-            print("❌ Fatal: Epos2Printer returned nil — SDK not loaded")
+            lastStatusMessage = "Epson SDK unavailable"
+            lastErrorMessage = "Printer support is installed incorrectly. POS can still run, but receipts will not print."
+            print("❌ Epos2Printer returned nil — SDK not loaded")
             return
         }
         self.printer = p
         print("🖨️ Printer assigned successfully")
-        Task { await discoverAndConnect() }
-        print("🖨️ Discovery task started")
     }
 
     deinit {
@@ -68,32 +70,48 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func discoverAndConnect() async {
+        lastStatusMessage = "Checking printer..."
+        lastErrorMessage = nil
         print("Connecting to known printer IP...")
         await connectPrinter(target: "TCP:\(knownIP)")
         if isConnected { return }
 
         print("Starting Epson network printer discovery...")
-        let found = await discoverPrinters(timeout: 8)
+        let found = await discoverPrinters(timeout: 5)
         if let first = found.first {
             let target = first.target.contains(".") ? first.target : "TCP:\(knownIP)"
             print("Found: \(first.name) at \(target)")
             await connectPrinter(target: target)
         } else {
+            isConnected = false
+            lastStatusMessage = "Printer unavailable"
+            lastErrorMessage = "No Epson printer was found. POS can still run, but receipts will not print until the printer is connected."
             print("No Epson printers found on network")
         }
     }
 
     func connectPrinter(target: String) async {
-        guard let printer else { return }
+        guard let printer else {
+            isConnected = false
+            lastStatusMessage = "Printer unavailable"
+            lastErrorMessage = "Epson printer support is unavailable. POS can still run, but receipts will not print."
+            return
+        }
+        lastStatusMessage = "Connecting to printer..."
+        lastErrorMessage = nil
         self.target = target
-        let result = printer.connect(target, timeout: Int(EPOS2_PARAM_DEFAULT))
+        let result = printer.connect(target, timeout: 3000)
         if result == EPOS2_SUCCESS.rawValue {
             isConnected = true
+            lastStatusMessage = "Printer connected"
+            lastErrorMessage = nil
             printerIP = target.replacingOccurrences(of: "TCP:", with: "")
             printerName = "Epson TM-M30II (\(printerIP))"
             print("Connected to Epson printer at \(target)")
         } else {
             isConnected = false
+            lastStatusMessage = "Printer unavailable"
+            lastErrorMessage = "Could not connect to the Epson printer. POS can still run, but receipts will not print. Epson code: \(result)."
             print("Epson connect failed - code: \(result)")
         }
     }
@@ -105,6 +123,8 @@ class EpsonPrinterManager: ObservableObject {
     func disconnectPrinter() {
         printer?.disconnect()
         isConnected = false
+        lastStatusMessage = "Printer disconnected"
+        lastErrorMessage = nil
         print("Epson printer disconnected")
     }
 
@@ -129,11 +149,11 @@ class EpsonPrinterManager: ObservableObject {
         }
 
         printer.addTextAlign(EPOS2_ALIGN_CENTER.rawValue)
-        printer.addImage(scaledImage, x: 0, y: 0,
+        printer.add(scaledImage, x: 0, y: 0,
                          width: Int(targetWidth),
                          height: Int(targetSize.height),
                          color: EPOS2_COLOR_1.rawValue,
-                         mode: EPOS2_MONO.rawValue,
+                         mode: EPOS2_MODE_MONO.rawValue,
                          halftone: EPOS2_HALFTONE_THRESHOLD.rawValue,
                          brightness: 1.0,
                          compress: EPOS2_COMPRESS_AUTO.rawValue)
@@ -147,9 +167,18 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func printReceipt(_ content: EpsonReceiptContent) async throws {
-        guard let printer else { throw PrinterError.notConnected }
+        guard let printer else {
+            isConnected = false
+            lastStatusMessage = "Receipt print failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print. Epson printer support is unavailable. POS can still run."
+            throw PrinterError.notConnected
+        }
         await ensureConnected()
-        guard isConnected else { throw PrinterError.notConnected }
+        guard isConnected else {
+            lastStatusMessage = "Receipt print failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print. POS can still run."
+            throw PrinterError.notConnected
+        }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
@@ -214,6 +243,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
+            isConnected = false
+            lastStatusMessage = "Receipt print failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print. POS can still run. Epson code: \(sendResult)."
             print("Print sendData failed: \(sendResult)")
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
@@ -222,9 +254,18 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func openDrawer() async throws {
-        guard let printer else { throw PrinterError.notConnected }
+        guard let printer else {
+            isConnected = false
+            lastStatusMessage = "Drawer failed"
+            lastErrorMessage = "The cash drawer did not open. POS can still run."
+            throw PrinterError.notConnected
+        }
         await ensureConnected()
-        guard isConnected else { throw PrinterError.notConnected }
+        guard isConnected else {
+            lastStatusMessage = "Drawer failed"
+            lastErrorMessage = "The cash drawer did not open. POS can still run."
+            throw PrinterError.notConnected
+        }
 
         printer.clearCommandBuffer()
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
@@ -233,6 +274,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
+            isConnected = false
+            lastStatusMessage = "Drawer failed"
+            lastErrorMessage = "The cash drawer did not open. POS can still run. Epson code: \(sendResult)."
             print("Drawer kick failed: \(sendResult)")
             throw PrinterError.drawerFailed(NSError(domain: "EpsonDrawer", code: Int(sendResult)))
         }
@@ -241,9 +285,18 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func printReceiptAndOpenDrawer(_ content: EpsonReceiptContent) async throws {
-        guard let printer else { throw PrinterError.notConnected }
+        guard let printer else {
+            isConnected = false
+            lastStatusMessage = "Receipt and drawer failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run."
+            throw PrinterError.notConnected
+        }
         await ensureConnected()
-        guard isConnected else { throw PrinterError.notConnected }
+        guard isConnected else {
+            lastStatusMessage = "Receipt and drawer failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run."
+            throw PrinterError.notConnected
+        }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
@@ -309,6 +362,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
+            isConnected = false
+            lastStatusMessage = "Receipt and drawer failed"
+            lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run. Epson code: \(sendResult)."
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
 
@@ -316,9 +372,18 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func printShiftReport(_ content: ReceiptContent) async throws {
-        guard let printer else { throw PrinterError.notConnected }
+        guard let printer else {
+            isConnected = false
+            lastStatusMessage = "Shift report failed"
+            lastErrorMessage = "The shift report did not print. POS can still run."
+            throw PrinterError.notConnected
+        }
         await ensureConnected()
-        guard isConnected else { throw PrinterError.notConnected }
+        guard isConnected else {
+            lastStatusMessage = "Shift report failed"
+            lastErrorMessage = "The shift report did not print. POS can still run."
+            throw PrinterError.notConnected
+        }
 
         printer.clearCommandBuffer()
         printer.addTextLang(EPOS2_LANG_EN.rawValue)
@@ -334,6 +399,9 @@ class EpsonPrinterManager: ObservableObject {
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
+            isConnected = false
+            lastStatusMessage = "Shift report failed"
+            lastErrorMessage = "The shift report did not print. POS can still run. Epson code: \(sendResult)."
             print("Print sendData failed: \(sendResult)")
             throw PrinterError.printFailed(NSError(domain: "EpsonPrint", code: Int(sendResult)))
         }
@@ -412,6 +480,8 @@ class EpsonPrinterManager: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var printerName: String = "Epson SDK Missing"
     @Published var printerIP: String = ""
+    @Published var lastStatusMessage: String = "Epson SDK unavailable"
+    @Published var lastErrorMessage: String? = "Printer support is unavailable. POS can still run, but receipts will not print."
 
     private let unavailableError = PrinterError.sdkUnavailable
 
@@ -422,40 +492,56 @@ class EpsonPrinterManager: ObservableObject {
 
     func discoverAndConnect() async {
         isConnected = false
+        lastStatusMessage = "Epson SDK unavailable"
+        lastErrorMessage = "Printer support is unavailable. POS can still run, but receipts will not print."
     }
 
     func connectPrinter(target: String) async {
         _ = target
         isConnected = false
+        lastStatusMessage = "Epson SDK unavailable"
+        lastErrorMessage = "Printer support is unavailable. POS can still run, but receipts will not print."
     }
 
     func connectManual(ip: String) async {
         _ = ip
         isConnected = false
+        lastStatusMessage = "Epson SDK unavailable"
+        lastErrorMessage = "Printer support is unavailable. POS can still run, but receipts will not print."
     }
 
     func disconnectPrinter() {
         isConnected = false
+        lastStatusMessage = "Printer disconnected"
+        lastErrorMessage = nil
     }
 
     func ensureConnected() async {}
 
     func printReceipt(_ content: EpsonReceiptContent) async throws {
         _ = content
+        lastStatusMessage = "Receipt print failed"
+        lastErrorMessage = "The sale was saved, but the receipt did not print. Printer support is unavailable. POS can still run."
         throw unavailableError
     }
 
     func openDrawer() async throws {
+        lastStatusMessage = "Drawer failed"
+        lastErrorMessage = "The cash drawer did not open. POS can still run."
         throw unavailableError
     }
 
     func printReceiptAndOpenDrawer(_ content: EpsonReceiptContent) async throws {
         _ = content
+        lastStatusMessage = "Receipt and drawer failed"
+        lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run."
         throw unavailableError
     }
 
     func printShiftReport(_ content: ReceiptContent) async throws {
         _ = content
+        lastStatusMessage = "Shift report failed"
+        lastErrorMessage = "The shift report did not print. POS can still run."
         throw unavailableError
     }
 
@@ -477,6 +563,21 @@ enum PrinterError: Error {
     case printFailed(Error)
     case drawerFailed(Error)
     case sdkUnavailable
+}
+
+extension PrinterError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .notConnected:
+            return "Printer is not connected."
+        case .printFailed(let error):
+            return "Print failed: \(error.localizedDescription)"
+        case .drawerFailed(let error):
+            return "Cash drawer failed: \(error.localizedDescription)"
+        case .sdkUnavailable:
+            return "Epson SDK is unavailable."
+        }
+    }
 }
 
 struct EpsonReceiptContent {

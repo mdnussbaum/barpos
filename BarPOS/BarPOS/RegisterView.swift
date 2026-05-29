@@ -9,6 +9,7 @@ struct RegisterView: View {
     @State private var showingBeginSheet = false
     @State private var showingEndSheet = false
     @State private var payMethod: PaymentMethod = .cash
+    @State private var quickActionPage: QuickActionPage = .cashTender
     @State private var showingReorderSheet = false
     @State private var selectedCategory: ProductCategory? = nil
     @State private var categoryToReorder: ProductCategory? = nil
@@ -44,6 +45,7 @@ struct RegisterView: View {
 
     // Printer state
     @ObservedObject private var printer = EpsonPrinterManager.shared
+    @State private var printerWarningMessage: String?
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
     
@@ -99,6 +101,9 @@ struct RegisterView: View {
         .onChange(of: vm.currentShift?.id) { _, _ in
             // Reset low stock warnings when a new shift begins
             warnedLowStockIDs = []
+        }
+        .onChange(of: payMethod) { _, method in
+            quickActionPage = method == .cash ? .cashTender : .chips
         }
         
         // MARK: Sheets
@@ -170,7 +175,12 @@ struct RegisterView: View {
                             } else if shouldPrint {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
                             } else if shouldOpenDrawer {
-                                Task { await printer.openCashDrawer() }
+                                Task {
+                                    let drawerOpened = await printer.openCashDrawer()
+                                    if !drawerOpened {
+                                        showPrinterWarning()
+                                    }
+                                }
                             }
                             showingCloseTabSheet = false
                         }
@@ -212,9 +222,23 @@ struct RegisterView: View {
         } message: {
             Text("Receipt saved to Files app in Receipts folder")
         }
+        .alert("Printer Warning", isPresented: Binding(
+            get: { printerWarningMessage != nil },
+            set: { if !$0 { printerWarningMessage = nil } }
+        )) {
+            Button("OK") {
+                printerWarningMessage = nil
+            }
+        } message: {
+            Text(printerWarningMessage ?? "The POS is still operational, but the printer action did not complete.")
+        }
     }
     
     // MARK: - Print Helpers
+
+    private func showPrinterWarning() {
+        printerWarningMessage = printer.lastErrorMessage ?? "The sale was saved, but the printer action did not complete."
+    }
 
     private func printReceiptAndOpenDrawer(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
@@ -223,6 +247,7 @@ struct RegisterView: View {
             print("✅ Receipt printed + drawer opened")
         } catch {
             print("❌ Print+drawer error: \(error)")
+            showPrinterWarning()
         }
     }
 
@@ -237,6 +262,7 @@ struct RegisterView: View {
             print("✅ Receipt printed successfully")
         } catch {
             print("❌ Print receipt error: \(error)")
+            showPrinterWarning()
         }
     }
     
@@ -438,10 +464,10 @@ struct RegisterView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
-                // Totals + Chips - anchored at bottom as one unit
-                VStack(spacing: 4) {
+                // Checkout + swipeable quick actions anchored at the bottom.
+                VStack(spacing: 6) {
                     totalsCard
-                    chipActionsSection
+                    quickActionPager
                 }
                 .padding(.horizontal, 6)
                 .padding(.bottom, 12)
@@ -480,6 +506,7 @@ struct RegisterView: View {
                         try await printer.printReceipt(testContent)
                     } catch {
                         print("Print error: \(error)")
+                        showPrinterWarning()
                     }
                 }
             } label: {
@@ -498,6 +525,7 @@ struct RegisterView: View {
                         try await printer.openDrawer()
                     } catch {
                         print("Drawer error: \(error)")
+                        showPrinterWarning()
                     }
                 }
             } label: {
@@ -733,25 +761,7 @@ struct RegisterView: View {
     // MARK: - Totals + Checkout (Quick Actions)
     private var totalsCard: some View {
         VStack(spacing: 8) {
-            if payMethod == .cash {
-                CashNumpadView(
-                    cashGivenString: $cashGivenString,
-                    total: vm.totalActive
-                )
-            } else {
-                // Card/Other — just show total
-                HStack {
-                    Text("Total")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(vm.totalActive.currencyString())
-                        .font(.system(size: 22, weight: .bold))
-                }
-                .padding(10)
-                .background(Color(.secondarySystemFill))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
+            checkoutSummary
 
             // Payment method selector
             HStack(spacing: 4) {
@@ -759,7 +769,7 @@ struct RegisterView: View {
                 paymentButton(method: .card, icon: "creditcard.fill", label: "Card")
                 paymentButton(method: .other, icon: "ellipsis.circle.fill", label: "Other")
             }
-            .frame(height: 36)
+            .frame(height: 40)
 
             // Close Tab button
             Button {
@@ -785,6 +795,77 @@ struct RegisterView: View {
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
+
+    private var checkoutSummary: some View {
+        let tendered = Decimal(string: cashGivenString) ?? 0
+        let change = max(0, tendered - vm.totalActive)
+
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(vm.totalActive.currencyString())
+                    .font(.system(size: 22, weight: .bold))
+            }
+
+            Spacer()
+
+            if payMethod == .cash {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(tendered >= vm.totalActive && vm.totalActive > 0 ? "Change" : "Tendered")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(tendered >= vm.totalActive && vm.totalActive > 0 ? change.currencyString() : tendered.currencyString())
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(tendered >= vm.totalActive && vm.totalActive > 0 ? .green : .primary)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color(.secondarySystemFill))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var quickActionPager: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                quickActionPageButton(.cashTender, icon: "keyboard", label: "Cash")
+                quickActionPageButton(.chips, icon: "circle.grid.3x3.fill", label: "Chips")
+            }
+            .frame(height: 34)
+
+            TabView(selection: $quickActionPage) {
+                CashNumpadView(
+                    cashGivenString: $cashGivenString,
+                    total: vm.totalActive
+                )
+                .padding(.horizontal, 2)
+                .tag(QuickActionPage.cashTender)
+
+                chipActionsSection
+                    .padding(.horizontal, 2)
+                    .tag(QuickActionPage.chips)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 300)
+        }
+    }
+
+    private func quickActionPageButton(_ page: QuickActionPage, icon: String, label: String) -> some View {
+        Button {
+            quickActionPage = page
+        } label: {
+            Label(label, systemImage: icon)
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(quickActionPage == page ? Color.accentColor.opacity(0.16) : Color(.tertiarySystemFill))
+                .foregroundStyle(quickActionPage == page ? Color.accentColor : Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 8))
+    }
     
     private func paymentButton(method: PaymentMethod, icon: String, label: String) -> some View {
         Button {
@@ -796,13 +877,14 @@ struct RegisterView: View {
                 Text(label)
                     .font(.caption2)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.vertical, 4)
             .background(payMethod == method ? Color.accentColor : Color(.tertiarySystemFill))
             .foregroundStyle(payMethod == method ? .white : .primary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 8))
     }
     
     // MARK: - Chip Actions Section
@@ -851,16 +933,22 @@ struct RegisterView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .padding(.vertical, 8)
             .background(Color(.tertiarySystemFill))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 8))
     }
     
     private enum ChipAction {
         case sell, redeem
+    }
+
+    private enum QuickActionPage: Hashable {
+        case cashTender
+        case chips
     }
     
     // MARK: - Shift chip (smart)

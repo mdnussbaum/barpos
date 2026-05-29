@@ -10,6 +10,7 @@ struct PrinterSettingsView: View {
     @State private var autoPrint: Bool = true
     @State private var autoDrawer: Bool = true
     @State private var showingTestResult = false
+    @State private var testResultTitle = "Test Print"
     @State private var testResultMessage = ""
     @State private var showingPINPrompt = false
 
@@ -17,9 +18,23 @@ struct PrinterSettingsView: View {
         Form {
             // Connection Status
             Section("Printer Status") {
-                HStack {
-                    Text(printer.printerName)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(printer.printerName)
+
+                        Text(printer.lastStatusMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let lastErrorMessage = printer.lastErrorMessage {
+                            Text(lastErrorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+
                     Spacer()
+
                     if printer.isConnected {
                         HStack(spacing: 4) {
                             Circle().fill(.green).frame(width: 8, height: 8)
@@ -28,7 +43,7 @@ struct PrinterSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else {
-                        Text("Disconnected")
+                        Text("Unavailable")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -44,7 +59,10 @@ struct PrinterSettingsView: View {
                 Button("Test Print") {
                     Task {
                         let success = await printer.testPrint()
-                        testResultMessage = success ? "Test print successful! Check Files app for PDF." : "Test print failed"
+                        testResultTitle = "Test Print"
+                        testResultMessage = success
+                            ? "Test print successful."
+                            : printer.lastErrorMessage ?? "Test print failed. POS can still run, but receipts will not print until the printer is connected."
                         showingTestResult = true
                     }
                 }
@@ -52,7 +70,12 @@ struct PrinterSettingsView: View {
                 Button("Open Cash Drawer") {
                     if vm.isAdminUnlocked {
                         Task {
-                            await printer.openCashDrawer()
+                            let success = await printer.openCashDrawer()
+                            if !success {
+                                testResultTitle = "Cash Drawer"
+                                testResultMessage = printer.lastErrorMessage ?? "Cash drawer failed. POS can still run."
+                                showingTestResult = true
+                            }
                         }
                     } else {
                         showingPINPrompt = true
@@ -93,7 +116,7 @@ struct PrinterSettingsView: View {
         }
         .navigationTitle("Printer")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Test Print", isPresented: $showingTestResult) {
+        .alert(testResultTitle, isPresented: $showingTestResult) {
             Button("OK") { }
         } message: {
             Text(testResultMessage)
@@ -102,7 +125,12 @@ struct PrinterSettingsView: View {
             AdminPINPrompt(onUnlock: {
                 showingPINPrompt = false
                 Task {
-                    await printer.openCashDrawer()
+                    let success = await printer.openCashDrawer()
+                    if !success {
+                        testResultTitle = "Cash Drawer"
+                        testResultMessage = printer.lastErrorMessage ?? "Cash drawer failed. POS can still run."
+                        showingTestResult = true
+                    }
                 }
             })
         }

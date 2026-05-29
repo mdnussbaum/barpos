@@ -18,6 +18,9 @@ struct BarPOSApp: App {
                 .preferredColorScheme(resolvedColorScheme)
                 .onAppear {
                     DemoSeeder.seed(into: vm)
+                    Task {
+                        await EpsonPrinterManager.shared.discoverAndConnect()
+                    }
                 }
         }
     }

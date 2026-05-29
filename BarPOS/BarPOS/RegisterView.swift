@@ -44,7 +44,7 @@ struct RegisterView: View {
     }
 
     // Printer state
-    @ObservedObject private var printer = EpsonPrinterManager.shared
+    @ObservedObject private var printerManager = EpsonPrinterManager.shared
     @State private var printerWarningMessage: String?
     @State private var showingSavedReceiptURL: URL?
     @State private var showingShareSheet = false
@@ -161,7 +161,7 @@ struct RegisterView: View {
                     tab: tab,
                     payMethod: payMethod,
                     cashGiven: Decimal(string: cashGivenString) ?? 0,
-                    printer: printer,
+                    printer: printerManager,
                     onClose: { printReceiptRequested in
                         let cash = payMethod == .cash ? (Decimal(string: cashGivenString) ?? 0) : 0
                         if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
@@ -176,7 +176,7 @@ struct RegisterView: View {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
                             } else if shouldOpenDrawer {
                                 Task {
-                                    let drawerOpened = await printer.openCashDrawer()
+                                    let drawerOpened = await printerManager.openCashDrawer()
                                     if !drawerOpened {
                                         showPrinterWarning()
                                     }
@@ -237,13 +237,13 @@ struct RegisterView: View {
     // MARK: - Print Helpers
 
     private func showPrinterWarning() {
-        printerWarningMessage = printer.lastErrorMessage ?? "The sale was saved, but the printer action did not complete."
+        printerWarningMessage = printerManager.lastErrorMessage ?? "The sale was saved, but the printer action did not complete."
     }
 
     private func printReceiptAndOpenDrawer(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
         do {
-            try await printer.printReceiptAndOpenDrawer(content)
+            try await printerManager.printReceiptAndOpenDrawer(content)
             print("✅ Receipt printed + drawer opened")
         } catch {
             print("❌ Print+drawer error: \(error)")
@@ -253,12 +253,12 @@ struct RegisterView: View {
 
     private func printReceipt(_ result: CloseResult, settings: ReceiptSettings) async {
         let content = ReceiptFormatter.formatReceiptContent(result, settings: settings)
-        if !printer.isConnected {
+        if !printerManager.isConnected {
             print("⚠️ Printer not connected — attempting discovery before print...")
-            await printer.discoverPrinter()
+            await printerManager.discoverPrinter()
         }
         do {
-            try await printer.printReceipt(content)
+            try await printerManager.printReceipt(content)
             print("✅ Receipt printed successfully")
         } catch {
             print("❌ Print receipt error: \(error)")
@@ -503,7 +503,7 @@ struct RegisterView: View {
                         changeDue: "$6.00"
                     )
                     do {
-                        try await printer.printReceipt(testContent)
+                        try await printerManager.printReceipt(testContent)
                     } catch {
                         print("Print error: \(error)")
                         showPrinterWarning()
@@ -522,7 +522,7 @@ struct RegisterView: View {
             Button {
                 Task {
                     do {
-                        try await printer.openDrawer()
+                        try await printerManager.openDrawer()
                     } catch {
                         print("Drawer error: \(error)")
                         showPrinterWarning()
@@ -971,7 +971,7 @@ struct RegisterView: View {
                         Label("End Shift…", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 } label: {
-                    Text("On Shift – \(bartender.name) • \(elapsedString(since: shift.startedAt)) • \(vm.currentShiftGross.currencyString()) • \(currentTime)")
+                    Text("On Shift – \(bartender.name) • \(elapsedString(since: shift.startedAt)) • \(vm.currentShiftGross.currencyString()) • \(currentTime)\(printerStatusDot)")
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -1011,6 +1011,11 @@ struct RegisterView: View {
         let allNames = vm.allClosedTabs.map { $0.tabName }
         let unique = Array(Set(allNames)).sorted()
         return unique.filter { $0.localizedCaseInsensitiveContains(input) && $0 != input }
+    }
+
+    private var printerStatusDot: String {
+        if printerManager.lastStatusMessage == "Checking printer..." { return " ⏳" }
+        return printerManager.isConnected ? " 🟢" : " 🔴"
     }
 
     private func elapsedString(since start: Date) -> String {

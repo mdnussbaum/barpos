@@ -241,7 +241,7 @@ final class InventoryVM: ObservableObject {
             }
             // Regular product
             else {
-                deductInventory(for: line.product, quantity: line.qty, variant: line.selectedVariant)
+                deductInventory(for: line.product, quantity: Decimal(line.qty), variant: line.selectedVariant)
             }
         }
 
@@ -258,7 +258,7 @@ final class InventoryVM: ObservableObject {
     }
 
     /// Deduct inventory when product is sold
-    private func deductInventory(for product: Product, quantity: Int, variant: SizeVariant? = nil) {
+    private func deductInventory(for product: Product, quantity: Decimal, variant: SizeVariant? = nil) {
         guard let index = products.firstIndex(where: { $0.id == product.id }) else {
             print("⚠️ Product not found for inventory deduction: \(product.name)")
             return
@@ -280,7 +280,7 @@ final class InventoryVM: ObservableObject {
             servingSize = products[index].servingSize ?? 1.0
         }
         
-        let servingsToDeduct = servingSize * Decimal(quantity)
+        let servingsToDeduct = servingSize * quantity
         
         // Convert serving units to stock units if needed
         let amountToDeduct: Decimal
@@ -788,14 +788,14 @@ final class InventoryVM: ObservableObject {
         for ingredient in cocktail.ingredients {
             let product = ingredient.isVariable ? (selectedIngredients[ingredient.id] ?? ingredient.defaultProduct) : ingredient.defaultProduct
             let totalServings = ingredient.servings * Decimal(quantity)
-            deductInventory(for: product, quantity: Int((totalServings as NSDecimalNumber).doubleValue))
+            deductInventory(for: product, quantity: totalServings)
         }
     }
 
     // Deduct inventory for custom cocktail ingredients
     private func deductCocktailInventory(for cocktail: CustomCocktail, quantity: Int) {
         for ingredient in cocktail.ingredients {
-            deductInventory(for: ingredient.defaultProduct, quantity: Int((ingredient.servings * Decimal(quantity) as NSDecimalNumber).doubleValue))
+            deductInventory(for: ingredient.defaultProduct, quantity: ingredient.servings * Decimal(quantity))
         }
     }
 

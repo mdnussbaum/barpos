@@ -27,8 +27,7 @@ struct BartenderPINSheet: View {
     var body: some View {
         NavigationStack {
             HStack(spacing: 0) {
-
-                // ── LEFT: Bartender name buttons ──────────────────────────
+                // ── LEFT: Bartender name buttons ──────────────────────
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(activeBartenders) { bartender in
@@ -44,8 +43,7 @@ struct BartenderPINSheet: View {
                                     .padding(.vertical, 18)
                                     .background(
                                         selectedBartender?.id == bartender.id
-                                            ? Color.blue
-                                            : Color(.secondarySystemBackground)
+                                            ? Color.blue : Color(.secondarySystemBackground)
                                     )
                                     .foregroundStyle(
                                         selectedBartender?.id == bartender.id
@@ -55,7 +53,6 @@ struct BartenderPINSheet: View {
                             }
                             .buttonStyle(.plain)
                         }
-
                         if activeBartenders.isEmpty {
                             Text("No bartenders configured.\nSee Admin → Staff.")
                                 .font(.caption)
@@ -71,17 +68,12 @@ struct BartenderPINSheet: View {
 
                 Divider()
 
-                // ── RIGHT: PIN display + numpad ───────────────────────────
+                // ── RIGHT: PIN display + numpad ───────────────────────
                 VStack(spacing: 20) {
-
                     Spacer()
-
-                    // Bartender name or prompt
                     Text(selectedBartender?.name ?? "Select a bartender")
                         .font(.headline)
                         .foregroundStyle(selectedBartender == nil ? .secondary : .primary)
-
-                    // PIN dots
                     HStack(spacing: 14) {
                         ForEach(0..<6, id: \.self) { i in
                             Circle()
@@ -94,21 +86,15 @@ struct BartenderPINSheet: View {
                         shake ? .easeInOut(duration: 0.07).repeatCount(4, autoreverses: true) : .default,
                         value: shake
                     )
-
-                    // Error message
                     Text(pinError)
                         .font(.caption)
                         .foregroundStyle(.red)
                         .frame(height: 16)
-
-                    // Numpad grid
                     VStack(spacing: 10) {
                         ForEach([[1,2,3],[4,5,6],[7,8,9]], id: \.self) { row in
                             HStack(spacing: 10) {
                                 ForEach(row, id: \.self) { digit in
-                                    NumpadButton(label: "\(digit)") {
-                                        appendDigit("\(digit)")
-                                    }
+                                    NumpadButton(label: "\(digit)") { appendDigit("\(digit)") }
                                 }
                             }
                         }
@@ -117,16 +103,11 @@ struct BartenderPINSheet: View {
                                 if !pin.isEmpty { pin.removeLast() }
                                 pinError = ""
                             }
-                            NumpadButton(label: "0") {
-                                appendDigit("0")
-                            }
-                            NumpadButton(label: "✓", isAction: true) {
-                                authenticateBartender()
-                            }
-                            .disabled(selectedBartender == nil || pin.isEmpty)
+                            NumpadButton(label: "0") { appendDigit("0") }
+                            NumpadButton(label: "✓", isAction: true) { authenticateBartender() }
+                                .disabled(selectedBartender == nil || pin.isEmpty)
                         }
                     }
-
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -165,9 +146,7 @@ struct BartenderPINSheet: View {
             pinError = "Incorrect PIN"
             pin = ""
             shake = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                shake = false
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { shake = false }
         }
     }
 }

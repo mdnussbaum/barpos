@@ -5,127 +5,237 @@ struct BeginShiftSheet: View {
     let carryoverTabs: [TabTicket]
     var onStart: (_ bartender: Bartender, _ openingCash: Decimal) -> Void
     var onCancel: () -> Void = {}
-    
+
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var authenticatedBartender: Bartender? = nil
-    @State private var showingPINSheet = false
+
+    @State private var selectedBartender: Bartender? = nil
+    @State private var pin: String = ""
+    @State private var pinError: String = ""
+    @State private var shake: Bool = false
+    @State private var authenticated: Bool = false
     @State private var openingCashString: String = ""
-    @FocusState private var openingCashFocused: Bool
-    
-    private var hasCarryoverTabs: Bool {
-        !carryoverTabs.isEmpty
+
+    private var activeBartenders: [Bartender] {
+        vm.activeBartenders
+            .filter { $0.pin != nil && $0.name.uppercased() != "TEST" }
+            .sorted { $0.name < $1.name }
     }
-    
-    private var carryoverTabCount: Int {
-        carryoverTabs.count
-    }
-    
+
     var body: some View {
         NavigationStack {
-            Form {
-                // Carryover warning
-                if hasCarryoverTabs {
-                    Section {
-                        HStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                                .font(.title2)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Carryover Tabs")
-                                    .font(.headline)
-                                Text("There are \(carryoverTabCount) open tab(s) from the previous shift.")
+            VStack(spacing: 0) {
+
+                // Carryover warning banner
+                if !carryoverTabs.isEmpty {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("\(carryoverTabs.count) open tab(s) carried over from previous shift")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange.opacity(0.1))
+                }
+
+                HStack(spacing: 0) {
+
+                    // ── LEFT: Bartender name buttons ──────────────────
+                    ScrollView {
+                        VStack(spacing: 10) {
+                            ForEach(activeBartenders) { bartender in
+                                Button {
+                                    if selectedBartender?.id != bartender.id {
+                                        selectedBartender = bartender
+                                        pin = ""
+                                        pinError = ""
+                                        authenticated = false
+                                        openingCashString = ""
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(bartender.name)
+                                            .font(.title3)
+                                            .fontWeight(.medium)
+                                        Spacer()
+                                        if authenticated && selectedBartender?.id == bartender.id {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.green)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 18)
+                                    .background(
+                                        selectedBartender?.id == bartender.id
+                                            ? (authenticated ? Color.green : Color.blue)
+                                            : Color(.secondarySystemBackground)
+                                    )
+                                    .foregroundStyle(
+                                        selectedBartender?.id == bartender.id
+                                            ? .white : .primary
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if activeBartenders.isEmpty {
+                                Text("No bartenders configured.\nSee Admin → Staff.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.top, 20)
                             }
                         }
-                        .padding(.vertical, 8)
+                        .padding(16)
                     }
-                }
-                
-                Section("Bartender") {
-                    if let bartender = authenticatedBartender {
-                        HStack {
-                            Text(bartender.name)
-                                .font(.body)
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Button("Change") {
-                                authenticatedBartender = nil
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGroupedBackground))
+
+                    Divider()
+
+                    // ── RIGHT: PIN + opening cash ─────────────────────
+                    VStack(spacing: 16) {
+
+                        Spacer()
+
+                        // Bartender name or prompt
+                        Text(selectedBartender?.name ?? "Select a bartender")
+                            .font(.headline)
+                            .foregroundStyle(selectedBartender == nil ? .secondary : .primary)
+
+                        if !authenticated {
+                            // PIN dots
+                            HStack(spacing: 14) {
+                                ForEach(0..<6, id: \.self) { i in
+                                    Circle()
+                                        .fill(i < pin.count ? Color.blue : Color(.systemFill))
+                                        .frame(width: 14, height: 14)
+                                }
                             }
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
+                            .offset(x: shake ? -8 : 0)
+                            .animation(
+                                shake ? .easeInOut(duration: 0.07).repeatCount(4, autoreverses: true) : .default,
+                                value: shake
+                            )
+
+                            Text(pinError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .frame(height: 16)
+
+                            // Numpad
+                            VStack(spacing: 10) {
+                                ForEach([[1,2,3],[4,5,6],[7,8,9]], id: \.self) { row in
+                                    HStack(spacing: 10) {
+                                        ForEach(row, id: \.self) { digit in
+                                            NumpadButton(label: "\(digit)") { appendDigit("\(digit)") }
+                                        }
+                                    }
+                                }
+                                HStack(spacing: 10) {
+                                    NumpadButton(label: "⌫", isDestructive: true) {
+                                        if !pin.isEmpty { pin.removeLast() }
+                                        pinError = ""
+                                    }
+                                    NumpadButton(label: "0") { appendDigit("0") }
+                                    NumpadButton(label: "✓", isAction: true) { authenticatePIN() }
+                                        .disabled(selectedBartender == nil || pin.isEmpty)
+                                }
+                            }
+
+                        } else {
+                            // Authenticated — show opening cash numpad
+                            Text("Opening Cash")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            Text(openingCashString.isEmpty ? "$0.00" : "$\(openingCashString)")
+                                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                                .foregroundStyle(openingCashString.isEmpty ? .secondary : .primary)
+
+                            // Cash numpad
+                            VStack(spacing: 10) {
+                                ForEach([[1,2,3],[4,5,6],[7,8,9]], id: \.self) { row in
+                                    HStack(spacing: 10) {
+                                        ForEach(row, id: \.self) { digit in
+                                            NumpadButton(label: "\(digit)") { appendCash("\(digit)") }
+                                        }
+                                    }
+                                }
+                                HStack(spacing: 10) {
+                                    NumpadButton(label: "⌫", isDestructive: true) {
+                                        if !openingCashString.isEmpty {
+                                            openingCashString.removeLast()
+                                        }
+                                    }
+                                    NumpadButton(label: "0") { appendCash("0") }
+                                    NumpadButton(label: "00") { appendCash("00") }
+                                }
+                            }
                         }
-                    } else {
-                        Button("Select & Login…") {
-                            showingPINSheet = true
-                        }
+
+                        Spacer()
                     }
-                }
-                
-                Section("Opening Cash") {
-                    TextField("0.00", text: $openingCashString)
-                        .keyboardType(.decimalPad)
-                        .disabled(authenticatedBartender == nil)
-                        .focused($openingCashFocused)
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("Done") { openingCashFocused = false }
-                            }
-                        }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Begin Shift")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        onCancel()
-                        dismiss()
-                    }
+                    Button("Cancel") { onCancel(); dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Start") { startShift() }
-                        .disabled(authenticatedBartender == nil)
+                    Button("Start Shift") { startShift() }
+                        .fontWeight(.semibold)
+                        .disabled(!authenticated)
                 }
-            }
-            .onAppear {
-                if authenticatedBartender != nil {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        openingCashFocused = true
-                    }
-                }
-            }
-            .onChange(of: authenticatedBartender) { _, newValue in
-                guard newValue != nil else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    openingCashFocused = true
-                }
-            }
-            .sheet(isPresented: $showingPINSheet) {
-                BartenderPINSheet { bartender in
-                    authenticatedBartender = bartender
-                }
-                .environmentObject(vm)
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
-    
+
+    private func appendDigit(_ digit: String) {
+        guard selectedBartender != nil, pin.count < 8 else { return }
+        pin += digit
+        pinError = ""
+        if let stored = selectedBartender?.pin, pin.count == stored.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                authenticatePIN()
+            }
+        }
+    }
+
+    private func appendCash(_ digits: String) {
+        let combined = openingCashString + digits
+        if combined.count <= 7 { openingCashString = combined }
+    }
+
+    private func authenticatePIN() {
+        guard let bartender = selectedBartender else { return }
+        if vm.validateBartenderPIN(bartender, pin: pin) {
+            authenticated = true
+            pinError = ""
+        } else {
+            pinError = "Incorrect PIN"
+            pin = ""
+            shake = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { shake = false }
+        }
+    }
+
     private func startShift() {
-        guard let bartender = authenticatedBartender else { return }
-        let opening = Decimal(string: openingCashString) ?? 0
-        
-        // Dismiss BEFORE calling onStart to prevent blocking
+        guard let bartender = selectedBartender, authenticated else { return }
+        // Convert cents-style input to dollars: "1500" → 15.00
+        let cents = Decimal(string: openingCashString) ?? 0
+        let opening = cents / 100
         dismiss()
-        
-        // Small delay to let sheet dismiss completely
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onStart(bartender, opening)
         }
     }
-    
-    // Preview temporarily disabled due to macro issue
 }

@@ -19,109 +19,156 @@ import SwiftUI
 struct ChangePINSheet: View {
     @EnvironmentObject var vm: InventoryVM
     @Environment(\.dismiss) private var dismiss
-    
+
     let bartender: Bartender
-    
+
+    enum Step { case current, newPIN, confirm }
+
+    @State private var step: Step = .current
     @State private var currentPIN: String = ""
     @State private var newPIN: String = ""
     @State private var confirmPIN: String = ""
     @State private var pinError: String = ""
+    @State private var shake: Bool = false
     @State private var showSuccess: Bool = false
-    @FocusState private var currentPINFocused: Bool
-    
+
+    private var activePin: String {
+        get {
+            switch step {
+            case .current: return currentPIN
+            case .newPIN:  return newPIN
+            case .confirm: return confirmPIN
+            }
+        }
+        set {
+            switch step {
+            case .current: currentPIN = newValue
+            case .newPIN:  newPIN = newValue
+            case .confirm: confirmPIN = newValue
+            }
+        }
+    }
+
+    private var stepTitle: String {
+        switch step {
+        case .current: return "Enter current PIN"
+        case .newPIN:  return "Enter new PIN"
+        case .confirm: return "Confirm new PIN"
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Current PIN") {
-                    SecureField("Current PIN", text: $currentPIN)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                        .focused($currentPINFocused)
-                }
-                
-                Section("New PIN") {
-                    SecureField("New PIN (4-8 digits)", text: $newPIN)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                    
-                    SecureField("Confirm New PIN", text: $confirmPIN)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                }
-                
-                if !pinError.isEmpty {
-                    Section {
-                        Text(pinError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-                
+            VStack(spacing: 24) {
+                Spacer()
+
                 if showSuccess {
-                    Section {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("PIN changed successfully")
-                                .foregroundStyle(.green)
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.green)
+                        Text("PIN changed successfully")
+                            .font(.headline)
+                    }
+                } else {
+                    Text(stepTitle)
+                        .font(.headline)
+
+                    // PIN dots
+                    HStack(spacing: 14) {
+                        ForEach(0..<8, id: \.self) { i in
+                            Circle()
+                                .fill(i < activePin.count ? Color.blue : Color(.systemFill))
+                                .frame(width: 14, height: 14)
+                        }
+                    }
+                    .offset(x: shake ? -8 : 0)
+                    .animation(
+                        shake ? .easeInOut(duration: 0.07).repeatCount(4, autoreverses: true) : .default,
+                        value: shake
+                    )
+
+                    Text(pinError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(height: 16)
+
+                    // Numpad
+                    VStack(spacing: 10) {
+                        ForEach([[1,2,3],[4,5,6],[7,8,9]], id: \.self) { row in
+                            HStack(spacing: 10) {
+                                ForEach(row, id: \.self) { digit in
+                                    NumpadButton(label: "\(digit)") { appendDigit("\(digit)") }
+                                }
+                            }
+                        }
+                        HStack(spacing: 10) {
+                            NumpadButton(label: "⌫", isDestructive: true) {
+                                if !activePin.isEmpty { activePin = String(activePin.dropLast()) }
+                                pinError = ""
+                            }
+                            NumpadButton(label: "0") { appendDigit("0") }
+                            NumpadButton(label: "✓", isAction: true) { advance() }
+                                .disabled(activePin.isEmpty)
                         }
                     }
                 }
+
+                Spacer()
             }
-            .scrollDismissesKeyboard(.interactively)
+            .padding(.horizontal, 40)
             .navigationTitle("Change PIN")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    currentPINFocused = true
-                }
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        changePIN()
-                    }
-                    .disabled(currentPIN.isEmpty || newPIN.isEmpty || confirmPIN.isEmpty)
-                }
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
-    
-    private func changePIN() {
+
+    private func appendDigit(_ digit: String) {
+        guard activePin.count < 8 else { return }
+        activePin += digit
         pinError = ""
-        showSuccess = false
-        
-        // Validate current PIN
-        guard vm.validateBartenderPIN(bartender, pin: currentPIN) else {
-            pinError = "Current PIN is incorrect"
-            currentPIN = ""
-            return
+    }
+
+    private func advance() {
+        pinError = ""
+        switch step {
+        case .current:
+            guard vm.validateBartenderPIN(bartender, pin: currentPIN) else {
+                triggerError("Incorrect PIN")
+                return
+            }
+            step = .newPIN
+        case .newPIN:
+            guard newPIN.count >= 4 else {
+                triggerError("PIN must be at least 4 digits")
+                return
+            }
+            step = .confirm
+        case .confirm:
+            guard confirmPIN == newPIN else {
+                triggerError("PINs don't match")
+                confirmPIN = ""
+                return
+            }
+            vm.changeBartenderPIN(bartenderID: bartender.id, newPIN: newPIN)
+            showSuccess = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
         }
-        
-        // Validate new PIN
-        let trimmed = newPIN.trimmingCharacters(in: .whitespaces)
-        guard trimmed.count >= 4, trimmed.count <= 8, trimmed.allSatisfy({ $0.isNumber }) else {
-            pinError = "New PIN must be 4-8 digits"
-            return
+    }
+
+    private func triggerError(_ message: String) {
+        pinError = message
+        switch step {
+        case .current: currentPIN = ""
+        case .newPIN:  newPIN = ""
+        case .confirm: confirmPIN = ""
         }
-        
-        guard trimmed == confirmPIN else {
-            pinError = "New PINs do not match"
-            return
-        }
-        
-        // Save new PIN
-        vm.changeBartenderPIN(bartenderID: bartender.id, newPIN: trimmed)
-        
-        // Show success and auto-dismiss after short delay
-        showSuccess = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            dismiss()
-        }
+        shake = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { shake = false }
     }
 }
 

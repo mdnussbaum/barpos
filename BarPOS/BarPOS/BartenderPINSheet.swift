@@ -152,7 +152,7 @@ struct BartenderPINSheet: View {
 }
 
 // MARK: - Numpad Button
-private struct NumpadButton: View {
+struct NumpadButton: View {
     let label: String
     var isDestructive: Bool = false
     var isAction: Bool = false

@@ -128,6 +128,12 @@ struct AddBartenderSheet: View {
             Section("PIN (4-8 digits)") {
                 SecureField("PIN", text: $pin)
                     .keyboardType(.numberPad)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                        }
+                    }
                 SecureField("Confirm PIN", text: $confirmPin)
                     .keyboardType(.numberPad)
 
@@ -185,6 +191,12 @@ struct EditBartenderSheet: View {
             Section("Change PIN (Optional)") {
                 SecureField("New PIN (4-8 digits)", text: $pin)
                     .keyboardType(.numberPad)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                        }
+                    }
                 SecureField("Confirm New PIN", text: $confirmPin)
                     .keyboardType(.numberPad)
 

@@ -21,24 +21,50 @@ struct EndShiftSheet: View {
                     }
 
                     Section("Count drawer cash") {
-                        HStack {
-                            Text("Counted Cash")
-                            Spacer()
-                            TextField("0.00", text: $closingCashString)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 120)
-                                .textFieldStyle(.roundedBorder)
-                                .toolbar {
-                                    ToolbarItemGroup(placement: .keyboard) {
-                                        Spacer()
-                                        Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Counted Cash")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(closingCashString.isEmpty ? "$0.00" : "$\(closingCashString)")
+                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(closingCashString.isEmpty ? .secondary : .primary)
+                            }
+                            .padding(.vertical, 4)
+
+                            let cashKeys: [[String]] = [
+                                ["7","8","9"],
+                                ["4","5","6"],
+                                ["1","2","3"],
+                                ["00","0","⌫"]
+                            ]
+                            VStack(spacing: 8) {
+                                ForEach(cashKeys, id: \.self) { row in
+                                    HStack(spacing: 8) {
+                                        ForEach(row, id: \.self) { key in
+                                            Button {
+                                                handleCashKey(key)
+                                            } label: {
+                                                Text(key)
+                                                    .font(.title3)
+                                                    .fontWeight(.medium)
+                                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                                    .background(key == "⌫" ? Color(.systemFill) : Color(.secondarySystemBackground))
+                                                    .foregroundStyle(key == "⌫" ? .red : .primary)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
                                     }
                                 }
+                            }
+
+                            Text("Enter the physically counted cash total. We'll compare it to opening + cash sales in the report.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        Text("Type the physically counted cash total. We will compare it to opening + cash sales in the report.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
                     }
 
                     Section("Totals (so far)") {
@@ -74,7 +100,7 @@ struct EndShiftSheet: View {
                         }
 
                         // Require a valid counted-cash entry
-                        guard let counted = Decimal(string: closingCashString) else { return }
+                        guard let counted = Decimal(string: closingCashString), counted >= 0 else { return }
 
                         // Settle shift
                         if vm.settleShift(closingCash: counted) {
@@ -107,6 +133,30 @@ struct EndShiftSheet: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+    }
+
+    private func handleCashKey(_ key: String) {
+        switch key {
+        case "⌫":
+            if !closingCashString.isEmpty { closingCashString.removeLast() }
+        case "00":
+            let digits = closingCashString.replacingOccurrences(of: ".", with: "")
+            if !digits.isEmpty { closingCashString = formatCashCents(digits + "00") }
+        default:
+            let digits = closingCashString.replacingOccurrences(of: ".", with: "") + key
+            closingCashString = formatCashCents(digits)
+        }
+    }
+
+    private func formatCashCents(_ digits: String) -> String {
+        let trimmed = String(digits.drop(while: { $0 == "0" }))
+        let d = trimmed.isEmpty ? "0" : trimmed
+        if d.count <= 2 {
+            let padded = String(repeating: "0", count: 3 - d.count) + d
+            return "0.\(padded.suffix(2))"
+        } else {
+            return "\(d.dropLast(2)).\(d.suffix(2))"
+        }
     }
 }
 

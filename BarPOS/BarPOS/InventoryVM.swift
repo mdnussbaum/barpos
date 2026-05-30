@@ -987,6 +987,23 @@ final class InventoryVM: ObservableObject {
         }
     }
     
+    /// Returns import summary if a pending products_import.csv was found and applied.
+    @discardableResult
+    func checkAndApplyCloudProductImport() -> String? {
+        guard let url = FileManagerHelper.pendingImportURL,
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            // Force iCloud download if not yet local
+            try FileManager.default.startDownloadingUbiquitousItem(at: url)
+        } catch { /* non-fatal — file may already be local */ }
+        guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: products)
+        products = newProducts
+        flushSave()
+        FileManagerHelper.markImportProcessed()
+        return "Imported \(result.created) new, updated \(result.updated) products from iCloud."
+    }
+
     @discardableResult
     func importBackup(from url: URL) -> Bool {
         do {

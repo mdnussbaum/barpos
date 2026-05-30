@@ -168,21 +168,21 @@ struct RegisterView: View {
                             if payMethod == .cash {
                                 cashGivenString = ""
                             }
+                            // Open drawer immediately on cash sales — no waiting for receipt decision
+                            if payMethod == .cash && vm.printerSettings.autoOpenDrawer {
+                                Task {
+                                    let opened = await printerManager.openCashDrawer()
+                                    if !opened { showPrinterWarning() }
+                                }
+                            }
+                            // Handle receipt separately
                             let shouldPrint: Bool
                             switch action {
                             case .printReceipt: shouldPrint = true
                             case .noReceipt:    shouldPrint = false
                             }
-                            let shouldOpenDrawer = payMethod == .cash && vm.printerSettings.autoOpenDrawer
-                            if shouldPrint && shouldOpenDrawer {
-                                Task { await self.printReceiptAndOpenDrawer(result, settings: vm.printerSettings) }
-                            } else if shouldPrint {
+                            if shouldPrint {
                                 Task { await self.printReceipt(result, settings: vm.printerSettings) }
-                            } else if shouldOpenDrawer {
-                                Task {
-                                    let drawerOpened = await printerManager.openCashDrawer()
-                                    if !drawerOpened { showPrinterWarning() }
-                                }
                             }
                             showingCloseTabSheet = false
                         }

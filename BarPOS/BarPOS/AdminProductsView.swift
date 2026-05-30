@@ -251,12 +251,22 @@ struct AdminProductsView: View {
             try csv.write(to: tempURL, atomically: true, encoding: .utf8)
             
             // Save to Files app / Share
-            let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+            let activityVC = UIActivityViewController(
+                activityItems: [tempURL],
+                applicationActivities: nil
+            )
             
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let window = windowScene.windows.first,
                let rootVC = window.rootViewController {
                 activityVC.popoverPresentationController?.sourceView = window
+                activityVC.popoverPresentationController?.sourceRect = CGRect(
+                    x: window.bounds.midX,
+                    y: window.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
+                activityVC.popoverPresentationController?.permittedArrowDirections = []
                 rootVC.present(activityVC, animated: true)
             }
         } catch {
@@ -293,12 +303,22 @@ struct AdminProductsView: View {
                 try csv.write(to: tempURL, atomically: true, encoding: .utf8)
                 
                 // Save to Files app / Share
-                let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+                let activityVC = UIActivityViewController(
+                    activityItems: [tempURL],
+                    applicationActivities: nil
+                )
                 
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let window = windowScene.windows.first,
                    let rootVC = window.rootViewController {
                     activityVC.popoverPresentationController?.sourceView = window
+                    activityVC.popoverPresentationController?.sourceRect = CGRect(
+                        x: window.bounds.midX,
+                        y: window.bounds.midY,
+                        width: 0,
+                        height: 0
+                    )
+                    activityVC.popoverPresentationController?.permittedArrowDirections = []
                     rootVC.present(activityVC, animated: true)
                 }
             } catch {
@@ -1216,5 +1236,3 @@ extension InventoryVM {
         products.append(copy)
     }
 }
-
-

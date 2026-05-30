@@ -16,6 +16,7 @@ class EpsonPrinterManager: ObservableObject {
 
     private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
+    private var isConnecting: Bool = false
     private var isDiscovering = false
     private let knownIP = "192.168.1.76"
 
@@ -91,6 +92,8 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func connectPrinter(target: String) async {
+        isConnecting = true
+        defer { isConnecting = false }
         guard let printer else {
             isConnected = false
             lastStatusMessage = "Printer unavailable"
@@ -130,7 +133,15 @@ class EpsonPrinterManager: ObservableObject {
 
     func ensureConnected() async {
         guard !isConnected else { return }
-        await connectPrinter(target: "TCP:\(knownIP)")
+        if isConnecting {
+            for _ in 0..<8 {
+                try? await Task.sleep(for: .milliseconds(500))
+                if isConnected { return }
+            }
+        }
+        if !isConnected {
+            await connectPrinter(target: "TCP:\(knownIP)")
+        }
     }
 
     private func addLogoToBuffer() {
@@ -291,7 +302,9 @@ class EpsonPrinterManager: ObservableObject {
             lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run."
             throw PrinterError.notConnected
         }
-        await ensureConnected()
+        if !isConnected {
+            await discoverAndConnect()
+        }
         guard isConnected else {
             lastStatusMessage = "Receipt and drawer failed"
             lastErrorMessage = "The sale was saved, but the receipt did not print and the drawer may not have opened. POS can still run."

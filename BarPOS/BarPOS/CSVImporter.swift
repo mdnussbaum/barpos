@@ -342,6 +342,36 @@ struct CSVImporter {
         return csv
     }
     
+    // MARK: - Import Bartenders from CSV
+    static func importBartenders(from csvData: String, existingBartenders: [Bartender]) -> [Bartender] {
+        var bartenders = existingBartenders
+        let rows = csvData.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        guard rows.count > 1 else { return bartenders }
+        let headers = parseCSVRow(rows[0])
+        for row in rows.dropFirst() {
+            let values = parseCSVRow(row)
+            guard values.count == headers.count else { continue }
+            let rowData = Dictionary(uniqueKeysWithValues: zip(headers, values))
+            guard let name = rowData["name"]?.trimmingCharacters(in: .whitespaces),
+                  !name.isEmpty else { continue }
+            let pin = rowData["pin"]?.trimmingCharacters(in: .whitespaces)
+            let active = rowData["active"]?.lowercased() != "false"
+            if let idx = bartenders.firstIndex(where: {
+                $0.name.lowercased() == name.lowercased()
+            }) {
+                if let p = pin, !p.isEmpty { bartenders[idx].pin = p }
+                bartenders[idx].isActive = active
+            } else {
+                bartenders.append(Bartender(
+                    name: name,
+                    isActive: active,
+                    pin: (pin?.isEmpty == false) ? pin : nil
+                ))
+            }
+        }
+        return bartenders
+    }
+
     // MARK: - Export Products to CSV
     static func exportProductsToCSV(products: [Product]) -> String {
         let headers = [

@@ -57,12 +57,20 @@ struct FileManagerHelper {
         }
     }
     
-    /// Watched file: user drops this into iCloud Drive to trigger an import
+    static var pendingBartenderImportURL: URL? {
+        iCloudDocumentsURL?.appendingPathComponent("bartenders_import.csv")
+    }
+    static func markBartenderImportProcessed() {
+        guard let src = pendingBartenderImportURL else { return }
+        let dst = src.deletingLastPathComponent()
+            .appendingPathComponent("bartenders_import.processed.csv")
+        try? FileManager.default.removeItem(at: dst)
+        try? FileManager.default.moveItem(at: src, to: dst)
+    }
+
     static var pendingImportURL: URL? {
         iCloudDocumentsURL?.appendingPathComponent("products_import.csv")
     }
-
-    /// After a successful import, rename so the file doesn't re-trigger
     static func markImportProcessed() {
         guard let src = pendingImportURL else { return }
         let dst = src.deletingLastPathComponent()

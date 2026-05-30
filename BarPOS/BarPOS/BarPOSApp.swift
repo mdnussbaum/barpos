@@ -17,15 +17,6 @@ struct BarPOSApp: App {
             AppShell()
                 .environmentObject(vm)
                 .preferredColorScheme(resolvedColorScheme)
-                .onAppear {
-                    DemoSeeder.seed(into: vm)
-                    Task {
-                        await EpsonPrinterManager.shared.discoverAndConnect()
-                    }
-                    if let message = vm.checkAndApplyCloudProductImport() {
-                        cloudImportMessage = message
-                    }
-                }
                 .overlay(alignment: .top) {
                     if let msg = cloudImportMessage {
                         HStack(spacing: 10) {
@@ -55,6 +46,17 @@ struct BarPOSApp: App {
                                 cloudImportMessage = nil
                             }
                         }
+                    }
+                }
+                .onAppear {
+                    DemoSeeder.seed(into: vm)
+                    Task {
+                        await EpsonPrinterManager.shared.discoverAndConnect()
+                    }
+                    if let message = vm.checkAndApplyCloudProductImport() {
+                        cloudImportMessage = message
+                    } else if let message = vm.checkAndApplyCloudBartenderImport() {
+                        cloudImportMessage = message
                     }
                 }
         }

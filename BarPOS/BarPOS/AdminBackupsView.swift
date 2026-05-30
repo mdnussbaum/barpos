@@ -77,7 +77,24 @@ struct AdminBackupsView: View {
             } header: {
                 Text("iCloud Auto-Import")
             } footer: {
-                Text("Drop a file named \"products_import.csv\" into iCloud Drive → BarPOS Reports to import. The app checks automatically on launch.")
+                Text("Drop a file named \"products_import.csv\" into iCloud Drive → BarPOS Reports. The app checks automatically on launch.")
+                    .font(.caption)
+            }
+
+            Section {
+                Button {
+                    if let message = vm.checkAndApplyCloudBartenderImport() {
+                        importStatus = message
+                    } else {
+                        importStatus = "No bartenders_import.csv found in iCloud Drive."
+                    }
+                } label: {
+                    Label("Check iCloud for Bartender Import", systemImage: "person.2.badge.gearshape")
+                }
+            } header: {
+                Text("Bartender Import")
+            } footer: {
+                Text("Drop a file named \"bartenders_import.csv\" into iCloud Drive → BarPOS Reports. Existing bartenders are updated, new ones are added. PINs are only overwritten if the CSV has one.")
                     .font(.caption)
             }
         }

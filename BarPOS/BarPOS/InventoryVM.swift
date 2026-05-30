@@ -987,21 +987,34 @@ final class InventoryVM: ObservableObject {
         }
     }
     
-    /// Returns import summary if a pending products_import.csv was found and applied.
     @discardableResult
     func checkAndApplyCloudProductImport() -> String? {
         guard let url = FileManagerHelper.pendingImportURL,
               FileManager.default.fileExists(atPath: url.path) else { return nil }
         do {
-            // Force iCloud download if not yet local
             try FileManager.default.startDownloadingUbiquitousItem(at: url)
-        } catch { /* non-fatal — file may already be local */ }
+        } catch { }
         guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: products)
         products = newProducts
         flushSave()
         FileManagerHelper.markImportProcessed()
         return "Imported \(result.created) new, updated \(result.updated) products from iCloud."
+    }
+
+    @discardableResult
+    func checkAndApplyCloudBartenderImport() -> String? {
+        guard let url = FileManagerHelper.pendingBartenderImportURL,
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            try FileManager.default.startDownloadingUbiquitousItem(at: url)
+        } catch { }
+        guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let updated = CSVImporter.importBartenders(from: csvData, existingBartenders: bartenders)
+        bartenders = updated
+        flushSave()
+        FileManagerHelper.markBartenderImportProcessed()
+        return "Bartender roster updated from iCloud (\(updated.count) total)."
     }
 
     @discardableResult

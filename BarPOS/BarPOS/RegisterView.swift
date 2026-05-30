@@ -162,13 +162,17 @@ struct RegisterView: View {
                     payMethod: payMethod,
                     cashGiven: Decimal(string: cashGivenString) ?? 0,
                     printer: printerManager,
-                    onClose: { printReceiptRequested in
+                    onClose: { action in
                         let cash = payMethod == .cash ? (Decimal(string: cashGivenString) ?? 0) : 0
                         if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
                             if payMethod == .cash {
                                 cashGivenString = ""
                             }
-                            let shouldPrint = printReceiptRequested || vm.printerSettings.autoPrintReceipts
+                            let shouldPrint: Bool
+                            switch action {
+                            case .printReceipt: shouldPrint = true
+                            case .noReceipt:    shouldPrint = false
+                            }
                             let shouldOpenDrawer = payMethod == .cash && vm.printerSettings.autoOpenDrawer
                             if shouldPrint && shouldOpenDrawer {
                                 Task { await self.printReceiptAndOpenDrawer(result, settings: vm.printerSettings) }
@@ -177,9 +181,7 @@ struct RegisterView: View {
                             } else if shouldOpenDrawer {
                                 Task {
                                     let drawerOpened = await printerManager.openCashDrawer()
-                                    if !drawerOpened {
-                                        showPrinterWarning()
-                                    }
+                                    if !drawerOpened { showPrinterWarning() }
                                 }
                             }
                             showingCloseTabSheet = false
@@ -1064,7 +1066,8 @@ struct RegisterView: View {
         let payMethod: PaymentMethod
         let cashGiven: Decimal
         let printer: EpsonPrinterManager
-        let onClose: (Bool) -> Void  // Bool = printReceipt
+        enum CloseAction { case printReceipt, noReceipt }
+        let onClose: (CloseAction) -> Void
         let onCancel: () -> Void
 
         private var subtotal: Decimal { tab.subtotal }
@@ -1162,7 +1165,7 @@ struct RegisterView: View {
                 .safeAreaInset(edge: .bottom) {
                     HStack(spacing: 12) {
                         Button {
-                            onClose(false)
+                            onClose(.noReceipt)
                         } label: {
                             Text("No Receipt")
                                 .font(.headline)
@@ -1175,7 +1178,7 @@ struct RegisterView: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            onClose(true)
+                            onClose(.printReceipt)
                         } label: {
                             Label("Print Receipt", systemImage: "printer.fill")
                                 .font(.headline)

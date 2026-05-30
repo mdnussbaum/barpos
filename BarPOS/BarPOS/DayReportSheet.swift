@@ -15,7 +15,6 @@ struct DayReportSheet: View {
     @EnvironmentObject var vm: InventoryVM
     @Environment(\.dismiss) private var dismiss
     
-    @State private var showingShareSheet = false
     @State private var pdfToShare: URL?
     
     var body: some View {
@@ -189,11 +188,6 @@ struct DayReportSheet: View {
                     .background(.ultraThinMaterial)
                 }
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if let pdfURL = pdfToShare {
-                    ShareSheet(items: [pdfURL])
-                }
-            }
         }
     }
     
@@ -202,14 +196,23 @@ struct DayReportSheet: View {
             print("❌ Failed to generate PDF")
             return
         }
-        
-        // Save to iCloud Drive
         let filename = "DayReport_\(report.formattedFileDate).pdf"
         let savedURL = FileManagerHelper.saveToiCloud(fileURL: pdfURL, filename: filename) ?? pdfURL
-        
-        // Show share sheet
-        pdfToShare = savedURL
-        showingShareSheet = true
+        presentShareSheet(for: savedURL)
+    }
+
+    private func presentShareSheet(for url: URL) {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController { topVC = presented }
+        controller.popoverPresentationController?.sourceView = topVC.view
+        controller.popoverPresentationController?.sourceRect = CGRect(
+            x: topVC.view.bounds.midX, y: topVC.view.bounds.midY, width: 0, height: 0
+        )
+        controller.popoverPresentationController?.permittedArrowDirections = []
+        topVC.present(controller, animated: true)
     }
     
     private func generateAndPrint() {

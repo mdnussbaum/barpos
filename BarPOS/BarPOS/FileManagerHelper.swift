@@ -57,6 +57,17 @@ struct FileManagerHelper {
         }
     }
     
+    static var pendingImportURL: URL? {
+        iCloudDocumentsURL?.appendingPathComponent("products_import.csv")
+    }
+    static func markImportProcessed() {
+        guard let src = pendingImportURL else { return }
+        let dst = src.deletingLastPathComponent()
+            .appendingPathComponent("products_import.processed.csv")
+        try? FileManager.default.removeItem(at: dst)
+        try? FileManager.default.moveItem(at: src, to: dst)
+    }
+
     // Check if iCloud is available
     static var isiCloudAvailable: Bool {
         FileManager.default.url(forUbiquityContainerIdentifier: nil) != nil

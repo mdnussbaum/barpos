@@ -988,6 +988,21 @@ final class InventoryVM: ObservableObject {
     }
     
     @discardableResult
+    func checkAndApplyCloudProductImport() -> String? {
+        guard let url = FileManagerHelper.pendingImportURL,
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            try FileManager.default.startDownloadingUbiquitousItem(at: url)
+        } catch { }
+        guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: products)
+        products = newProducts
+        flushSave()
+        FileManagerHelper.markImportProcessed()
+        return "Imported \(result.created) new, updated \(result.updated) products from iCloud."
+    }
+
+    @discardableResult
     func importBackup(from url: URL) -> Bool {
         do {
             let s = try Persistence.loadJSON(from: url, as: PersistedState.self)

@@ -63,6 +63,23 @@ struct AdminBackupsView: View {
             } header: {
                 Text("Import")
             }
+
+            Section {
+                Button {
+                    if let message = vm.checkAndApplyCloudProductImport() {
+                        importStatus = message
+                    } else {
+                        importStatus = "No products_import.csv found in iCloud Drive."
+                    }
+                } label: {
+                    Label("Check iCloud for Product Import", systemImage: "icloud.and.arrow.down")
+                }
+            } header: {
+                Text("iCloud Auto-Import")
+            } footer: {
+                Text("Drop a file named \"products_import.csv\" into iCloud Drive → BarPOS Reports. The app checks automatically on launch.")
+                    .font(.caption)
+            }
         }
         .navigationTitle("Backups")
         .navigationBarTitleDisplayMode(.inline)

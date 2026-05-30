@@ -5,136 +5,203 @@
 //  Created by Michael Nussbaum on 12/11/25.
 //
 
-
-//
-//  BartenderPINSheet.swift
-//  BarPOS
-//
-//  PIN authentication for bartender login
-//
-
 import SwiftUI
 
-// MARK: - Bartender PIN Login Sheet
 struct BartenderPINSheet: View {
     @EnvironmentObject var vm: InventoryVM
     @Environment(\.dismiss) private var dismiss
-    
+
     let onAuthenticated: (Bartender) -> Void
-    
-    @State private var selectedBartenderID: UUID? = nil
+
+    @State private var selectedBartender: Bartender? = nil
     @State private var pin: String = ""
     @State private var pinError: String = ""
-    @FocusState private var pinFocused: Bool
-    
+    @State private var shake: Bool = false
+
     private var activeBartenders: [Bartender] {
-        vm.activeBartenders.filter { $0.pin != nil }
+        vm.activeBartenders
+            .filter { $0.pin != nil && $0.name.uppercased() != "TEST" }
+            .sorted { $0.name < $1.name }
     }
-    
-    // Find TEST bartender for quick access
-    private var testBartender: Bartender? {
-        activeBartenders.first { $0.name.uppercased() == "TEST" }
-    }
-    
+
     var body: some View {
         NavigationStack {
-            Form {
-                // Quick Test Login
-                if let testBartender = testBartender {
-                    Section {
-                        Button {
-                            onAuthenticated(testBartender)
-                            dismiss()
-                        } label: {
-                            HStack {
-                                Image(systemName: "flask.fill")
-                                    .foregroundStyle(.orange)
-                                Text("Quick Test Login (TEST / 0000)")
-                                    .foregroundStyle(.orange)
-                                Spacer()
-                                Image(systemName: "arrow.right.circle.fill")
-                                    .foregroundStyle(.orange)
+            HStack(spacing: 0) {
+
+                // ── LEFT: Bartender name buttons ──────────────────────────
+                ScrollView {
+                    VStack(spacing: 10) {
+                        ForEach(activeBartenders) { bartender in
+                            Button {
+                                selectedBartender = bartender
+                                pin = ""
+                                pinError = ""
+                            } label: {
+                                Text(bartender.name)
+                                    .font(.title3)
+                                    .fontWeight(.medium)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 18)
+                                    .background(
+                                        selectedBartender?.id == bartender.id
+                                            ? Color.blue
+                                            : Color(.secondarySystemBackground)
+                                    )
+                                    .foregroundStyle(
+                                        selectedBartender?.id == bartender.id
+                                            ? .white : .primary
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if activeBartenders.isEmpty {
+                            Text("No bartenders configured.\nSee Admin → Staff.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 20)
+                        }
+                    }
+                    .padding(16)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGroupedBackground))
+
+                Divider()
+
+                // ── RIGHT: PIN display + numpad ───────────────────────────
+                VStack(spacing: 20) {
+
+                    Spacer()
+
+                    // Bartender name or prompt
+                    Text(selectedBartender?.name ?? "Select a bartender")
+                        .font(.headline)
+                        .foregroundStyle(selectedBartender == nil ? .secondary : .primary)
+
+                    // PIN dots
+                    HStack(spacing: 14) {
+                        ForEach(0..<6, id: \.self) { i in
+                            Circle()
+                                .fill(i < pin.count ? Color.blue : Color(.systemFill))
+                                .frame(width: 14, height: 14)
+                        }
+                    }
+                    .offset(x: shake ? -8 : 0)
+                    .animation(
+                        shake ? .easeInOut(duration: 0.07).repeatCount(4, autoreverses: true) : .default,
+                        value: shake
+                    )
+
+                    // Error message
+                    Text(pinError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(height: 16)
+
+                    // Numpad grid
+                    VStack(spacing: 10) {
+                        ForEach([[1,2,3],[4,5,6],[7,8,9]], id: \.self) { row in
+                            HStack(spacing: 10) {
+                                ForEach(row, id: \.self) { digit in
+                                    NumpadButton(label: "\(digit)") {
+                                        appendDigit("\(digit)")
+                                    }
+                                }
                             }
                         }
-                    }
-                    
-                    Section {
-                        Text("For testing only")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                Section("Select Bartender") {
-                    Picker("Bartender", selection: $selectedBartenderID) {
-                        Text("Select…").tag(nil as UUID?)
-                        ForEach(activeBartenders) { bartender in
-                            Text(bartender.name).tag(bartender.id as UUID?)
+                        HStack(spacing: 10) {
+                            NumpadButton(label: "⌫", isDestructive: true) {
+                                if !pin.isEmpty { pin.removeLast() }
+                                pinError = ""
+                            }
+                            NumpadButton(label: "0") {
+                                appendDigit("0")
+                            }
+                            NumpadButton(label: "✓", isAction: true) {
+                                authenticateBartender()
+                            }
+                            .disabled(selectedBartender == nil || pin.isEmpty)
                         }
                     }
-                    .pickerStyle(.menu)
+
+                    Spacer()
                 }
-                
-                if selectedBartenderID != nil {
-                    Section("Enter PIN") {
-                        SecureField("PIN", text: $pin)
-                            .keyboardType(.numberPad)
-                            .textContentType(.oneTimeCode)
-                            .focused($pinFocused)
-                        
-                        if !pinError.isEmpty {
-                            Text(pinError)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-                
-                if activeBartenders.isEmpty {
-                    Section {
-                        Text("No bartenders with PINs configured. Please contact manager.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
             }
             .navigationTitle("Bartender Login")
             .navigationBarTitleDisplayMode(.inline)
-            .onChange(of: selectedBartenderID) { _, newValue in
-                guard newValue != nil else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    pinFocused = true
-                }
-            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Login") {
-                        authenticateBartender()
-                    }
-                    .disabled(selectedBartenderID == nil || pin.isEmpty)
-                }
             }
         }
     }
-    
-    private func authenticateBartender() {
+
+    private func appendDigit(_ digit: String) {
+        guard selectedBartender != nil, pin.count < 8 else { return }
+        pin += digit
         pinError = ""
-        
-        guard let bartenderID = selectedBartenderID,
-              let bartender = activeBartenders.first(where: { $0.id == bartenderID }) else {
-            pinError = "Please select a bartender"
+        if let stored = selectedBartender?.pin, pin.count == stored.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                authenticateBartender()
+            }
+        }
+    }
+
+    private func authenticateBartender() {
+        guard let bartender = selectedBartender else {
+            pinError = "Select a bartender first"
             return
         }
-        
         if vm.validateBartenderPIN(bartender, pin: pin) {
             onAuthenticated(bartender)
             dismiss()
         } else {
-            pinError = "Incorrect PIN. Please try again."
+            pinError = "Incorrect PIN"
             pin = ""
+            shake = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                shake = false
+            }
         }
+    }
+}
+
+// MARK: - Numpad Button
+private struct NumpadButton: View {
+    let label: String
+    var isDestructive: Bool = false
+    var isAction: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.title2)
+                .fontWeight(.medium)
+                .frame(width: 72, height: 72)
+                .background(backgroundColor)
+                .foregroundStyle(foregroundColor)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var backgroundColor: Color {
+        if isAction { return .blue }
+        if isDestructive { return Color(.systemFill) }
+        return Color(.secondarySystemBackground)
+    }
+
+    private var foregroundColor: Color {
+        if isAction { return .white }
+        if isDestructive { return .red }
+        return .primary
     }
 }
 

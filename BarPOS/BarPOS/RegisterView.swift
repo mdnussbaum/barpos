@@ -47,6 +47,7 @@ struct RegisterView: View {
     @ObservedObject private var printerManager = EpsonPrinterManager.shared
     @State private var printerWarningMessage: String?
     @State private var showingSavedReceiptURL: URL?
+    @State private var isQuickActionPanelCollapsed: Bool = false
     @State private var showingShareSheet = false
     
     var body: some View {
@@ -768,27 +769,50 @@ struct RegisterView: View {
     }
 
     private var quickActionPager: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                quickActionPageButton(.cashTender, icon: "keyboard", label: "Cash")
-                quickActionPageButton(.chips, icon: "circle.grid.3x3.fill", label: "Chips")
+        VStack(spacing: 4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isQuickActionPanelCollapsed.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isQuickActionPanelCollapsed ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                    Text(isQuickActionPanelCollapsed ? "Show Numpad" : "Hide Numpad")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .frame(height: 34)
+            .buttonStyle(.plain)
+            .accessibilityLabel(isQuickActionPanelCollapsed ? "Show numpad" : "Hide numpad")
 
-            TabView(selection: $quickActionPage) {
-                CashNumpadView(
-                    cashGivenString: $cashGivenString,
-                    total: vm.totalActive
-                )
-                .padding(.horizontal, 2)
-                .tag(QuickActionPage.cashTender)
+            if !isQuickActionPanelCollapsed {
+                HStack(spacing: 6) {
+                    quickActionPageButton(.cashTender, icon: "keyboard", label: "Cash")
+                    quickActionPageButton(.chips, icon: "circle.grid.3x3.fill", label: "Chips")
+                }
+                .frame(height: 34)
 
-                chipActionsSection
+                TabView(selection: $quickActionPage) {
+                    CashNumpadView(
+                        cashGivenString: $cashGivenString,
+                        total: vm.totalActive
+                    )
                     .padding(.horizontal, 2)
-                    .tag(QuickActionPage.chips)
+                    .tag(QuickActionPage.cashTender)
+
+                    chipActionsSection
+                        .padding(.horizontal, 2)
+                        .tag(QuickActionPage.chips)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 300)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 300)
         }
     }
 

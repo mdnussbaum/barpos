@@ -40,7 +40,7 @@ struct ChangePINSheet: View {
             case .confirm: return confirmPIN
             }
         }
-        set {
+        nonmutating set {
             switch step {
             case .current: currentPIN = newValue
             case .newPIN:  newPIN = newValue
@@ -104,8 +104,7 @@ struct ChangePINSheet: View {
                         }
                         HStack(spacing: 10) {
                             NumpadButton(label: "⌫", isDestructive: true) {
-                                if !activePin.isEmpty { activePin = String(activePin.dropLast()) }
-                                pinError = ""
+                                deleteLastDigit()
                             }
                             NumpadButton(label: "0") { appendDigit("0") }
                             NumpadButton(label: "✓", isAction: true) { advance() }
@@ -125,6 +124,11 @@ struct ChangePINSheet: View {
                 }
             }
         }
+    }
+
+    private func deleteLastDigit() {
+        if !activePin.isEmpty { activePin = String(activePin.dropLast()) }
+        pinError = ""
     }
 
     private func appendDigit(_ digit: String) {

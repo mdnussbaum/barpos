@@ -53,10 +53,15 @@ struct BarPOSApp: App {
                     Task {
                         await EpsonPrinterManager.shared.discoverAndConnect()
                     }
+                    var importMessages: [String] = []
                     if let message = vm.checkAndApplyCloudProductImport() {
-                        cloudImportMessage = message
-                    } else if let message = vm.checkAndApplyCloudBartenderImport() {
-                        cloudImportMessage = message
+                        importMessages.append(message)
+                    }
+                    if let message = vm.checkAndApplyCloudBartenderImport() {
+                        importMessages.append(message)
+                    }
+                    if !importMessages.isEmpty {
+                        cloudImportMessage = importMessages.joined(separator: " ")
                     }
                 }
         }

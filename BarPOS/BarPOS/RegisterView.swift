@@ -313,8 +313,9 @@ struct RegisterView: View {
         }
         .frame(maxHeight: .infinity)
         .navigationBarHidden(true)
+        .ignoresSafeArea(.keyboard)
     }
-    
+
     // MARK: - Left column (tabs + current ticket + totals/checkout)
     private var leftColumn: some View {
         HStack(alignment: .top, spacing: 0) {

@@ -15,6 +15,7 @@ struct RegisterView: View {
     @State private var categoryToReorder: ProductCategory? = nil
     @State private var showingChangePINSheet = false
     @State private var showingBuildCocktail = false
+    @State private var showingOwedTabs = false
 
     // Tab name suggestion state
     @FocusState private var tabNameFocused: Bool
@@ -146,6 +147,10 @@ struct RegisterView: View {
         }
         .sheet(isPresented: $showingBuildCocktail) {
             BuildCocktailSheet()
+                .environmentObject(vm)
+        }
+        .sheet(isPresented: $showingOwedTabs) {
+            OwedTabsSheet()
                 .environmentObject(vm)
         }
         // MARK: Close tab sheet
@@ -530,6 +535,22 @@ struct RegisterView: View {
                         .padding(.vertical, 8)
                         .background(Color.blue.opacity(0.1))
                         .foregroundStyle(.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+            }
+
+            // Owed Tabs button
+            if vm.currentShift != nil && !vm.owedTabs.isEmpty {
+                Button {
+                    showingOwedTabs = true
+                } label: {
+                    Label("Owed Tabs (\(vm.owedTabs.count))", systemImage: "exclamationmark.circle.fill")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .foregroundStyle(.orange)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)

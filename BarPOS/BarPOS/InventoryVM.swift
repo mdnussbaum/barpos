@@ -118,9 +118,9 @@ final class InventoryVM: ObservableObject {
     var currentBartenderName: String? { currentShift?.openedBy?.name }
     
     // MARK: - Tabs / current ticket
-    @Published var tabs: [UUID: TabTicket] = [:]
-    @Published var activeTabID: UUID? = nil
-    @Published var nextTabSequence: Int = 1
+    @Published var tabs: [UUID: TabTicket] = [:] { didSet { saveState() } }
+    @Published var activeTabID: UUID? = nil { didSet { saveState() } }
+    @Published var nextTabSequence: Int = 1 { didSet { saveState() } }
     
     var activeTab: TabTicket? { activeTabID.flatMap { tabs[$0] } }
     var activeLines: [OrderLine] { activeTab?.lines ?? [] }
@@ -132,8 +132,8 @@ final class InventoryVM: ObservableObject {
     @Published var allClosedTabs: [CloseResult] = [] { didSet { saveState() } }
     
     // MARK: - Shift state & reports
-    @Published var currentShift: ShiftRecord? = nil
-    @Published var shiftRecords: [ShiftRecord] = []
+    @Published var currentShift: ShiftRecord? = nil { didSet { saveState() } }
+    @Published var shiftRecords: [ShiftRecord] = [] { didSet { saveState() } }
     @Published var shiftReports: [ShiftReport] = [] { didSet { saveState() } }
     
     // Drives sheets
@@ -189,14 +189,15 @@ final class InventoryVM: ObservableObject {
     
     // MARK: - Close active tab
     @discardableResult
-    func closeActiveTab(cashTendered: Decimal, method: PaymentMethod = .cash) -> CloseResult? {
+    func closeActiveTab(cashTendered: Decimal, method: PaymentMethod = .cash,
+                        disposition: CloseDisposition = .sale) -> CloseResult? {
         guard let activeID = activeTabID, let ticket = tabs[activeID] else { return nil }
-        
+
         let subtotal = ticket.subtotal
         let total    = ticket.total
-        
-        if method == .cash, cashTendered < total { return nil }
-        
+
+        if disposition == .sale, method == .cash, cashTendered < total { return nil }
+
         let snapshots: [LineSnapshot] = ticket.lines.map { line in
             LineSnapshot(
                 productName: line.displayName,  // Use displayName which includes variant info
@@ -205,22 +206,28 @@ final class InventoryVM: ObservableObject {
                 lineTotal: line.lineTotal
             )
         }
-        
+
         let actualTendered: Decimal = (method == .cash) ? cashTendered : 0
         let change: Decimal         = (method == .cash) ? (cashTendered - total) : 0
-        
+
+        let recordedSubtotal: Decimal = (disposition == .walkout) ? 0 : subtotal
+        let recordedTotal: Decimal    = (disposition == .walkout) ? 0 : total
+        let lostAmount: Decimal?      = (disposition == .walkout) ? ticket.total : nil
+
         let result = CloseResult(
             id: UUID(),
             tabName: ticket.name,
             lines: snapshots,
-            subtotal: subtotal,
-            total: total,
+            subtotal: recordedSubtotal,
+            total: recordedTotal,
             paymentMethod: method,
             cashTendered: actualTendered,
             changeDue: change,
             closedAt: Date(),
             bartenderID: currentShift?.openedBy?.id,
-            bartenderName: currentShift?.openedBy?.name
+            bartenderName: currentShift?.openedBy?.name,
+            disposition: disposition,
+            lostAmount: lostAmount
         )
 
         // Deduct inventory for sold items
@@ -255,6 +262,50 @@ final class InventoryVM: ObservableObject {
         lastCloseResult = result
         flushSave()
         return result
+    }
+
+    // MARK: - Walkout recovery
+    var owedTabs: [CloseResult] {
+        allClosedTabs.filter { $0.disposition == .walkout && $0.recoveredAt == nil }
+    }
+
+    @discardableResult
+    func recoverWalkout(_ walkout: CloseResult, method: PaymentMethod) -> CloseResult? {
+        guard walkout.disposition == .walkout, walkout.recoveredAt == nil,
+              currentShift != nil else { return nil }
+
+        let amount = walkout.lostAmount ?? 0
+
+        let recovery = CloseResult(
+            id: UUID(),
+            tabName: walkout.tabName + " (Recovered)",
+            lines: [],
+            subtotal: amount,
+            total: amount,
+            paymentMethod: method,
+            cashTendered: method == .cash ? amount : 0,
+            changeDue: 0,
+            closedAt: Date(),
+            bartenderID: currentShift?.openedBy?.id,
+            bartenderName: currentShift?.openedBy?.name,
+            disposition: .recovery,
+            lostAmount: nil,
+            recoveredFromID: walkout.id
+        )
+
+        if let idx = allClosedTabs.firstIndex(where: { $0.id == walkout.id }) {
+            allClosedTabs[idx].recoveredAt = Date()
+        }
+        if let idx = closedTabs.firstIndex(where: { $0.id == walkout.id }) {
+            closedTabs[idx].recoveredAt = Date()
+        }
+
+        closedTabs.insert(recovery, at: 0)
+        allClosedTabs.insert(recovery, at: 0)
+        recordCloseIntoShift(recovery)
+
+        flushSave()
+        return recovery
     }
 
     /// Deduct inventory when product is sold
@@ -337,11 +388,18 @@ final class InventoryVM: ObservableObject {
     
     private func recordCloseIntoShift(_ result: CloseResult) {
         guard var s = currentShift else { return }
-        s.metrics.tabsCount    += 1
+        s.metrics.tabsCount += 1
+
+        if result.disposition == .walkout {
+            s.metrics.walkoutTotal = (s.metrics.walkoutTotal ?? 0) + (result.lostAmount ?? 0)
+            currentShift = s
+            return
+        }
+
         s.metrics.grossSales   += result.total
         s.metrics.netSales     += result.subtotal
         s.metrics.taxCollected += (result.total - result.subtotal)
-        
+
         let kind: PaymentKind = {
             switch result.paymentMethod {
             case .cash:  return .cash
@@ -561,7 +619,7 @@ final class InventoryVM: ObservableObject {
             for tab in unsettledTabs {
                 // Switch to this tab and close it with $0 "other" payment
                 activeTabID = tab.id
-                _ = closeActiveTab(cashTendered: 0, method: .other)
+                _ = closeActiveTab(cashTendered: 0, method: .other, disposition: .walkout)
             }
         }
         
@@ -843,6 +901,12 @@ final class InventoryVM: ObservableObject {
         var autoLockTimeout: Int?
         var pricingRules: PricingRules?
         var schemaVersion: Int?   // Added schemaVersion property
+        var tabs: [UUID: TabTicket]?
+        var activeTabID: UUID?
+        var nextTabSequence: Int?
+        var currentShift: ShiftRecord?
+        var closedTabs: [CloseResult]?
+        var shiftRecords: [ShiftRecord]?
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -883,7 +947,13 @@ final class InventoryVM: ObservableObject {
             colorScheme: colorScheme,
             autoLockTimeout: autoLockTimeout,
             pricingRules: pricingRules,
-            schemaVersion: 2
+            schemaVersion: 3,
+            tabs: tabs,
+            activeTabID: activeTabID,
+            nextTabSequence: nextTabSequence,
+            currentShift: currentShift,
+            closedTabs: closedTabs,
+            shiftRecords: shiftRecords
         )
         do {
             try Persistence.saveJSON(snapshot, to: stateURL)
@@ -919,6 +989,16 @@ final class InventoryVM: ObservableObject {
         colorScheme = s.colorScheme ?? "system"
         autoLockTimeout = s.autoLockTimeout ?? 5
         pricingRules = s.pricingRules ?? PricingRules()
+
+        tabs = s.tabs ?? [:]
+        activeTabID = s.activeTabID
+        nextTabSequence = s.nextTabSequence ?? 1
+        currentShift = s.currentShift
+        closedTabs = s.closedTabs ?? []
+        shiftRecords = s.shiftRecords ?? []
+        if let activeID = activeTabID, tabs[activeID] == nil {
+            activeTabID = nil
+        }
 
         // Migration: liquor products with the old hardcoded 1.5oz pour → configured default
         let targetPour = pricingRules.defaultLiquorServingSizeOz
@@ -975,7 +1055,13 @@ final class InventoryVM: ObservableObject {
             colorScheme: colorScheme,
             autoLockTimeout: autoLockTimeout,
             pricingRules: pricingRules,
-            schemaVersion: 2
+            schemaVersion: 3,
+            tabs: tabs,
+            activeTabID: activeTabID,
+            nextTabSequence: nextTabSequence,
+            currentShift: currentShift,
+            closedTabs: closedTabs,
+            shiftRecords: shiftRecords
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")
         do {

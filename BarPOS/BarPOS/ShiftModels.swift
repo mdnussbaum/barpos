@@ -12,19 +12,22 @@ struct ShiftMetrics: Codable, Hashable {
     var netSales: Decimal
     var taxCollected: Decimal
     var byPayment: [PaymentKind: Decimal]
+    var walkoutTotal: Decimal?
 
     init(
         tabsCount: Int = 0,
         grossSales: Decimal = 0,
         netSales: Decimal = 0,
         taxCollected: Decimal = 0,
-        byPayment: [PaymentKind: Decimal] = [:]
+        byPayment: [PaymentKind: Decimal] = [:],
+        walkoutTotal: Decimal? = nil
     ) {
         self.tabsCount = tabsCount
         self.grossSales = grossSales
         self.netSales = netSales
         self.taxCollected = taxCollected
         self.byPayment = byPayment
+        self.walkoutTotal = walkoutTotal
     }
 }
 

@@ -114,7 +114,7 @@ struct EndShiftSheet: View {
                 closingCashString = ""
             }
             .confirmationDialog("Unsettled Tabs", isPresented: $showUnsettledAlert) {
-                Button("Close All Tabs", role: .destructive) {
+                Button("Mark All as Walkouts (No Payment)", role: .destructive) {
                     vm.closeAllUnsettledTabs()
                     if let counted = Decimal(string: closingCashString) {
                         _ = vm.settleShift(closingCash: counted)

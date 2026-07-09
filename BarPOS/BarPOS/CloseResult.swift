@@ -28,6 +28,12 @@ public enum PaymentMethod: String, Codable, CaseIterable {
     case other
 }
 
+public enum CloseDisposition: String, Codable {
+    case sale
+    case walkout
+    case recovery
+}
+
 public struct CloseResult: Codable, Hashable, Identifiable {
     public let id: UUID
     public let tabName: String
@@ -43,6 +49,15 @@ public struct CloseResult: Codable, Hashable, Identifiable {
     public let bartenderID: UUID?
     public let bartenderName: String?
 
+    // nil means .sale (legacy data)
+    public var disposition: CloseDisposition?
+    public var lostAmount: Decimal?
+
+    // on a recovery record: the original walkout's id
+    public var recoveredFromID: UUID?
+    // on a walkout record: when it was collected
+    public var recoveredAt: Date?
+
     public init(
         id: UUID = UUID(),
         tabName: String,
@@ -54,7 +69,11 @@ public struct CloseResult: Codable, Hashable, Identifiable {
         changeDue: Decimal,
         closedAt: Date = Date(),
         bartenderID: UUID? = nil,
-        bartenderName: String? = nil
+        bartenderName: String? = nil,
+        disposition: CloseDisposition? = nil,
+        lostAmount: Decimal? = nil,
+        recoveredFromID: UUID? = nil,
+        recoveredAt: Date? = nil
     ) {
         self.id = id
         self.tabName = tabName
@@ -67,5 +86,9 @@ public struct CloseResult: Codable, Hashable, Identifiable {
         self.closedAt = closedAt
         self.bartenderID = bartenderID
         self.bartenderName = bartenderName
+        self.disposition = disposition
+        self.lostAmount = lostAmount
+        self.recoveredFromID = recoveredFromID
+        self.recoveredAt = recoveredAt
     }
 }

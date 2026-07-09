@@ -9,6 +9,9 @@ struct AdminSecurityView: View {
     @State private var pinError: String = ""
     @FocusState private var newPINFocused: Bool
 
+    // Sales tax rate editor (displayed as a percentage, e.g. "8.0" == 8%)
+    @State private var taxRateText: String = ""
+
     var body: some View {
         List {
             // MARK: - Manager PIN
@@ -65,6 +68,30 @@ struct AdminSecurityView: View {
                 Text("Admin panel locks automatically after \(vm.autoLockTimeout) minute\(vm.autoLockTimeout == 1 ? "" : "s") of inactivity.")
                     .font(.footnote)
             }
+
+            // MARK: - Sales Tax
+            Section {
+                HStack {
+                    Text("Sales Tax Rate")
+                    Spacer()
+                    TextField("8.0", text: $taxRateText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                        .onChange(of: taxRateText) { _, newValue in
+                            if let percent = Decimal(string: newValue) {
+                                vm.taxRate = percent / 100
+                            }
+                        }
+                    Text("%")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Sales Tax")
+            } footer: {
+                Text("Prices are tax-inclusive. This rate is used to calculate the tax portion for reports and receipts.")
+                    .font(.footnote)
+            }
         }
         .scrollDismissesKeyboard(.interactively)
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -80,6 +107,7 @@ struct AdminSecurityView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 newPINFocused = true
             }
+            taxRateText = NSDecimalNumber(decimal: vm.taxRate * 100).stringValue
         }
     }
 

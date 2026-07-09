@@ -17,6 +17,9 @@ final class InventoryVM: ObservableObject {
     // MARK: - Auto-lock timeout (minutes, 1–15)
     @Published var autoLockTimeout: Int = 5 { didSet { saveState() } }
 
+    // MARK: - Sales tax rate (e.g. 0.08 == 8%)
+    @Published var taxRate: Decimal = 0.08 { didSet { saveState() } }
+
     // MARK: - Printer Settings
     @Published var printerSettings: ReceiptSettings = ReceiptSettings() { didSet { saveState() } }
     
@@ -193,10 +196,9 @@ final class InventoryVM: ObservableObject {
                         disposition: CloseDisposition = .sale) -> CloseResult? {
         guard let activeID = activeTabID, let ticket = tabs[activeID] else { return nil }
 
-        let subtotal = ticket.subtotal
-        let total    = ticket.total
+        let charged  = ticket.total    // unchanged, what the customer pays
 
-        if disposition == .sale, method == .cash, cashTendered < total { return nil }
+        if disposition == .sale, method == .cash, cashTendered < charged { return nil }
 
         let snapshots: [LineSnapshot] = ticket.lines.map { line in
             LineSnapshot(
@@ -208,10 +210,11 @@ final class InventoryVM: ObservableObject {
         }
 
         let actualTendered: Decimal = (method == .cash) ? cashTendered : 0
-        let change: Decimal         = (method == .cash) ? (cashTendered - total) : 0
+        let change: Decimal         = (method == .cash) ? (cashTendered - charged) : 0
 
-        let recordedSubtotal: Decimal = (disposition == .walkout) ? 0 : subtotal
-        let recordedTotal: Decimal    = (disposition == .walkout) ? 0 : total
+        let net: Decimal              = (charged / (1 + taxRate)).rounded(to: 2)
+        let recordedTotal: Decimal    = (disposition == .walkout) ? 0 : charged
+        let recordedSubtotal: Decimal = (disposition == .walkout) ? 0 : net
         let lostAmount: Decimal?      = (disposition == .walkout) ? ticket.total : nil
 
         let result = CloseResult(
@@ -274,16 +277,17 @@ final class InventoryVM: ObservableObject {
         guard walkout.disposition == .walkout, walkout.recoveredAt == nil,
               currentShift != nil else { return nil }
 
-        let amount = walkout.lostAmount ?? 0
+        let lostAmount = walkout.lostAmount ?? 0
+        let net = (lostAmount / (1 + taxRate)).rounded(to: 2)
 
         let recovery = CloseResult(
             id: UUID(),
             tabName: walkout.tabName + " (Recovered)",
             lines: [],
-            subtotal: amount,
-            total: amount,
+            subtotal: net,
+            total: lostAmount,
             paymentMethod: method,
-            cashTendered: method == .cash ? amount : 0,
+            cashTendered: method == .cash ? lostAmount : 0,
             changeDue: 0,
             closedAt: Date(),
             bartenderID: currentShift?.openedBy?.id,
@@ -907,6 +911,7 @@ final class InventoryVM: ObservableObject {
         var currentShift: ShiftRecord?
         var closedTabs: [CloseResult]?
         var shiftRecords: [ShiftRecord]?
+        var taxRate: Decimal?
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
@@ -953,7 +958,8 @@ final class InventoryVM: ObservableObject {
             nextTabSequence: nextTabSequence,
             currentShift: currentShift,
             closedTabs: closedTabs,
-            shiftRecords: shiftRecords
+            shiftRecords: shiftRecords,
+            taxRate: taxRate
         )
         do {
             try Persistence.saveJSON(snapshot, to: stateURL)
@@ -988,6 +994,7 @@ final class InventoryVM: ObservableObject {
         voidLog = s.voidLog ?? []
         colorScheme = s.colorScheme ?? "system"
         autoLockTimeout = s.autoLockTimeout ?? 5
+        taxRate = s.taxRate ?? 0.08
         pricingRules = s.pricingRules ?? PricingRules()
 
         tabs = s.tabs ?? [:]
@@ -1061,7 +1068,8 @@ final class InventoryVM: ObservableObject {
             nextTabSequence: nextTabSequence,
             currentShift: currentShift,
             closedTabs: closedTabs,
-            shiftRecords: shiftRecords
+            shiftRecords: shiftRecords,
+            taxRate: taxRate
         )
         let url = Persistence.fileURL("backup-\(Int(Date().timeIntervalSince1970)).json")
         do {

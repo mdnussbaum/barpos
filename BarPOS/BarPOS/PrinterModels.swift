@@ -62,7 +62,7 @@ struct ReceiptSettings: Codable {
     var paperWidth: PaperWidth = .mm80
     var showDate: Bool = true
     var showServer: Bool = true
-    var showTax: Bool = true
+    var showTax: Bool = false
 
     enum PaperWidth: String, Codable {
         case mm58 = "58mm"

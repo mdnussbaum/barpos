@@ -200,7 +200,8 @@ struct ReceiptFormatter {
             tabName: result.tabName,
             paymentMethod: result.paymentMethod.rawValue.capitalized,
             cashTendered: result.cashTendered > 0 ? result.cashTendered.currencyString() : "",
-            changeDue: result.changeDue.currencyString()
+            changeDue: result.changeDue.currencyString(),
+            showTax: settings.showTax
         )
     }
 }

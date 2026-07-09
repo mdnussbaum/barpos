@@ -226,8 +226,10 @@ class EpsonPrinterManager: ObservableObject {
         printer.addFeedLine(1)
 
         printer.addText("--------------------------------\n")
-        printer.addText(padLine("Subtotal:", content.subtotal))
-        printer.addText(padLine("Tax:", content.tax))
+        if content.showTax {
+            printer.addText(padLine("Subtotal:", content.subtotal))
+            printer.addText(padLine("Tax:", content.tax))
+        }
         printer.addText("================================\n")
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
         printer.addText(padLine("TOTAL:", content.total))
@@ -346,8 +348,10 @@ class EpsonPrinterManager: ObservableObject {
         printer.addFeedLine(1)
 
         printer.addText("--------------------------------\n")
-        printer.addText(padLine("Subtotal:", content.subtotal))
-        printer.addText(padLine("Tax:", content.tax))
+        if content.showTax {
+            printer.addText(padLine("Subtotal:", content.subtotal))
+            printer.addText(padLine("Tax:", content.tax))
+        }
         printer.addText("================================\n")
         printer.addTextStyle(EPOS2_FALSE, ul: EPOS2_FALSE, em: EPOS2_TRUE, color: EPOS2_PARAM_DEFAULT)
         printer.addText(padLine("TOTAL:", content.total))
@@ -434,7 +438,8 @@ class EpsonPrinterManager: ObservableObject {
             tabName: "Test Tab",
             paymentMethod: "Cash",
             cashTendered: "$10.00",
-            changeDue: "$5.00"
+            changeDue: "$5.00",
+            showTax: false
         )
 
         do {
@@ -605,6 +610,7 @@ struct EpsonReceiptContent {
     let paymentMethod: String
     let cashTendered: String
     let changeDue: String
+    var showTax: Bool
 }
 
 struct ReceiptLine {

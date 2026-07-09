@@ -673,8 +673,9 @@ struct TabTicket: Identifiable, Hashable, Codable {
 
 extension Decimal {
     func rounded(to places: Int) -> Decimal {
-        let divisor = pow(10.0, Double(places))
-        let rounded = (self as NSDecimalNumber).doubleValue * divisor
-        return Decimal(round(rounded) / divisor)
+        var value = self
+        var result = Decimal()
+        NSDecimalRound(&result, &value, places, .bankers)
+        return result
     }
 }

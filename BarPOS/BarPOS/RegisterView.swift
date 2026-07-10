@@ -333,8 +333,11 @@ struct RegisterView: View {
                         .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.blue.opacity(0.15))
+                        .background(Color(.tertiarySystemFill))
                         .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(Color(.separator), lineWidth: 1)
+                        )
                 }
                 .padding(.horizontal, 6)
                 .padding(.top, 8)
@@ -344,15 +347,28 @@ struct RegisterView: View {
                     VStack(spacing: 6) {
                         ForEach(vm.tabIDsForUI, id: \.self) { id in
                             Button { vm.selectTab(id: id) } label: {
-                                Text(vm.tabDisplayName(id: id))
-                                    .font(.caption)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 12)
-                                    .frame(maxWidth: .infinity)
-                                    .background((id == vm.activeTabID) ? Color.blue.opacity(0.25) : Color(.tertiarySystemFill))
-                                    .clipShape(Capsule())
+                                Group {
+                                    if id == vm.activeTabID {
+                                        Label(vm.tabDisplayName(id: id), systemImage: "checkmark")
+                                    } else {
+                                        Text(vm.tabDisplayName(id: id))
+                                    }
+                                }
+                                .font(id == vm.activeTabID ? .caption.weight(.bold) : .caption)
+                                .foregroundColor(id == vm.activeTabID ? .white : .primary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity)
+                                .background((id == vm.activeTabID) ? Color(red: 0.094, green: 0.373, blue: 0.647) : Color(.tertiarySystemFill))
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule().stroke(
+                                        Color(red: 0.522, green: 0.718, blue: 0.922),
+                                        lineWidth: (id == vm.activeTabID) ? 2 : 0
+                                    )
+                                )
                             }
                         }
                     }

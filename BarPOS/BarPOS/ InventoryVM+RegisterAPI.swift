@@ -5,7 +5,18 @@ extension InventoryVM {
     // MARK: - Tab helpers used by RegisterView
     func ensureAtLeastOneTab() {
         if tabs.isEmpty { createNewTab() }
-        if activeTabID == nil { activeTabID = tabs.keys.first }
+        if activeTabID == nil { selectExistingEmptyOrCreateNewTab() }
+    }
+
+    func selectExistingEmptyOrCreateNewTab() {
+        if let emptyTab = tabs.values
+            .filter({ $0.lines.isEmpty })
+            .sorted(by: { $0.createdAt > $1.createdAt })
+            .first {
+            activeTabID = emptyTab.id
+        } else {
+            createNewTab()
+        }
     }
 
     func createNewTab() {
@@ -30,8 +41,7 @@ extension InventoryVM {
     func deleteActiveTabIfEmpty() {
         guard let id = activeTabID, let t = tabs[id], t.lines.isEmpty else { return }
         tabs.removeValue(forKey: id)
-        if tabs.isEmpty { createNewTab() }
-        activeTabID = tabs.keys.first
+        selectExistingEmptyOrCreateNewTab()
         saveState()
     }
 

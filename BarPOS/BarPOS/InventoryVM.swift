@@ -260,7 +260,7 @@ final class InventoryVM: ObservableObject {
         recordCloseIntoShift(result)
 
         tabs.removeValue(forKey: activeID)
-        if tabs.isEmpty { createNewTab() } else { activeTabID = tabs.keys.first }
+        selectExistingEmptyOrCreateNewTab()
 
         lastCloseResult = result
         flushSave()

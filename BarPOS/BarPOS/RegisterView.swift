@@ -1009,9 +1009,15 @@ struct RegisterView: View {
     // MARK: - Small helpers
     private func tabNameSuggestions(for input: String) -> [String] {
         guard !input.isEmpty else { return [] }
-        let allNames = vm.allClosedTabs.map { $0.tabName }
-        let unique = Array(Set(allNames)).sorted()
-        return unique.filter { $0.localizedCaseInsensitiveContains(input) && $0 != input }
+        let uniqueNames = Dictionary(
+            vm.allClosedTabs.map { ($0.tabName.lowercased(), $0.tabName) },
+            uniquingKeysWith: { first, _ in first }
+        ).values.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        return uniqueNames.filter {
+            $0.localizedCaseInsensitiveContains(input) &&
+            $0.localizedCaseInsensitiveCompare(input) != .orderedSame
+        }
     }
 
     private var printerStatusDot: String {
@@ -1260,4 +1266,3 @@ struct RegisterView: View {
         }
     }
 }
-

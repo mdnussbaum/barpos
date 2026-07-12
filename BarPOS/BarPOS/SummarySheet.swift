@@ -1,8 +1,13 @@
 import SwiftUI
 
 struct SummarySheet: View {
+    @EnvironmentObject var vm: InventoryVM
+    @ObservedObject private var printerManager = EpsonPrinterManager.shared
+
     let result: CloseResult
     let onDone: () -> Void
+
+    @State private var reprintStatus: String = ""
 
     var body: some View {
         NavigationStack {
@@ -71,6 +76,24 @@ struct SummarySheet: View {
                             )
                         }
                     }
+
+                    // Reprint
+                    if !(result.disposition == .walkout) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button {
+                                Task { await reprintReceipt() }
+                            } label: {
+                                Label("Reprint Receipt", systemImage: "printer")
+                            }
+                            .buttonStyle(.bordered)
+
+                            if !reprintStatus.isEmpty {
+                                Text(reprintStatus)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
                 .padding(20)
             }
@@ -93,6 +116,36 @@ struct SummarySheet: View {
     private func derivedTax() -> Decimal {
         let tax = result.total - result.subtotal
         return tax >= 0 ? tax : 0
+    }
+
+    private func reprintReceipt() async {
+        let original = ReceiptFormatter.formatReceiptContent(result, settings: vm.printerSettings)
+        let content = EpsonReceiptContent(
+            header: "** REPRINT **\n" + original.header,
+            lines: original.lines,
+            subtotal: original.subtotal,
+            tax: original.tax,
+            total: original.total,
+            footer: original.footer,
+            bartenderName: original.bartenderName,
+            tabName: original.tabName,
+            paymentMethod: original.paymentMethod,
+            cashTendered: original.cashTendered,
+            changeDue: original.changeDue,
+            showTax: original.showTax
+        )
+        if !printerManager.isConnected {
+            print("⚠️ Printer not connected — attempting discovery before reprint...")
+            await printerManager.discoverPrinter()
+        }
+        do {
+            try await printerManager.printReceipt(content)
+            reprintStatus = "Receipt reprinted."
+            print("✅ Receipt reprinted successfully")
+        } catch {
+            reprintStatus = "Reprint failed."
+            print("❌ Reprint error: \(error)")
+        }
     }
 }
 

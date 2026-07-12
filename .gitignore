@@ -2,3 +2,4 @@
 *.xcuserstate
 *.xcuserstate
 .claude/
+.DS_Store

@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UIKit
 
 struct RegisterView: View {
     @EnvironmentObject var vm: InventoryVM
@@ -15,10 +16,10 @@ struct RegisterView: View {
     @State private var categoryToReorder: ProductCategory? = nil
     @State private var showingChangePINSheet = false
     @State private var showingBuildCocktail = false
-    @State private var showingOwedTabs = false
 
     // Tab name suggestion state
     @FocusState private var tabNameFocused: Bool
+    @State private var tabNameBeforeEditing: String? = nil
 
     // Size variant picker state
     @State private var selectedProduct: Product? = nil
@@ -147,10 +148,6 @@ struct RegisterView: View {
         }
         .sheet(isPresented: $showingBuildCocktail) {
             BuildCocktailSheet()
-                .environmentObject(vm)
-        }
-        .sheet(isPresented: $showingOwedTabs) {
-            OwedTabsSheet()
                 .environmentObject(vm)
         }
         // MARK: Close tab sheet
@@ -394,7 +391,24 @@ struct RegisterView: View {
                             .textFieldStyle(.roundedBorder)
                             .focused($tabNameFocused)
                             .submitLabel(.done)
-                            .onSubmit { tabNameFocused = false }
+                            .onReceive(NotificationCenter.default.publisher(
+                                for: UITextField.textDidBeginEditingNotification
+                            )) { obj in
+                                if let textField = obj.object as? UITextField {
+                                    textField.selectAll(nil)
+                                }
+                            }
+                            .onChange(of: tabNameFocused) { _, isFocused in
+                                if isFocused {
+                                    tabNameBeforeEditing = vm.activeTab?.name
+                                } else {
+                                    saveFormattedTabName()
+                                }
+                            }
+                            .onSubmit {
+                                saveFormattedTabName()
+                                tabNameFocused = false
+                            }
 
                             Button(role: .destructive) {
                                 vm.deleteActiveTabIfEmpty()
@@ -551,22 +565,6 @@ struct RegisterView: View {
                         .padding(.vertical, 8)
                         .background(Color.blue.opacity(0.1))
                         .foregroundStyle(.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 4)
-            }
-
-            // Owed Tabs button
-            if vm.currentShift != nil && !vm.owedTabs.isEmpty {
-                Button {
-                    showingOwedTabs = true
-                } label: {
-                    Label("Owed Tabs (\(vm.owedTabs.count))", systemImage: "exclamationmark.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.orange.opacity(0.1))
-                        .foregroundStyle(.orange)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
@@ -1007,6 +1005,41 @@ struct RegisterView: View {
     }
 
     // MARK: - Small helpers
+    private func saveFormattedTabName() {
+        guard let originalName = tabNameBeforeEditing,
+              let currentName = vm.activeTab?.name else { return }
+
+        let typedName = currentName.trimmingCharacters(in: .whitespacesAndNewlines)
+        defer { tabNameBeforeEditing = nil }
+
+        guard !typedName.isEmpty else {
+            vm.renameActiveTab(originalName)
+            return
+        }
+        guard typedName != originalName,
+              let sequenceNumber = tabSequenceNumber(from: originalName) else { return }
+
+        let prefix = "\(sequenceNumber) - "
+        if typedName.hasPrefix(prefix) {
+            vm.renameActiveTab(typedName)
+        } else {
+            vm.renameActiveTab(prefix + typedName)
+        }
+    }
+
+    private func tabSequenceNumber(from name: String) -> String? {
+        let patterns = [#"^Tab\s+(\d+)$"#, #"^(\d+)\s*-\s*"#, #"•\s*#(\d+)$"#]
+
+        for pattern in patterns {
+            guard let expression = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(name.startIndex..., in: name)
+            guard let match = expression.firstMatch(in: name, range: range),
+                  let numberRange = Range(match.range(at: 1), in: name) else { continue }
+            return String(name[numberRange])
+        }
+        return nil
+    }
+
     private func tabNameSuggestions(for input: String) -> [String] {
         guard !input.isEmpty else { return [] }
         let uniqueNames = Dictionary(

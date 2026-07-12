@@ -13,6 +13,7 @@ struct HistoryView: View {
     @State private var presentingTicket: CloseResult? = nil
     // UI state
     @State private var scope: Scope = .thisShift
+    @State private var showingOwedTabs = false
 
     // Admin PIN
     @State private var showPIN = false
@@ -41,6 +42,30 @@ struct HistoryView: View {
                     pinText = ""
                     pinError = ""
                 }
+            }
+
+            if !vm.owedTabs.isEmpty {
+                VStack(spacing: 4) {
+                    Button {
+                        showingOwedTabs = true
+                    } label: {
+                        Label("Owed Tabs (\(vm.owedTabs.count))", systemImage: "exclamationmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .foregroundStyle(.orange)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(vm.currentShift == nil)
+
+                    if vm.currentShift == nil {
+                        Text("Start a shift to collect owed tabs")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal)
             }
 
             // Content for each scope
@@ -187,6 +212,10 @@ struct HistoryView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showingOwedTabs) {
+            OwedTabsSheet()
+                .environmentObject(vm)
         }
         // Toolbar lock/unlock (icon shows the action)
         .toolbar {

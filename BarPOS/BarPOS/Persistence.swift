@@ -40,4 +40,28 @@ enum Persistence {
         dec.dateDecodingStrategy = .iso8601
         return try dec.decode(T.self, from: data)
     }
+
+    static func appendJSONL<T: Encodable>(_ value: T, to url: URL) throws {
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        var data = try enc.encode(value)
+        data.append(0x0A)  // newline
+        if FileManager.default.fileExists(atPath: url.path) {
+            let handle = try FileHandle(forWritingTo: url)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+        } else {
+            try data.write(to: url, options: .atomic)
+        }
+    }
+
+    static func loadJSONL<T: Decodable>(from url: URL, as type: T.Type) -> [T] {
+        guard let raw = try? Data(contentsOf: url) else { return [] }
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return raw.split(separator: 0x0A).compactMap {
+            try? dec.decode(T.self, from: Data($0))
+        }
+    }
 }

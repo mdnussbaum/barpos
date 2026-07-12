@@ -258,6 +258,9 @@ final class InventoryVM: ObservableObject {
 
         closedTabs.insert(result, at: 0)
         allClosedTabs.insert(result, at: 0)
+        saveQueue.async { [historyURL] in
+            try? Persistence.appendJSONL(result, to: historyURL)
+        }
         recordCloseIntoShift(result)
 
         tabs.removeValue(forKey: activeID)
@@ -307,6 +310,15 @@ final class InventoryVM: ObservableObject {
 
         closedTabs.insert(recovery, at: 0)
         allClosedTabs.insert(recovery, at: 0)
+        saveQueue.async { [historyURL, allClosedTabs] in
+            let tmp = historyURL.appendingPathExtension("tmp")
+            try? FileManager.default.removeItem(at: tmp)
+            for r in allClosedTabs.reversed() {
+                try? Persistence.appendJSONL(r, to: tmp)
+            }
+            try? FileManager.default.removeItem(at: historyURL)
+            try? FileManager.default.moveItem(at: tmp, to: historyURL)
+        }
         recordCloseIntoShift(recovery)
 
         flushSave()
@@ -916,6 +928,7 @@ final class InventoryVM: ObservableObject {
     }
     
     private var stateURL: URL { Persistence.fileURL("state.json") }
+    private var historyURL: URL { Persistence.fileURL("history.jsonl") }
     
     func saveState() {
         pendingSave = true
@@ -941,7 +954,7 @@ final class InventoryVM: ObservableObject {
             chipsOutstandingByType: chipsOutstandingByType,
             chipPriceOverrides: chipPriceOverrides,
             bartenders: bartenders,
-            allClosedTabs: allClosedTabs,
+            allClosedTabs: [],
             shiftReports: shiftReports,
             productOrderByBartender: productOrderByBartender,
             defaultProductOrdering: defaultProductOrdering,
@@ -1028,6 +1041,20 @@ final class InventoryVM: ObservableObject {
         do {
             let s = try Persistence.loadJSON(from: stateURL, as: PersistedState.self)
             applyState(s)
+            let fileHistory = Persistence.loadJSONL(from: historyURL, as: CloseResult.self)
+            if !fileHistory.isEmpty {
+                allClosedTabs = Array(fileHistory.reversed())
+            } else if !allClosedTabs.isEmpty {
+                saveQueue.async { [historyURL, allClosedTabs] in
+                    let tmp = historyURL.appendingPathExtension("tmp")
+                    try? FileManager.default.removeItem(at: tmp)
+                    for r in allClosedTabs.reversed() {
+                        try? Persistence.appendJSONL(r, to: tmp)
+                    }
+                    try? FileManager.default.removeItem(at: historyURL)
+                    try? FileManager.default.moveItem(at: tmp, to: historyURL)
+                }
+            }
             print("✅ State loaded from disk")
         } catch {
             print("⚠️ loadState error:", error)
@@ -1119,6 +1146,15 @@ final class InventoryVM: ObservableObject {
         do {
             let s = try Persistence.loadJSON(from: url, as: PersistedState.self)
             applyState(s)
+            saveQueue.async { [historyURL, allClosedTabs] in
+                let tmp = historyURL.appendingPathExtension("tmp")
+                try? FileManager.default.removeItem(at: tmp)
+                for r in allClosedTabs.reversed() {
+                    try? Persistence.appendJSONL(r, to: tmp)
+                }
+                try? FileManager.default.removeItem(at: historyURL)
+                try? FileManager.default.moveItem(at: tmp, to: historyURL)
+            }
             saveState()
             return true
         } catch {

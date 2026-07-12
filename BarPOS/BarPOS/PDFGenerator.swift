@@ -120,9 +120,13 @@ struct PDFGenerator {
                 
                 let topItems = getTopItems(from: closedTabs, limit: 10)
                 for item in topItems {
+                    if yPosition + 30 > pageRect.height - 40 {
+                        context.beginPage()
+                        yPosition = 40
+                    }
+
                     yPosition = drawKeyValue(item.name, value: "\(item.quantity) sold",
                                             at: yPosition, in: pageRect, fontSize: 12)
-                    if yPosition > 720 { break } // Page limit
                 }
             }
         }
@@ -202,6 +206,11 @@ struct PDFGenerator {
             yPosition += 10
             
             for shift in report.shifts.sorted(by: { $0.startedAt < $1.startedAt }) {
+                if yPosition + 90 > pageRect.height - 40 {
+                    context.beginPage()
+                    yPosition = 40
+                }
+
                 yPosition = drawText("\(shift.bartenderName) • \(shift.formattedStartTime) - \(shift.formattedEndTime)",
                                     at: CGPoint(x: 40, y: yPosition), fontSize: 12, bold: true, in: pageRect)
                 yPosition = drawKeyValue("  Sales:", value: shift.grossSales.currencyString(), at: yPosition, in: pageRect, fontSize: 11)

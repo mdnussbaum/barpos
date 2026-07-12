@@ -104,12 +104,13 @@ struct AdminBackupsView: View {
     
     // ===== REPLACEMENT: restore(from:) uses InventoryVM.PersistedState =====
     private func restore(from url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
             let s = try Persistence.loadJSON(from: url, as: InventoryVM.PersistedState.self)
             vm.applyState(s)   // apply everything, including products
             vm.saveState()     // persist immediately
             importStatus = "Import successful."
-            print("✅ Import successful")
         } catch {
             importStatus = "Import failed: \(error.localizedDescription)"
             print("❌ Import failed:", error)

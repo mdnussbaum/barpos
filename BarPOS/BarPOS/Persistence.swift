@@ -28,7 +28,7 @@ enum Persistence {
 
     static func saveJSON<T: Encodable>(_ value: T, to url: URL) throws {
         let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        enc.outputFormatting = []
         enc.dateEncodingStrategy = .iso8601
         let data = try enc.encode(value)
         try data.write(to: url, options: .atomic)

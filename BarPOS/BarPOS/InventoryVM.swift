@@ -156,6 +156,7 @@ final class InventoryVM: ObservableObject {
 
     private var saveCancellable: AnyCancellable?
     private var pendingSave = false
+    private let saveQueue = DispatchQueue(label: "barpos.save", qos: .utility)
 
     func setChipPrice(_ type: ChipType, to newValue: Decimal) {
         chipPriceOverrides[type] = newValue
@@ -961,10 +962,12 @@ final class InventoryVM: ObservableObject {
             shiftRecords: shiftRecords,
             taxRate: taxRate
         )
-        do {
-            try Persistence.saveJSON(snapshot, to: stateURL)
-        } catch {
-            print("⚠️ saveState error:", error)
+        saveQueue.async { [stateURL] in
+            do {
+                try Persistence.saveJSON(snapshot, to: stateURL)
+            } catch {
+                print("⚠️ saveState error:", error)
+            }
         }
     }
     
@@ -1128,4 +1131,3 @@ final class InventoryVM: ObservableObject {
         Array(Set(shiftReports.map { $0.bartenderName })).sorted()
     }
 }
-

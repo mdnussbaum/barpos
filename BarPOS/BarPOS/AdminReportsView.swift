@@ -369,6 +369,7 @@ struct AdminReportsView: View {
                 // 1. Save Day Report PDF
                 if let pdfURL = PDFGenerator.generateDayReportPDF(report: dayReport) {
                     let pdfDest = backupFolder.appendingPathComponent("DayReport_\(dateString).pdf")
+                    try? FileManager.default.removeItem(at: pdfDest)
                     try? FileManager.default.copyItem(at: pdfURL, to: pdfDest)
                     print("✅ Saved Day Report PDF")
                 }
@@ -376,6 +377,7 @@ struct AdminReportsView: View {
                 // 2. Save Full JSON Backup
                 if let backupURL = vm.exportBackup() {
                     let jsonDest = backupFolder.appendingPathComponent("backup_\(dateString).json")
+                    try? FileManager.default.removeItem(at: jsonDest)
                     try? FileManager.default.copyItem(at: backupURL, to: jsonDest)
                     print("✅ Saved JSON backup")
                 }

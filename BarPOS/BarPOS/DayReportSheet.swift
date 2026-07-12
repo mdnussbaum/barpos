@@ -107,7 +107,7 @@ struct DayReportSheet: View {
                         Text("By Bartender")
                             .font(.headline)
                         
-                        ForEach(report.shifts.sorted(by: { $0.startedAt < $1.startedAt }), id: \.bartenderID) { shift in
+                        ForEach(report.shifts.sorted(by: { $0.startedAt < $1.startedAt }), id: \.id) { shift in
                             VStack(spacing: 8) {
                                 HStack {
                                     VStack(alignment: .leading) {

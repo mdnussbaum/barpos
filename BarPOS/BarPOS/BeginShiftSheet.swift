@@ -231,8 +231,7 @@ struct BeginShiftSheet: View {
     private func startShift() {
         guard let bartender = selectedBartender, authenticated else { return }
         // Convert cents-style input to dollars: "1500" → 15.00
-        let cents = Decimal(string: openingCashString) ?? 0
-        let opening = cents / 100
+        let opening = Decimal(string: openingCashString) ?? 0
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onStart(bartender, opening)

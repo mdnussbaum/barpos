@@ -675,7 +675,7 @@ extension Decimal {
     func rounded(to places: Int) -> Decimal {
         var value = self
         var result = Decimal()
-        NSDecimalRound(&result, &value, places, .bankers)
+        NSDecimalRound(&result, &value, places, .plain)
         return result
     }
 }

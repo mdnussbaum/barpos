@@ -49,19 +49,21 @@ struct BarPOSApp: App {
                     }
                 }
                 .onAppear {
+                    #if DEBUG
                     DemoSeeder.seed(into: vm)
+                    #endif
                     Task {
                         await EpsonPrinterManager.shared.discoverAndConnect()
-                    }
-                    var importMessages: [String] = []
-                    if let message = vm.checkAndApplyCloudProductImport() {
-                        importMessages.append(message)
-                    }
-                    if let message = vm.checkAndApplyCloudBartenderImport() {
-                        importMessages.append(message)
-                    }
-                    if !importMessages.isEmpty {
-                        cloudImportMessage = importMessages.joined(separator: " ")
+                        var importMessages: [String] = []
+                        if let message = await vm.checkAndApplyCloudProductImport() {
+                            importMessages.append(message)
+                        }
+                        if let message = await vm.checkAndApplyCloudBartenderImport() {
+                            importMessages.append(message)
+                        }
+                        if importMessages.isEmpty == false {
+                            cloudImportMessage = importMessages.joined(separator: " ")
+                        }
                     }
                 }
         }

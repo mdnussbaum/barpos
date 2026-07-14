@@ -1107,13 +1107,22 @@ final class InventoryVM: ObservableObject {
     }
     
     @discardableResult
-    func checkAndApplyCloudProductImport() -> String? {
+    func checkAndApplyCloudProductImport() async -> String? {
         guard let url = FileManagerHelper.pendingImportURL,
               FileManager.default.fileExists(atPath: url.path) else { return nil }
         do {
             try FileManager.default.startDownloadingUbiquitousItem(at: url)
         } catch { }
-        guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let csvData: String? = await Task.detached(priority: .utility) {
+            for _ in 0..<10 {
+                if let contents = try? String(contentsOf: url, encoding: .utf8) {
+                    return contents
+                }
+                try? await Task.sleep(for: .milliseconds(300))
+            }
+            return nil
+        }.value
+        guard let csvData else { return nil }
         let (newProducts, result) = CSVImporter.importProducts(from: csvData, existingProducts: products)
         products = newProducts
         flushSave()
@@ -1122,13 +1131,22 @@ final class InventoryVM: ObservableObject {
     }
 
     @discardableResult
-    func checkAndApplyCloudBartenderImport() -> String? {
+    func checkAndApplyCloudBartenderImport() async -> String? {
         guard let url = FileManagerHelper.pendingBartenderImportURL,
               FileManager.default.fileExists(atPath: url.path) else { return nil }
         do {
             try FileManager.default.startDownloadingUbiquitousItem(at: url)
         } catch { }
-        guard let csvData = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let csvData: String? = await Task.detached(priority: .utility) {
+            for _ in 0..<10 {
+                if let contents = try? String(contentsOf: url, encoding: .utf8) {
+                    return contents
+                }
+                try? await Task.sleep(for: .milliseconds(300))
+            }
+            return nil
+        }.value
+        guard let csvData else { return nil }
         let updated = CSVImporter.importBartenders(from: csvData, existingBartenders: bartenders)
         bartenders = updated
         flushSave()

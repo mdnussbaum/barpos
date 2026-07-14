@@ -66,10 +66,12 @@ struct AdminBackupsView: View {
 
             Section {
                 Button {
-                    if let message = vm.checkAndApplyCloudProductImport() {
-                        importStatus = message
-                    } else {
-                        importStatus = "No products_import.csv found in iCloud Drive."
+                    Task {
+                        if let message = await vm.checkAndApplyCloudProductImport() {
+                            importStatus = message
+                        } else {
+                            importStatus = "No products_import.csv found in iCloud Drive."
+                        }
                     }
                 } label: {
                     Label("Check iCloud for Product Import", systemImage: "icloud.and.arrow.down")
@@ -83,10 +85,12 @@ struct AdminBackupsView: View {
 
             Section {
                 Button {
-                    if let message = vm.checkAndApplyCloudBartenderImport() {
-                        importStatus = message
-                    } else {
-                        importStatus = "No bartenders_import.csv found in iCloud Drive."
+                    Task {
+                        if let message = await vm.checkAndApplyCloudBartenderImport() {
+                            importStatus = message
+                        } else {
+                            importStatus = "No bartenders_import.csv found in iCloud Drive."
+                        }
                     }
                 } label: {
                     Label("Check iCloud for Bartender Import", systemImage: "person.2.badge.gearshape")

@@ -11,12 +11,13 @@ import Foundation
 enum Persistence {
     private static var dirURL: URL = {
         let fm = FileManager.default
-        let url = try! fm.url(for: .applicationSupportDirectory,
-                              in: .userDomainMask,
-                              appropriateFor: nil,
-                              create: true)
-        let appURL = url.appendingPathComponent("BarPOSv2", isDirectory: true)
-        if !fm.fileExists(atPath: appURL.path) {
+        let base = (try? fm.url(for: .applicationSupportDirectory,
+                               in: .userDomainMask,
+                               appropriateFor: nil,
+                               create: true))
+            ?? fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let appURL = base.appendingPathComponent("BarPOSv2", isDirectory: true)
+        if fm.fileExists(atPath: appURL.path) == false {
             try? fm.createDirectory(at: appURL, withIntermediateDirectories: true)
         }
         return appURL

@@ -5,6 +5,7 @@ struct ProductPerformanceView: View {
     let analytics: AnalyticsEngine
     
     @State private var sortBy: SortOption = .revenue
+    @State private var products: [AnalyticsEngine.ProductStat] = []
     
     enum SortOption: String, CaseIterable {
         case revenue = "Revenue"
@@ -48,11 +49,12 @@ struct ProductPerformanceView: View {
         }
         .navigationTitle("Product Performance")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            products = analytics.topProducts(limit: 20)
+        }
     }
     
     private var topProducts: [(product: String, quantity: Int, revenue: Decimal)] {
-        let products = analytics.topProducts(limit: 20)
-        
         switch sortBy {
         case .revenue:
             return products.map { (product: $0.product, quantity: $0.quantity, revenue: $0.revenue) }

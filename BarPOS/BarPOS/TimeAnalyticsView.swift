@@ -3,6 +3,9 @@ import Charts
 
 struct TimeAnalyticsView: View {
     let analytics: AnalyticsEngine
+    @State private var dayOfWeekStats: [AnalyticsEngine.DayOfWeekStat] = []
+    @State private var hourlyStats: [AnalyticsEngine.HourlyStat] = []
+    @State private var dailyTrends: [AnalyticsEngine.DailyTrend] = []
     
     var body: some View {
         ScrollView {
@@ -31,6 +34,11 @@ struct TimeAnalyticsView: View {
         }
         .navigationTitle("Time Analytics")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            dayOfWeekStats = analytics.dayOfWeekStats()
+            hourlyStats = analytics.hourlyStats()
+            dailyTrends = analytics.dailyTrends()
+        }
     }
     
     // MARK: - Day of Week Section
@@ -40,7 +48,7 @@ struct TimeAnalyticsView: View {
             Text("Sales by Day of Week")
                 .font(.headline)
             
-            let stats = analytics.dayOfWeekStats()
+            let stats = dayOfWeekStats
             
             Chart(stats, id: \.day) { stat in
                 BarMark(
@@ -88,7 +96,7 @@ struct TimeAnalyticsView: View {
             Text("Sales by Hour")
                 .font(.headline)
             
-            let stats = analytics.hourlyStats()
+            let stats = hourlyStats
             
             Chart(stats, id: \.hour) { stat in
                 BarMark(
@@ -144,7 +152,7 @@ struct TimeAnalyticsView: View {
             Text("Daily Sales Trend")
                 .font(.headline)
             
-            let trends = analytics.dailyTrends()
+            let trends = dailyTrends
             
             if trends.count > 1 {
                 Chart(trends) { trend in
@@ -189,10 +197,9 @@ struct TimeAnalyticsView: View {
             Text("Peak Performance")
                 .font(.headline)
             
-            let stats = analytics.dayOfWeekStats()
+            let stats = dayOfWeekStats
             let bestDay = stats.max(by: { $0.sales < $1.sales })
             
-            let hourlyStats = analytics.hourlyStats()
             let bestHour = hourlyStats.max(by: { $0.sales < $1.sales })
             
             VStack(spacing: 12) {

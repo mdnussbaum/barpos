@@ -13,7 +13,7 @@ struct AnalyticsEngine {
     // MARK: - Time Analytics
     
     struct DayOfWeekStat: Identifiable {
-        let id = UUID()
+        var id: Int { dayIndex }
         let day: String
         let dayIndex: Int
         let sales: Decimal
@@ -42,7 +42,7 @@ struct AnalyticsEngine {
     }
     
     struct HourlyStat: Identifiable {
-        let id = UUID()
+        var id: Int { hour }
         let hour: Int
         let sales: Decimal
         let ticketCount: Int
@@ -64,7 +64,7 @@ struct AnalyticsEngine {
     }
     
     struct DailyTrend: Identifiable {
-        let id = UUID()
+        var id: Date { date }
         let date: Date
         let sales: Decimal
         let ticketCount: Int
@@ -88,7 +88,7 @@ struct AnalyticsEngine {
     // MARK: - Product Analytics
     
     struct ProductStat: Identifiable {
-        let id = UUID()
+        var id: String { product }
         let product: String
         let quantity: Int
         let revenue: Decimal
@@ -116,7 +116,7 @@ struct AnalyticsEngine {
     // MARK: - Category Analytics
     
     struct CategoryStat: Identifiable {
-        let id = UUID()
+        var id: String { category }
         let category: String
         let revenue: Decimal
         let ticketCount: Int
@@ -155,7 +155,7 @@ struct AnalyticsEngine {
     // MARK: - Bartender Analytics
     
     struct BartenderStat: Identifiable {
-        let id = UUID()
+        var id: String { name }
         let name: String
         let sales: Decimal
         let ticketCount: Int
@@ -219,7 +219,7 @@ struct AnalyticsEngine {
     }
 
     struct TimeSlotStat: Identifiable {
-        let id = UUID()
+        var id: String { slot.rawValue }
         let slot: TimeSlot
         let revenue: Decimal
         let ticketCount: Int

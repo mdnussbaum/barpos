@@ -7,6 +7,9 @@ struct AnalyticsView: View {
     @State private var dateRange: DateRange = .last30Days
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
     @State private var endDate: Date = Date()
+    @State private var analytics = AnalyticsEngine(reports: [], tickets: [])
+    @State private var trends: [AnalyticsEngine.DailyTrend] = []
+    @State private var insights: [String] = []
     
     enum DateRange: String, CaseIterable {
         case today = "Today"
@@ -42,10 +45,6 @@ struct AnalyticsView: View {
         return vm.shiftReports.filter { report in
             report.endedAt >= start && report.endedAt < end
         }
-    }
-    
-    private var analytics: AnalyticsEngine {
-        AnalyticsEngine(reports: filteredReports, tickets: filteredTickets)
     }
     
     var body: some View {
@@ -100,7 +99,7 @@ struct AnalyticsView: View {
                 // Quick Insights
                 if !analytics.tickets.isEmpty {
                     Section("Quick Insights") {
-                        ForEach(analytics.quickInsights(), id: \.self) { insight in
+                        ForEach(insights, id: \.self) { insight in
                             Label(insight, systemImage: "sparkles")
                                 .font(.subheadline)
                         }
@@ -108,7 +107,7 @@ struct AnalyticsView: View {
                 }
 
                 // Sales Trend Chart
-                if !analytics.dailyTrends().isEmpty {
+                if !trends.isEmpty {
                     Section("Sales Trend") {
                         salesTrendChart
                             .frame(height: 200)
@@ -165,6 +164,15 @@ struct AnalyticsView: View {
             }
             .navigationTitle("Analytics")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                recomputeAnalytics()
+            }
+            .onChange(of: startDate) { _, _ in
+                recomputeAnalytics()
+            }
+            .onChange(of: endDate) { _, _ in
+                recomputeAnalytics()
+            }
         }
     }
     
@@ -177,6 +185,14 @@ struct AnalyticsView: View {
         } else {
             startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         }
+        recomputeAnalytics()
+    }
+
+    private func recomputeAnalytics() {
+        let engine = AnalyticsEngine(reports: filteredReports, tickets: filteredTickets)
+        analytics = engine
+        trends = engine.dailyTrends()
+        insights = engine.quickInsights()
     }
     
     @ViewBuilder
@@ -202,8 +218,6 @@ struct AnalyticsView: View {
 
     @ViewBuilder
     private var salesTrendChart: some View {
-        let trends = analytics.dailyTrends()
-
         if trends.count > 1 {
             Chart(trends) { trend in
                 LineMark(
@@ -236,4 +250,3 @@ struct AnalyticsView: View {
         }
     }
 }
-

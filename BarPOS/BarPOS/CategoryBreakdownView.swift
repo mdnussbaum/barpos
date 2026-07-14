@@ -3,6 +3,7 @@ import Charts
 
 struct CategoryBreakdownView: View {
     let analytics: AnalyticsEngine
+    @State private var categories: [AnalyticsEngine.CategoryStat] = []
     
     var body: some View {
         ScrollView {
@@ -28,14 +29,15 @@ struct CategoryBreakdownView: View {
         }
         .navigationTitle("Category Breakdown")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            categories = analytics.categoryBreakdown()
+        }
     }
     
     private var categoryPieChart: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Revenue by Category")
                 .font(.headline)
-            
-            let categories = analytics.categoryBreakdown()
             
             Chart(categories) { data in
                 SectorMark(
@@ -73,7 +75,6 @@ struct CategoryBreakdownView: View {
             Text("Category Details")
                 .font(.headline)
             
-            let categories = analytics.categoryBreakdown()
             let totalRevenue = categories.reduce(0) { $0 + $1.revenue }
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -123,8 +124,6 @@ struct CategoryBreakdownView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Category Comparison")
                 .font(.headline)
-            
-            let categories = analytics.categoryBreakdown()
             
             Chart(categories) { data in
                 BarMark(

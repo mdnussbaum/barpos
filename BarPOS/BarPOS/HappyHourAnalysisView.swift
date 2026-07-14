@@ -15,10 +15,7 @@ struct HappyHourAnalysisView: View {
 
     @State private var priceAdjustment: Double = 0
     @State private var volumeChange: Double = 0
-
-    private var timeSlotStats: [AnalyticsEngine.TimeSlotStat] {
-        analytics.timeSlotStats()
-    }
+    @State private var timeSlotStats: [AnalyticsEngine.TimeSlotStat] = []
 
     private var mostProfitableSlot: AnalyticsEngine.TimeSlotStat? {
         timeSlotStats.max(by: { $0.revenue < $1.revenue })
@@ -93,6 +90,9 @@ struct HappyHourAnalysisView: View {
         }
         .navigationTitle("Happy Hour Analysis")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            timeSlotStats = analytics.timeSlotStats()
+        }
     }
 
     @ViewBuilder

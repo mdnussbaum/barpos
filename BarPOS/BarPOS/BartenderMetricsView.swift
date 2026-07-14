@@ -5,6 +5,7 @@ struct BartenderMetricsView: View {
     let analytics: AnalyticsEngine
     
     @State private var sortBy: SortOption = .sales
+    @State private var bartenderStats: [AnalyticsEngine.BartenderStat] = []
     
     enum SortOption: String, CaseIterable {
         case sales = "Sales"
@@ -50,11 +51,13 @@ struct BartenderMetricsView: View {
         }
         .navigationTitle("Bartender Metrics")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            bartenderStats = analytics.bartenderStats()
+        }
     }
     
     private var sortedBartenders: [(name: String, sales: Decimal, tickets: Int, avgTicket: Decimal)] {
-        let stats = analytics.bartenderStats()
-        let tuples = stats.map { (name: $0.name, sales: $0.sales, tickets: $0.ticketCount, avgTicket: $0.avgTicket) }
+        let tuples = bartenderStats.map { (name: $0.name, sales: $0.sales, tickets: $0.ticketCount, avgTicket: $0.avgTicket) }
         
         switch sortBy {
         case .sales:

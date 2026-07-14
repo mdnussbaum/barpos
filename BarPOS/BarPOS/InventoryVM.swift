@@ -97,11 +97,6 @@ final class InventoryVM: ObservableObject {
     // MARK: - Catalog
     @Published var products: [Product] = [] { didSet { saveState() } }
     
-    // Editable chip prices (persisted)
-    @Published var chipPrices: [ChipType: Decimal] = [
-        .white: 3, .gray: 4, .black: 5
-    ] { didSet { saveState() } }
-    
     // MARK: - Audit Log
     @Published var auditLog: [AuditLogEntry] = [] { didSet { saveState() } }
     
@@ -188,7 +183,7 @@ final class InventoryVM: ObservableObject {
     }
     
     func chipPrice(_ type: ChipType) -> Decimal {
-        chipPrices[type] ?? type.price
+        price(for: type)
     }
     
     // MARK: - Close active tab

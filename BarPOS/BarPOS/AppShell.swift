@@ -27,7 +27,6 @@ struct AppShell: View {
     @State private var lastActivityDate: Date = Date()
     @State private var showingLockWarning: Bool = false
     @State private var lockWarningCountdown: Int = 30
-    @State private var lockWarningTimer: Timer? = nil
     @State private var inactivityTimer: Timer? = nil
 
     var body: some View {
@@ -121,21 +120,13 @@ struct AppShell: View {
 
             if remaining <= 0 {
                 lockAdminNow()
-            } else if remaining <= warningThreshold && !showingLockWarning {
-                withAnimation {
-                    showingLockWarning = true
+            } else if remaining <= warningThreshold {
+                if showingLockWarning == false {
+                    withAnimation {
+                        showingLockWarning = true
+                    }
                 }
-                startLockWarningCountdown(seconds: Int(remaining))
-            }
-        }
-    }
-
-    private func startLockWarningCountdown(seconds: Int) {
-        lockWarningCountdown = max(1, seconds)
-        lockWarningTimer?.invalidate()
-        lockWarningTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if lockWarningCountdown > 1 {
-                lockWarningCountdown -= 1
+                lockWarningCountdown = max(1, Int(remaining))
             }
         }
     }
@@ -151,8 +142,6 @@ struct AppShell: View {
             withAnimation {
                 showingLockWarning = false
             }
-            lockWarningTimer?.invalidate()
-            lockWarningTimer = nil
         }
         if section == .admin && vm.isAdminUnlocked {
             startInactivityTimer()
@@ -162,8 +151,6 @@ struct AppShell: View {
     private func stopAutoLockTimers() {
         inactivityTimer?.invalidate()
         inactivityTimer = nil
-        lockWarningTimer?.invalidate()
-        lockWarningTimer = nil
         showingLockWarning = false
     }
 }

@@ -19,6 +19,15 @@ class EpsonPrinterManager: ObservableObject {
     private var isConnecting: Bool = false
     private var isDiscovering = false
     private let knownIP = "192.168.1.76"
+    private let sdkQueue = DispatchQueue(label: "com.barpos.epson.sdk", qos: .userInitiated)
+
+    private func runOnSDKQueue<T>(_ work: @escaping () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            sdkQueue.async {
+                continuation.resume(returning: work())
+            }
+        }
+    }
 
     init() {
         print("🖨️ EpsonPrinterManager init started")
@@ -103,7 +112,8 @@ class EpsonPrinterManager: ObservableObject {
         lastStatusMessage = "Connecting to printer..."
         lastErrorMessage = nil
         self.target = target
-        let result = printer.connect(target, timeout: 3000)
+        let p = printer
+        let result = await runOnSDKQueue { p.connect(target, timeout: 3000) }
         if result == EPOS2_SUCCESS.rawValue {
             isConnected = true
             lastStatusMessage = "Printer connected"
@@ -124,7 +134,8 @@ class EpsonPrinterManager: ObservableObject {
     }
 
     func disconnectPrinter() {
-        printer?.disconnect()
+        let p = printer
+        sdkQueue.async { p?.disconnect() }
         isConnected = false
         lastStatusMessage = "Printer disconnected"
         lastErrorMessage = nil
@@ -252,7 +263,8 @@ class EpsonPrinterManager: ObservableObject {
         printer.addFeedLine(4)
         printer.addCut(EPOS2_CUT_FEED.rawValue)
 
-        let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
+        let p = printer
+        let sendResult = await runOnSDKQueue { p.sendData(Int(EPOS2_PARAM_DEFAULT)) }
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
@@ -283,7 +295,8 @@ class EpsonPrinterManager: ObservableObject {
         printer.clearCommandBuffer()
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
 
-        let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
+        let p = printer
+        let sendResult = await runOnSDKQueue { p.sendData(Int(EPOS2_PARAM_DEFAULT)) }
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
@@ -375,7 +388,8 @@ class EpsonPrinterManager: ObservableObject {
         printer.addCut(EPOS2_CUT_FEED.rawValue)
         printer.addPulse(EPOS2_DRAWER_2PIN.rawValue, time: EPOS2_PULSE_100.rawValue)
 
-        let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
+        let p = printer
+        let sendResult = await runOnSDKQueue { p.sendData(Int(EPOS2_PARAM_DEFAULT)) }
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {
@@ -412,7 +426,8 @@ class EpsonPrinterManager: ObservableObject {
 
         printer.addCut(EPOS2_CUT_FEED.rawValue)
 
-        let sendResult = printer.sendData(Int(EPOS2_PARAM_DEFAULT))
+        let p = printer
+        let sendResult = await runOnSDKQueue { p.sendData(Int(EPOS2_PARAM_DEFAULT)) }
         printer.clearCommandBuffer()
 
         if sendResult != EPOS2_SUCCESS.rawValue {

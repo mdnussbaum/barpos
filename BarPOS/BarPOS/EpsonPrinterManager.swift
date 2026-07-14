@@ -16,7 +16,7 @@ class EpsonPrinterManager: ObservableObject {
 
     private nonisolated(unsafe) var printer: Epos2Printer?
     private var target: String = ""
-    private var isConnecting: Bool = false
+    @Published private(set) var isConnecting: Bool = false
     private var isDiscovering = false
     private let knownIP = "192.168.1.76"
     private let sdkQueue = DispatchQueue(label: "com.barpos.epson.sdk", qos: .userInitiated)

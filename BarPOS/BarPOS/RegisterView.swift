@@ -57,8 +57,7 @@ struct RegisterView: View {
     @State private var showingShareSheet = false
     
     var body: some View {
-        GeometryReader { geometry in
-            Group {
+        Group {
             if vm.currentShift == nil {
                 // Not on shift - show overlay
                 ZStack {
@@ -95,11 +94,8 @@ struct RegisterView: View {
                 // On shift - normal view
                 registerContent
             }
-            }
         }
         .onAppear {
-            print("🔍 All bartenders: \(vm.bartenders.map { "\($0.name) - active: \($0.isActive)" })")
-            print("🔍 Active only: \(vm.bartenders.filter { $0.isActive }.map { $0.name })")
             currentTime = RegisterView.formattedTime()
         }
         .onReceive(clockTimer) { _ in
@@ -598,7 +594,7 @@ struct RegisterView: View {
             }
         }
         // Size variant picker lives here so it has its own dedicated sheet host,
-        // separate from the root GeometryReader which already chains 7+ other sheets.
+        // separate from the root view which already chains 7+ other sheets.
         .sheet(item: $selectedProduct) { product in
             SizeVariantPicker(product: product) { variant in
                 addLineItem(product: product, variant: variant)
@@ -1058,7 +1054,7 @@ struct RegisterView: View {
     }
 
     private var printerStatusDot: String {
-        if printerManager.lastStatusMessage == "Checking printer..." { return " ⏳" }
+        if printerManager.isConnecting { return " ⏳" }
         return printerManager.isConnected ? " 🟢" : " 🔴"
     }
 

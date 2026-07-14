@@ -59,6 +59,5 @@ extension InventoryVM {
         guard let id = activeTabID, var ticket = tabs[id] else { return }
         mutate(&ticket)
         tabs[id] = ticket
-        objectWillChange.send()
     }
 }

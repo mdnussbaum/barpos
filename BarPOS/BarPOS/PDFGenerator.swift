@@ -295,29 +295,47 @@ struct PDFGenerator {
     }
 }
 
+private enum ShiftReportFormatters {
+    static let date: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter
+    }()
+
+    static let fileDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HHmm"
+        return formatter
+    }()
+
+    static let startTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    static let endTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+}
+
 // MARK: - ShiftReport Extensions for Formatting
 extension ShiftReport {
     var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: startedAt)
+        ShiftReportFormatters.date.string(from: startedAt)
     }
     
     var formattedFileDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HHmm"
-        return formatter.string(from: startedAt)
+        ShiftReportFormatters.fileDate.string(from: startedAt)
     }
     
     var formattedStartTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: startedAt)
+        ShiftReportFormatters.startTime.string(from: startedAt)
     }
     
     var formattedEndTime: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: endedAt)
+        ShiftReportFormatters.endTime.string(from: endedAt)
     }
 }

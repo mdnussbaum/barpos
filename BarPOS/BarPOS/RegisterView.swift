@@ -39,10 +39,14 @@ struct RegisterView: View {
     @State private var currentTime: String = RegisterView.formattedTime()
     private let clockTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
-    private static func formattedTime() -> String {
+    private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
-        return f.string(from: Date())
+        return f
+    }()
+
+    private static func formattedTime() -> String {
+        timeFormatter.string(from: Date())
     }
 
     // Printer state

@@ -1,6 +1,15 @@
 import SwiftUI
 import Charts
 
+private enum HappyHourFormatters {
+    static let currency: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        return formatter
+    }()
+}
+
 struct HappyHourAnalysisView: View {
     let analytics: AnalyticsEngine
 
@@ -241,9 +250,6 @@ struct HappyHourAnalysisView: View {
 // Helper extension for currency formatting
 extension Double {
     func currencyString() -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        return formatter.string(from: NSNumber(value: self)) ?? "$0.00"
+        HappyHourFormatters.currency.string(from: NSNumber(value: self)) ?? "$0.00"
     }
 }

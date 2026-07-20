@@ -7,7 +7,6 @@ struct AdminView: View {
     @State private var showingUnlockPIN = false
     @State private var pinInput: String = ""
     @State private var pinError: String = ""
-    @FocusState private var isPINFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -213,38 +212,9 @@ struct AdminView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
-                VStack(spacing: 12) {
-                    SecureField("Enter PIN", text: $pinInput)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.title3)
-                        .multilineTextAlignment(.center)
-                        .focused($isPINFocused)
-                        .onChange(of: pinInput) { _, _ in
-                            pinError = ""
-                        }
-                        .onSubmit {
-                            attemptUnlock()
-                        }
-
-                    if !pinError.isEmpty {
-                        Text(pinError)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
+                AdminPINPadView(pin: $pinInput, errorMessage: pinError) {
+                    attemptUnlock()
                 }
-                .padding(.horizontal, 40)
-
-                Button(action: attemptUnlock) {
-                    Text("Unlock")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(pinInput.isEmpty ? Color.gray.opacity(0.3) : Color.blue)
-                        .foregroundStyle(.white)
-                        .cornerRadius(12)
-                }
-                .disabled(pinInput.isEmpty)
                 .padding(.horizontal, 40)
 
                 Spacer()
@@ -258,7 +228,8 @@ struct AdminView: View {
                 }
             }
             .onAppear {
-                isPINFocused = true
+                pinInput = ""
+                pinError = ""
             }
         }
     }

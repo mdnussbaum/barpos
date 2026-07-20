@@ -71,8 +71,8 @@ struct AdminChipsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingChip) { chip in
             NavigationStack {
+                ScrollView {
                 VStack(spacing: 20) {
-                    Spacer()
                     Text("\(chip.displayName) Chip Price")
                         .font(.headline)
                     Text(editedPrice.currencyString())
@@ -98,9 +98,11 @@ struct AdminChipsView: View {
                             .disabled(editDigits.isEmpty)
                         }
                     }
-                    Spacer()
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity)
+                }
                 .navigationTitle("Chip Price")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -109,7 +111,7 @@ struct AdminChipsView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
         }
     }
 

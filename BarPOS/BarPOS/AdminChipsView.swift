@@ -3,9 +3,8 @@ import SwiftUI
 struct AdminChipsView: View {
     @EnvironmentObject var vm: InventoryVM
 
-    @State private var whiteString: String = ""
-    @State private var grayString: String  = ""
-    @State private var blackString: String = ""
+    @State private var editingChip: ChipType? = nil
+    @State private var editDigits: String = ""
 
     // Derived summaries
     private var totalOutstandingCount: Int {
@@ -58,58 +57,87 @@ struct AdminChipsView: View {
                 }
             }
 
-            // MARK: - Chip Prices (auto-saves on submit)
+            // MARK: - Chip Prices
             Section("Chip Prices") {
-                priceRow("White", text: $whiteString) { value in
-                    vm.setChipPrice(.white, value)
-                }
-                priceRow("Gray", text: $grayString) { value in
-                    vm.setChipPrice(.gray, value)
-                }
-                priceRow("Black", text: $blackString) { value in
-                    vm.setChipPrice(.black, value)
-                }
-                Text("Prices save when you hit Return.")
+                chipPriceRow(.white)
+                chipPriceRow(.gray)
+                chipPriceRow(.black)
+                Text("Tap a price to change it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
-        .scrollDismissesKeyboard(.interactively)
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .navigationTitle("Chips")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+        .sheet(item: $editingChip) { chip in
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Text("\(chip.displayName) Chip Price")
+                        .font(.headline)
+                    Text(editedPrice.currencyString())
+                        .font(.system(size: 40, weight: .semibold, design: .rounded))
+                        .foregroundStyle(editDigits.isEmpty ? .secondary : .primary)
+                    VStack(spacing: 10) {
+                        ForEach([[1, 2, 3], [4, 5, 6], [7, 8, 9]], id: \.self) { row in
+                            HStack(spacing: 10) {
+                                ForEach(row, id: \.self) { digit in
+                                    NumpadButton(label: "\(digit)") { appendPriceDigit("\(digit)") }
+                                }
+                            }
+                        }
+                        HStack(spacing: 10) {
+                            NumpadButton(label: "⌫", isDestructive: true) {
+                                if editDigits.isEmpty == false { editDigits.removeLast() }
+                            }
+                            NumpadButton(label: "0") { appendPriceDigit("0") }
+                            NumpadButton(label: "✓", isAction: true) {
+                                vm.setChipPrice(chip, editedPrice)
+                                editingChip = nil
+                            }
+                            .disabled(editDigits.isEmpty)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 40)
+                .navigationTitle("Chip Price")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") { editingChip = nil }
+                    }
+                }
             }
-        }
-        .onAppear {
-            // Seed current prices into text fields
-            whiteString = vm.price(for: .white).currencyEditingString()
-            grayString  = vm.price(for: .gray).currencyEditingString()
-            blackString = vm.price(for: .black).currencyEditingString()
+            .presentationDetents([.medium])
         }
     }
 
-    // MARK: - Price row
     @ViewBuilder
-    private func priceRow(_ label: String,
-                          text: Binding<String>,
-                          onCommit: @escaping (Decimal) -> Void) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField("0.00", text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 100)
-                .onSubmit {
-                    if let val = Decimal(string: text.wrappedValue) {
-                        onCommit(val)
-                        text.wrappedValue = val.currencyEditingString()
-                    }
-                }
+    private func chipPriceRow(_ type: ChipType) -> some View {
+        Button {
+            editDigits = ""
+            editingChip = type
+        } label: {
+            HStack {
+                Text(type.displayName)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(vm.price(for: type).currencyString())
+                    .foregroundStyle(.blue)
+                    .fontWeight(.semibold)
+            }
         }
+    }
+
+    private var editedPrice: Decimal {
+        let digits = editDigits.isEmpty ? "0" : editDigits
+        return (Decimal(string: digits) ?? 0) / 100
+    }
+
+    private func appendPriceDigit(_ digit: String) {
+        guard editDigits.count < 5 else { return }
+        if editDigits == "0" && digit == "0" { return }
+        editDigits += digit
     }
 }

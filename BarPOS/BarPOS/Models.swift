@@ -56,6 +56,11 @@ public enum ChipType: String, Codable, Hashable, CaseIterable {
         }
     }
 }
+
+extension ChipType: Identifiable {
+    public var id: String { rawValue }
+}
+
 // MARK: - Unit of Measure
 enum UnitOfMeasure: String, Codable, CaseIterable, Identifiable {
     case each = "each"

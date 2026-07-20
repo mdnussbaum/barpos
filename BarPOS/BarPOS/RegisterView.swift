@@ -813,7 +813,7 @@ struct RegisterView: View {
                 HStack(spacing: 6) {
                     Image(systemName: isQuickActionPanelCollapsed ? "chevron.up" : "chevron.down")
                         .font(.caption.weight(.semibold))
-                    Text(isQuickActionPanelCollapsed ? "Show Numpad" : "Hide Numpad")
+                    Text(isQuickActionPanelCollapsed ? "Show Chips" : "Hide Chips")
                         .font(.caption.weight(.semibold))
                 }
                 .foregroundStyle(.secondary)
@@ -823,30 +823,13 @@ struct RegisterView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isQuickActionPanelCollapsed ? "Show numpad" : "Hide numpad")
+            .accessibilityLabel(isQuickActionPanelCollapsed ? "Show chips" : "Hide chips")
 
             if !isQuickActionPanelCollapsed {
-                HStack(spacing: 6) {
-                    quickActionPageButton(.cashTender, icon: "keyboard", label: "Cash")
-                    quickActionPageButton(.chips, icon: "circle.grid.3x3.fill", label: "Chips")
-                }
-                .frame(height: 34)
-
-                TabView(selection: $quickActionPage) {
-                    CashNumpadView(
-                        cashGivenString: $cashGivenString,
-                        total: vm.totalActive
-                    )
+                chipActionsSection
                     .padding(.horizontal, 2)
-                    .tag(QuickActionPage.cashTender)
-
-                    chipActionsSection
-                        .padding(.horizontal, 2)
-                        .tag(QuickActionPage.chips)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 300)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .frame(height: 180)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
     }

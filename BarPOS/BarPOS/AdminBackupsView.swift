@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
 
 struct AdminBackupsView: View {
     @EnvironmentObject var vm: InventoryVM
@@ -101,11 +102,45 @@ struct AdminBackupsView: View {
                 Text("Drop a file named \"bartenders_import.csv\" into iCloud Drive → BarPOS Reports. Existing bartenders are updated, new ones are added. PINs are only overwritten if the CSV has one.")
                     .font(.caption)
             }
+
+            Section {
+                Button {
+                    openReportsFolder()
+                } label: {
+                    Label("Open Reports Folder", systemImage: "folder")
+                }
+            } header: {
+                Text("Files")
+            } footer: {
+                Text("Opens the BarPOS Reports folder in the Files app so you can drop in CSV files.")
+                    .font(.caption)
+            }
         }
         .navigationTitle("Backups")
         .navigationBarTitleDisplayMode(.inline)
     }
     
+    private func openReportsFolder() {
+        guard let folderURL = FileManagerHelper.iCloudDocumentsURL else {
+            importStatus = "iCloud is not available on this device."
+            return
+        }
+        guard var comps = URLComponents(url: folderURL, resolvingAgainstBaseURL: false) else {
+            importStatus = "Could not build the folder link."
+            return
+        }
+        comps.scheme = "shareddocuments"
+        guard let sharedURL = comps.url else {
+            importStatus = "Could not build the folder link."
+            return
+        }
+        UIApplication.shared.open(sharedURL, options: [:]) { success in
+            if success == false {
+                importStatus = "Couldn't open the Files app to that folder."
+            }
+        }
+    }
+
     // ===== REPLACEMENT: restore(from:) uses InventoryVM.PersistedState =====
     private func restore(from url: URL) {
         let accessing = url.startAccessingSecurityScopedResource()

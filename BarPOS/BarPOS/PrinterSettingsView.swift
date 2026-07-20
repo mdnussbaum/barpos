@@ -160,24 +160,7 @@ private struct AdminPINPrompt: View {
                 Text("Enter Admin PIN")
                     .font(.headline)
 
-                SecureField("PIN", text: $pin)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
-                        }
-                    }
-
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-
-                Button("Unlock") {
+                AdminPINPadView(pin: $pin, errorMessage: errorMessage) {
                     if vm.unlockAdmin(with: pin) {
                         onUnlock()
                         dismiss()
@@ -186,7 +169,6 @@ private struct AdminPINPrompt: View {
                         pin = ""
                     }
                 }
-                .buttonStyle(.borderedProminent)
             }
             .padding()
             .navigationTitle("Admin Access")

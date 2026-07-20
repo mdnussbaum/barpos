@@ -19,7 +19,6 @@ struct HistoryView: View {
     @State private var showPIN = false
     @State private var pinText = ""
     @State private var pinError = ""
-    @FocusState private var pinFocused: Bool
 
     var body: some View {
         VStack {
@@ -172,38 +171,20 @@ struct HistoryView: View {
                 Text("Enter manager PIN to view All Time.")
                     .foregroundStyle(.secondary)
 
-                SecureField("PIN", text: $pinText)
-                    .textContentType(.oneTimeCode)
-                    .keyboardType(.numberPad)
-                    .padding(12)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .focused($pinFocused)
-
-                if !pinError.isEmpty {
-                    Text(pinError).foregroundStyle(.red).font(.footnote)
-                }
-
-                HStack {
-                    Button("Cancel") { showPIN = false }
-                    Spacer()
-                    Button("Unlock") {
-                        if vm.unlockAdmin(with: pinText) {
-                            showPIN = false
-                            scope = .allTime
-                        } else {
-                            pinError = "Incorrect PIN. Try again."
-                        }
+                AdminPINPadView(pin: $pinText, errorMessage: pinError) {
+                    if vm.unlockAdmin(with: pinText) {
+                        showPIN = false
+                        scope = .allTime
+                    } else {
+                        pinError = "Incorrect PIN. Try again."
+                        pinText = ""
                     }
-                    .buttonStyle(.borderedProminent)
                 }
+
+                Button("Cancel") { showPIN = false }
             }
             .padding()
             .presentationDetents([.medium])
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    pinFocused = true
-                }
-            }
         }
         // ✅ New ticket-details sheet
         .sheet(item: $presentingTicket) { res in

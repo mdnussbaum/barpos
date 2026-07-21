@@ -163,10 +163,9 @@ struct RegisterView: View {
                 CloseTabSheet(
                     tab: tab,
                     payMethod: payMethod,
-                    cashGiven: Decimal(string: cashGivenString) ?? 0,
                     printer: printerManager,
-                    onClose: { action in
-                        let cash = payMethod == .cash ? (Decimal(string: cashGivenString) ?? 0) : 0
+                    onClose: { action, tendered in
+                        let cash = payMethod == .cash ? tendered : 0
                         if let result = vm.closeActiveTab(cashTendered: cash, method: payMethod) {
                             if payMethod == .cash {
                                 cashGivenString = ""
@@ -758,25 +757,14 @@ struct RegisterView: View {
                     .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .disabled({
-                if vm.activeLines.isEmpty { return true }
-                if payMethod == .cash {
-                    if vm.totalActive <= 0 { return false }
-                    let tendered = Decimal(string: cashGivenString) ?? 0
-                    return tendered < vm.totalActive
-                }
-                return false
-            }())
+            .disabled(vm.activeLines.isEmpty)
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var checkoutSummary: some View {
-        let tendered = Decimal(string: cashGivenString) ?? 0
-        let change = max(0, tendered - vm.totalActive)
-
-        return HStack(spacing: 12) {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Total")
                     .font(.caption)
@@ -786,17 +774,6 @@ struct RegisterView: View {
             }
 
             Spacer()
-
-            if payMethod == .cash {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(tendered >= vm.totalActive && vm.totalActive > 0 ? "Change" : "Tendered")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(tendered >= vm.totalActive && vm.totalActive > 0 ? change.currencyString() : tendered.currencyString())
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(tendered >= vm.totalActive && vm.totalActive > 0 ? .green : .primary)
-                }
-            }
         }
         .padding(10)
         .background(Color(.secondarySystemFill))
@@ -1148,10 +1125,11 @@ struct RegisterView: View {
     struct CloseTabSheet: View {
         let tab: TabTicket
         let payMethod: PaymentMethod
-        let cashGiven: Decimal
+        @State private var cashGivenString: String = ""
+        private var cashGiven: Decimal { Decimal(string: cashGivenString) ?? 0 }
         let printer: EpsonPrinterManager
         enum CloseAction { case printReceipt, noReceipt }
-        let onClose: (CloseAction) -> Void
+        let onClose: (CloseAction, Decimal) -> Void
         let onCancel: () -> Void
 
         private var subtotal: Decimal { tab.subtotal }
@@ -1160,6 +1138,14 @@ struct RegisterView: View {
             guard payMethod == .cash else { return 0 }
             return max(0, cashGiven - total)
         }
+        // Cash closes require the tendered amount, except on zero-total tabs
+        // (comped, voided, or chip-only) which would otherwise be unclosable.
+        private var closeDisabled: Bool {
+            guard payMethod == .cash else { return false }
+            if total <= 0 { return false }
+            return cashGiven < total
+        }
+
         private var payMethodLabel: String {
             switch payMethod {
             case .cash: return "Cash"
@@ -1237,6 +1223,12 @@ struct RegisterView: View {
                             }
                         }
                     }
+                    if payMethod == .cash {
+                        Section("Enter Cash Tendered") {
+                            CashNumpadView(cashGivenString: $cashGivenString, total: total)
+                                .padding(.vertical, 4)
+                        }
+                    }
                 }
                 .listStyle(.insetGrouped)
                 .navigationTitle("Close Tab")
@@ -1249,7 +1241,7 @@ struct RegisterView: View {
                 .safeAreaInset(edge: .bottom) {
                     HStack(spacing: 12) {
                         Button {
-                            onClose(.noReceipt)
+                            onClose(.noReceipt, cashGiven)
                         } label: {
                             Text("No Receipt")
                                 .font(.headline)
@@ -1260,9 +1252,11 @@ struct RegisterView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
+                        .disabled(closeDisabled)
+                        .opacity(closeDisabled ? 0.4 : 1)
 
                         Button {
-                            onClose(.printReceipt)
+                            onClose(.printReceipt, cashGiven)
                         } label: {
                             Label("Print Receipt", systemImage: "printer.fill")
                                 .font(.headline)
@@ -1273,6 +1267,8 @@ struct RegisterView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
+                        .disabled(closeDisabled)
+                        .opacity(closeDisabled ? 0.4 : 1)
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)

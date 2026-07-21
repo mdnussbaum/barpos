@@ -1156,123 +1156,139 @@ struct RegisterView: View {
 
         var body: some View {
             NavigationStack {
-                List {
-                    // Tab header
-                    Section {
-                        HStack {
-                            Text("Tab")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(tab.name.isEmpty ? "Unnamed" : tab.name)
-                                .fontWeight(.semibold)
-                        }
-                        HStack {
-                            Text("Payment")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(payMethodLabel)
-                                .fontWeight(.semibold)
-                        }
-                    }
-
-                    // Itemized lines
-                    Section("Items") {
-                        ForEach(tab.lines) { line in
-                            HStack {
-                                Text(line.displayName)
-                                Spacer()
-                                Text("×\(line.qty)")
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 36, alignment: .trailing)
-                                Text(line.lineTotal.currencyString())
-                                    .frame(width: 72, alignment: .trailing)
-                            }
+                VStack(spacing: 0) {
+                    // MARK: Fixed header
+                    HStack {
+                        Text(tab.name.isEmpty ? "Unnamed" : tab.name)
+                            .font(.headline)
+                        Spacer()
+                        Text(payMethodLabel)
                             .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Capsule())
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    Divider()
+
+                    // MARK: Scrolling item list - the only scrollable region
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(tab.lines) { line in
+                                HStack {
+                                    Text(line.displayName)
+                                    Spacer()
+                                    Text("×\(line.qty)")
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 36, alignment: .trailing)
+                                    Text(line.lineTotal.currencyString())
+                                        .frame(width: 72, alignment: .trailing)
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
+
+                                Divider()
+                                    .padding(.leading, 16)
+                            }
                         }
                     }
+                    .frame(maxHeight: .infinity)
 
-                    // Totals
-                    Section {
+                    Divider()
+
+                    // MARK: Fixed footer - totals, numpad, actions.
+                    // Nothing here moves, so the pad and the buttons are
+                    // always in the same place.
+                    VStack(spacing: 8) {
                         HStack {
                             Text("Subtotal")
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Text(subtotal.currencyString())
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
+
                         HStack {
                             Text("Total")
-                                .fontWeight(.semibold)
+                                .font(.headline)
                             Spacer()
                             Text(total.currencyString())
-                                .fontWeight(.semibold)
+                                .font(.system(size: 24, weight: .bold))
                         }
+
                         if payMethod == .cash {
-                            HStack {
-                                Text("Cash Tendered")
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Tendered")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(cashGiven.currencyString())
+                                        .font(.system(size: 18, weight: .semibold))
+                                }
                                 Spacer()
-                                Text(cashGiven.currencyString())
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("Change Due")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(changeDue.currencyString())
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(changeDue > 0 ? .green : .primary)
+                                }
                             }
-                            HStack {
-                                Text("Change Due")
-                                    .foregroundStyle(changeDue > 0 ? .green : .secondary)
-                                Spacer()
-                                Text(changeDue.currencyString())
-                                    .foregroundStyle(changeDue > 0 ? .green : .primary)
-                                    .fontWeight(changeDue > 0 ? .semibold : .regular)
-                            }
-                        }
-                    }
-                    if payMethod == .cash {
-                        Section("Enter Cash Tendered") {
+
                             CashNumpadView(cashGivenString: $cashGivenString, total: total)
-                                .padding(.vertical, 4)
+                        }
+
+                        HStack(spacing: 12) {
+                            Button {
+                                onClose(.noReceipt, cashGiven)
+                            } label: {
+                                Text("No Receipt")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color(.secondarySystemBackground))
+                                    .foregroundStyle(.primary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(closeDisabled)
+                            .opacity(closeDisabled ? 0.4 : 1)
+
+                            Button {
+                                onClose(.printReceipt, cashGiven)
+                            } label: {
+                                Label("Print Receipt", systemImage: "printer.fill")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color.blue)
+                                    .foregroundStyle(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(closeDisabled)
+                            .opacity(closeDisabled ? 0.4 : 1)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 12)
+                    .background(.regularMaterial)
                 }
-                .listStyle(.insetGrouped)
                 .navigationTitle("Close Tab")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel", action: onCancel)
                     }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    HStack(spacing: 12) {
-                        Button {
-                            onClose(.noReceipt, cashGiven)
-                        } label: {
-                            Text("No Receipt")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color(.secondarySystemBackground))
-                                .foregroundStyle(.primary)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(closeDisabled)
-                        .opacity(closeDisabled ? 0.4 : 1)
-
-                        Button {
-                            onClose(.printReceipt, cashGiven)
-                        } label: {
-                            Label("Print Receipt", systemImage: "printer.fill")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color.blue)
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(closeDisabled)
-                        .opacity(closeDisabled ? 0.4 : 1)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-                    .background(.regularMaterial)
                 }
             }
         }
